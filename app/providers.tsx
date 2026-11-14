@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, ReactNode } from 'react';
+import { useEffect, ReactNode, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/hooks';
 import { supabaseClient } from '@/lib/db/supabase';
@@ -12,13 +12,19 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { setUser, setLoading } = useAuthStore();
+  const { setUser, setLoading, user } = useAuthStore();
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
 
     const checkSession = async () => {
       try {
+        // Only check session once on app initialization
+        if (isInitialized) return;
+
+        setLoading(true);
+
         // First, try to restore session from localStorage
         if (typeof window !== 'undefined') {
           const storedSession = localStorage.getItem('supabase-session');
@@ -26,75 +32,76 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const storedUser = localStorage.getItem('supabase-user');
 
           if (storedSession && storedAccessToken) {
-            const session = JSON.parse(storedSession);
-            // Set the session in Supabase client
-            await supabaseClient.auth.setSession(session);
+            try {
+              const session = JSON.parse(storedSession);
+              // Set the session in Supabase client
+              await supabaseClient.auth.setSession(session);
 
-            if (storedUser && isMounted) {
-              const user = JSON.parse(storedUser);
+              if (storedUser && isMounted) {
+                const user = JSON.parse(storedUser);
+                
+                // Obtener perfil del usuario
+                try {
+                  const { data: profile } = await supabaseClient
+                    .from('user_profiles')
+                    .select('*')
+                    .eq('id', user.id)
+                    .single();
+
+                  setUser({
+                    id: user.id,
+                    email: user.email || '',
+                    username: profile?.username || '',
+                    full_name: profile?.full_name || 'Usuario',
+                    role: profile?.role || 'user',
+                  });
+                } catch (error) {
+                  // Profile query failed, set basic user
+                  setUser({
+                    id: user.id,
+                    email: user.email || '',
+                    username: 'user',
+                    full_name: 'Usuario',
+                    role: 'user',
+                  });
+                }
+              }
               
-              // Obtener perfil del usuario
-              const { data: profile } = await supabaseClient
-                .from('user_profiles')
-                .select('*')
-                .eq('id', user.id)
-                .single();
-
-              setUser({
-                id: user.id,
-                email: user.email || '',
-                username: profile?.username || '',
-                full_name: profile?.full_name || 'Usuario',
-                role: profile?.role || 'user',
-              });
+              if (isMounted) {
+                setIsInitialized(true);
+              }
+              return;
+            } catch (error) {
+              console.error('Error restoring session:', error);
             }
-            return;
           }
         }
 
-        // If no localStorage session, check Supabase session
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        
-        if (session?.user && isMounted) {
-          // Obtener perfil del usuario
-          const { data: profile } = await supabaseClient
-            .from('user_profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+        // If no valid localStorage session and on a protected route, redirect
+        const protectedRoutes = [
+          '/dashboard',
+          '/dashboard/clientes',
+          '/dashboard/inventario',
+          '/dashboard/proveedores',
+          '/dashboard/compras',
+          '/dashboard/pos',
+          '/dashboard/caja',
+          '/dashboard/reportes',
+          '/dashboard/asistencia',
+          '/dashboard/empleados',
+        ];
 
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            username: profile?.username || '',
-            full_name: profile?.full_name || 'Usuario',
-            role: profile?.role || 'user',
-          });
-        } else {
-          setUser(null);
-          
-          // Redirigir a login si intenta acceder a ruta protegida
-          const protectedRoutes = [
-            '/dashboard',
-            '/clientes',
-            '/inventario',
-            '/proveedores',
-            '/compras',
-            '/pos',
-            '/caja',
-            '/reportes',
-            '/asistencia',
-            '/empleados',
-          ];
-          
-          if (protectedRoutes.some(route => pathname.startsWith(route))) {
-            router.push('/login');
-          }
+        if (protectedRoutes.some(route => pathname.startsWith(route)) && !user) {
+          router.push('/login');
+        }
+
+        if (isMounted) {
+          setIsInitialized(true);
         }
       } catch (error) {
         console.error('Error checking session:', error);
         if (isMounted) {
-          setUser(null);
+          setIsInitialized(true);
         }
       } finally {
         if (isMounted) {
@@ -105,25 +112,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     checkSession();
 
-    // Escuchar cambios de autenticación
+    // Listen for auth changes
     const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return;
 
         if (session?.user) {
-          const { data: profile } = await supabaseClient
-            .from('user_profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+          try {
+            const { data: profile } = await supabaseClient
+              .from('user_profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
 
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            username: profile?.username || '',
-            full_name: profile?.full_name || 'Usuario',
-            role: profile?.role || 'user',
-          });
+            setUser({
+              id: session.user.id,
+              email: session.user.email || '',
+              username: profile?.username || '',
+              full_name: profile?.full_name || 'Usuario',
+              role: profile?.role || 'user',
+            });
+          } catch (error) {
+            setUser({
+              id: session.user.id,
+              email: session.user.email || '',
+              username: 'user',
+              full_name: 'Usuario',
+              role: 'user',
+            });
+          }
           setLoading(false);
 
           // Persist to localStorage
@@ -145,8 +162,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
             localStorage.removeItem('supabase-user');
           }
 
-          // Redirigir a login si la sesión expira
-          if (pathname !== '/login' && pathname !== '/signup') {
+          // Redirigir a login solo si la sesión expira (evento)
+          if (event === 'SIGNED_OUT' && pathname !== '/login' && pathname !== '/signup') {
             router.push('/login');
           }
         }
@@ -157,7 +174,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isMounted = false;
       subscription?.unsubscribe();
     };
-  }, [setUser, setLoading, pathname, router]);
+  }, [router, pathname, setUser, setLoading, user, isInitialized]);
 
   return children;
 }
