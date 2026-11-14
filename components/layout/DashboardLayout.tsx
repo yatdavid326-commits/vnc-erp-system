@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, Settings, User as UserIcon, Menu, X } from 'lucide-react';
-import { supabaseClient } from '@/lib/db/supabase';
 import { authService } from '@/lib/services/auth/authService';
 import { modulesService } from '@/lib/services/modules/modulesService';
 import { useAuthStore, useModuleStore } from '@/hooks';
@@ -22,48 +21,31 @@ export default function DashboardLayout({
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   useEffect(() => {
-    const loadUser = async () => {
+    // Solo cargar datos del módulo, NO hacer check de sesión
+    // (AuthProvider ya lo hace)
+    if (!user || !user.id) {
+      return;
+    }
+
+    const loadModules = async () => {
       try {
         setLoading(true);
-        const currentUser = await authService.getCurrentUser();
-        if (!currentUser) {
-          router.push('/login');
-          return;
-        }
-
-        const profile = await authService.getUserProfile();
-        setUser(profile);
-
         const modules = await modulesService.getAllModules();
         setModules(modules);
 
         const userModules = await modulesService.getUserModulesWithDetails(
-          currentUser.id
+          user.id
         );
         setUserModules(userModules);
       } catch (error) {
-        console.error('Error loading user:', error);
-        router.push('/login');
+        console.error('Error loading modules:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    loadUser();
-
-    const {
-      data: { subscription },
-    } = supabaseClient.auth.onAuthStateChange((event, session) => {
-      if (!session) {
-        setUser(null);
-        router.push('/login');
-      }
-    });
-
-    return () => {
-      subscription?.unsubscribe();
-    };
-  }, [router, setUser, setLoading, setModules, setUserModules]);
+    loadModules();
+  }, [user, setModules, setUserModules, setLoading]);
 
   const handleLogout = async () => {
     await authService.signOut();

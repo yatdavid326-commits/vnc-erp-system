@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/hooks';
 import { useRouter } from 'next/navigation';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+
 
 interface Reporte {
   tipo: string;
@@ -102,7 +102,6 @@ ASISTENCIAS: ${r.total_asistencias}
   };
 
   return (
-    <DashboardLayout>
       <div className="p-6">
         <h1 className="text-3xl font-bold mb-6">Reportes</h1>
 
@@ -215,8 +214,8 @@ ASISTENCIAS: ${r.total_asistencias}
           </>
         )}
       </div>
-    </DashboardLayout>
-  );
+    );
 }
+
 
 

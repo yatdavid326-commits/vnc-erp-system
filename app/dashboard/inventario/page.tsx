@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/hooks';
 import { useRouter } from 'next/navigation';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+
 import InventarioForm from '@/components/inventario/InventarioForm';
 import InventarioTable from '@/components/inventario/InventarioTable';
 import StockAlerts from '@/components/inventario/StockAlerts';
@@ -129,7 +129,6 @@ export default function InventarioPage() {
   const totalPages = Math.ceil(total / limit);
 
   return (
-    <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
@@ -214,8 +213,7 @@ export default function InventarioPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
-  );
+    );
 }
     try {
       setLoading(true);
@@ -292,7 +290,6 @@ export default function InventarioPage() {
   };
 
   return (
-    <DashboardLayout>
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Gestión de Inventario</h1>
@@ -455,8 +452,8 @@ export default function InventarioPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
-  );
+    );
 }
+
 
 

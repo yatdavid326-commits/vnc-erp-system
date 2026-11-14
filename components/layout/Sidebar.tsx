@@ -58,25 +58,25 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
     operations: {
       label: 'Operaciones',
       items: [
-        { name: 'pos', display_name: 'Punto de Venta', route: '/pos' },
-        { name: 'inventario', display_name: 'Inventario', route: '/inventario' },
-        { name: 'caja', display_name: 'Gestión de Caja', route: '/caja' },
+        { name: 'pos', display_name: 'Punto de Venta', route: '/dashboard/pos' },
+        { name: 'inventario', display_name: 'Inventario', route: '/dashboard/inventario' },
+        { name: 'caja', display_name: 'Gestión de Caja', route: '/dashboard/caja' },
       ],
     },
     business: {
       label: 'Negocio',
       items: [
-        { name: 'clientes', display_name: 'Clientes', route: '/clientes' },
-        { name: 'proveedores', display_name: 'Proveedores', route: '/proveedores' },
-        { name: 'compras', display_name: 'Compras/Recibos', route: '/compras' },
+        { name: 'clientes', display_name: 'Clientes', route: '/dashboard/clientes' },
+        { name: 'proveedores', display_name: 'Proveedores', route: '/dashboard/proveedores' },
+        { name: 'compras', display_name: 'Compras/Recibos', route: '/dashboard/compras' },
       ],
     },
     admin: {
       label: 'Administración',
       items: [
-        { name: 'empleados', display_name: 'Empleados', route: '/empleados' },
-        { name: 'asistencia', display_name: 'Asistencia (QR+GPS)', route: '/asistencia' },
-        { name: 'reportes', display_name: 'Reportes', route: '/reportes' },
+        { name: 'empleados', display_name: 'Empleados', route: '/dashboard/empleados' },
+        { name: 'asistencia', display_name: 'Asistencia (QR+GPS)', route: '/dashboard/asistencia' },
+        { name: 'reportes', display_name: 'Reportes', route: '/dashboard/reportes' },
       ],
     },
   };

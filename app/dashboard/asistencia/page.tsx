@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/hooks';
 import { useRouter } from 'next/navigation';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+
 
 interface Asistencia {
   id: string;
@@ -112,7 +112,6 @@ export default function AsistenciaPage() {
   };
 
   return (
-    <DashboardLayout>
       <div className="p-6">
         <h1 className="text-3xl font-bold mb-6">Control de Asistencia</h1>
 
@@ -231,8 +230,8 @@ export default function AsistenciaPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
-  );
+    );
 }
+
 
 

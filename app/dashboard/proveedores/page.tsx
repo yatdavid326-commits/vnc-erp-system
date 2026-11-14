@@ -7,7 +7,7 @@ import { useAuthStore } from '@/hooks';
 import { useRouter } from 'next/navigation';
 import ProveedoresForm from '@/components/proveedores/ProveedoresForm';
 import ProveedoresTable from '@/components/proveedores/ProveedoresTable';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+
 
 interface Proveedor {
   id: string;
@@ -132,7 +132,6 @@ export default function ProveedoresPage() {
   };
 
   return (
-    <DashboardLayout>
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Gestión de Proveedores</h1>
@@ -187,8 +186,8 @@ export default function ProveedoresPage() {
           />
         )}
       </div>
-    </DashboardLayout>
-  );
+    );
 }
+
 
 

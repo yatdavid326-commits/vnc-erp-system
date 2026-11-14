@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/hooks';
 import { useRouter } from 'next/navigation';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+
 
 interface Venta {
   id: string;
@@ -95,7 +95,6 @@ export default function POSPage() {
   };
 
   return (
-    <DashboardLayout>
       <div className="p-6">
         <div className="grid grid-cols-3 gap-6">
           <div className="col-span-2">
@@ -228,8 +227,8 @@ export default function POSPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
-  );
+    );
 }
+
 
 

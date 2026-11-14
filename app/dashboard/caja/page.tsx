@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/hooks';
 import { useRouter } from 'next/navigation';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+
 
 interface Movimiento {
   id: string;
@@ -89,7 +89,6 @@ export default function CajaPage() {
   const saldo = totalIngresos - totalEgresos;
 
   return (
-    <DashboardLayout>
       <div className="p-6">
         <h1 className="text-3xl font-bold mb-6">Gestión de Caja</h1>
 
@@ -185,8 +184,8 @@ export default function CajaPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
-  );
+    );
 }
+
 
 

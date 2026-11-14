@@ -7,7 +7,6 @@ import { useAuthStore } from '@/hooks';
 import { useRouter } from 'next/navigation';
 import ClientesForm from '@/components/clientes/ClientesForm';
 import ClientesTable from '@/components/clientes/ClientesTable';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 
 interface Cliente {
   id: string;
@@ -128,8 +127,7 @@ export default function ClientesPage() {
   };
 
   return (
-    <DashboardLayout>
-      <div className="p-6">
+    <div className="p-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Gestión de Clientes</h1>
           <button
@@ -182,7 +180,6 @@ export default function ClientesPage() {
           />
         )}
       </div>
-    </DashboardLayout>
   );
 }
 

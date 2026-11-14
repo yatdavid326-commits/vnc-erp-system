@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/hooks';
 import { useRouter } from 'next/navigation';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+
 
 interface Empleado {
   id: string;
@@ -144,7 +144,6 @@ export default function EmpleadosPage() {
   };
 
   return (
-    <DashboardLayout>
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Gestión de Empleados</h1>
@@ -337,8 +336,8 @@ export default function EmpleadosPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
-  );
+    );
 }
+
 
 
