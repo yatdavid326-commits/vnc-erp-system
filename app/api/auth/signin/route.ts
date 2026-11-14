@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/db/supabase';
-import { supabase } from '@/lib/db/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,8 +34,8 @@ export async function POST(request: NextRequest) {
 
     const email = profiles[0].email;
 
-    // Step 2: Sign in with email and password using the regular client
-    const { data, error } = await supabase.auth.signInWithPassword({
+    // Step 2: Sign in with email and password
+    const { data, error } = await supabaseAdmin.auth.signInWithPassword({
       email,
       password,
     });

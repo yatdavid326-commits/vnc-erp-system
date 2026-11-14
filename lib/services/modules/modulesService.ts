@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/db/supabase';
+import { supabaseClient } from '@/lib/db/supabase';
 import type { Module, UserModule } from '@/lib/types';
 
 export const modulesService = {
@@ -24,7 +24,7 @@ export const modulesService = {
   },
 
   async getUserModules(userId: string): Promise<UserModule[]> {
-    const { data } = await supabase
+    const { data } = await supabaseClient
       .from('user_modules')
       .select('*')
       .eq('user_id', userId);
@@ -37,7 +37,7 @@ export const modulesService = {
       // Get the session to get the access token
       const {
         data: { session },
-      } = await supabase.auth.getSession();
+      } = await supabaseClient.auth.getSession();
 
       if (!session?.access_token) return [];
 
@@ -68,7 +68,7 @@ export const modulesService = {
       can_delete?: boolean;
     }
   ) {
-    return await supabase
+    return await supabaseClient
       .from('user_modules')
       .upsert({
         user_id: userId,
@@ -80,7 +80,7 @@ export const modulesService = {
   },
 
   async revokeModuleAccess(userId: string, moduleId: string) {
-    return await supabase
+    return await supabaseClient
       .from('user_modules')
       .delete()
       .eq('user_id', userId)
@@ -88,7 +88,7 @@ export const modulesService = {
   },
 
   async hasModuleAccess(userId: string, moduleName: string): Promise<boolean> {
-    const { data } = await supabase
+    const { data } = await supabaseClient
       .from('user_modules')
       .select(
         `

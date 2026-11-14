@@ -1,11 +1,11 @@
-import { supabase, supabaseAdmin } from '@/lib/db/supabase';
+import { supabaseClient } from '@/lib/db/supabase';
 import type { User } from '@/lib/types';
 
 export const authService = {
   async getCurrentUser() {
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await supabaseClient.auth.getUser();
     return user;
   },
 
@@ -17,7 +17,7 @@ export const authService = {
       // Get the session to get the access token
       const {
         data: { session },
-      } = await supabase.auth.getSession();
+      } = await supabaseClient.auth.getSession();
 
       if (!session?.access_token) return null;
 
@@ -39,7 +39,7 @@ export const authService = {
   },
 
   async signUp(email: string, password: string) {
-    return await supabase.auth.signUp({
+    return await supabaseClient.auth.signUp({
       email,
       password,
     });
@@ -69,18 +69,18 @@ export const authService = {
       }
     }
     
-    return await supabase.auth.signInWithPassword({
+    return await supabaseClient.auth.signInWithPassword({
       email,
       password,
     });
   },
 
   async signOut() {
-    return await supabase.auth.signOut();
+    return await supabaseClient.auth.signOut();
   },
 
   async updatePassword(newPassword: string) {
-    return await supabase.auth.updateUser({
+    return await supabaseClient.auth.updateUser({
       password: newPassword,
     });
   },
@@ -89,7 +89,7 @@ export const authService = {
     const user = await this.getCurrentUser();
     if (!user) throw new Error('No user logged in');
 
-    return await supabase
+    return await supabaseClient
       .from('user_profiles')
       .update(updates)
       .eq('id', user.id)
@@ -98,7 +98,7 @@ export const authService = {
   },
 
   async getUserModules(userId: string) {
-    const { data } = await supabase
+    const { data } = await supabaseClient
       .from('user_modules')
       .select(
         `
@@ -114,7 +114,7 @@ export const authService = {
   async verifyToken(token: string) {
     const {
       data: { user },
-    } = await supabase.auth.getUser(token);
+    } = await supabaseClient.auth.getUser(token);
     return user;
   },
 };

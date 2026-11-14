@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/db/supabase';
+import { supabaseClient } from '@/lib/db/supabase';
 import { PostgrestError } from '@supabase/supabase-js';
 
 export interface Cliente {
@@ -85,7 +85,7 @@ class CustomerService {
       const start = (page - 1) * limit;
       const end = start + limit - 1;
 
-      const { data, error, count } = await supabase
+      const { data, error, count } = await supabaseClient
         .from('customers')
         .select('*', { count: 'exact' })
         .order('created_at', { ascending: false })
@@ -100,7 +100,7 @@ class CustomerService {
 
   async getById(id: string): Promise<Cliente | null> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('customers')
         .select('*')
         .eq('id', id)
@@ -115,7 +115,7 @@ class CustomerService {
 
   async search(query: string, limit = 20): Promise<Cliente[]> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('customers')
         .select('*')
         .or(`name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%`)
@@ -132,7 +132,7 @@ class CustomerService {
     try {
       const customerData = clienteToCustomer(cliente);
       
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('customers')
         .insert([customerData])
         .select()
@@ -159,7 +159,7 @@ class CustomerService {
       if (cliente.saldo_actual !== undefined) updateData.current_balance = cliente.saldo_actual;
       if (cliente.estado_cliente) updateData.active = cliente.estado_cliente === 'activo';
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('customers')
         .update(updateData)
         .eq('id', id)
@@ -175,7 +175,7 @@ class CustomerService {
 
   async delete(id: string): Promise<boolean> {
     try {
-      const { error } = await supabase
+      const { error } = await supabaseClient
         .from('customers')
         .delete()
         .eq('id', id);
@@ -190,7 +190,7 @@ class CustomerService {
   // Credit Management Functions
   async getCreditBalance(clienteId: string): Promise<number> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('customers')
         .select('current_balance')
         .eq('id', clienteId)
@@ -208,7 +208,7 @@ class CustomerService {
       const currentBalance = await this.getCreditBalance(clienteId);
       const newBalance = currentBalance + amount;
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('customers')
         .update({ current_balance: newBalance })
         .eq('id', clienteId)
@@ -224,7 +224,7 @@ class CustomerService {
 
   async addCreditTransaction(transaction: CreditTransaction): Promise<CreditTransaction> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('credit_transactions')
         .insert([transaction])
         .select()
@@ -244,7 +244,7 @@ class CustomerService {
 
   async getCreditTransactions(clienteId: string, limit = 100): Promise<CreditTransaction[]> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('credit_transactions')
         .select('*')
         .eq('cliente_id', clienteId)
@@ -260,7 +260,7 @@ class CustomerService {
 
   async isCreditAvailable(clienteId: string, amount: number): Promise<boolean> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('customers')
         .select('current_balance, credit_limit')
         .eq('id', clienteId)
@@ -282,7 +282,7 @@ class CustomerService {
       const start = (page - 1) * limit;
       const end = start + limit - 1;
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('customers')
         .select('*')
         .eq('customer_type', type)
@@ -298,10 +298,10 @@ class CustomerService {
 
   async getHighCreditRiskCustomers(riskThreshold = 0.8): Promise<Cliente[]> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('customers')
         .select('*')
-        .filter('current_balance', 'gte', supabase.rpc('get_credit_limit_multiply', { risk: riskThreshold }));
+        .filter('current_balance', 'gte', supabaseClient.rpc('get_credit_limit_multiply', { risk: riskThreshold }));
 
       if (error) throw error;
       return (data || []).map(customerToCliente);

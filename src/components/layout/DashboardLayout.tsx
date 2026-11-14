@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, Settings, User as UserIcon, Menu, X } from 'lucide-react';
-import { supabase } from '@/lib/db/supabase';
+import { supabaseClient } from '@/lib/db/supabase';
 import { authService } from '@/lib/services/auth/authService';
 import { modulesService } from '@/lib/services/modules/modulesService';
 import { useAuthStore, useModuleStore } from '@/hooks';
@@ -53,7 +53,7 @@ export default function DashboardLayout({
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabaseClient.auth.onAuthStateChange((event, session) => {
       if (!session) {
         setUser(null);
         router.push('/login');

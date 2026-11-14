@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/db/supabase';
+import { supabaseAdmin } from '@/lib/db/supabase';
 
 export async function GET(request: NextRequest) {
   try {
     // Intentar obtener la sesión actual de Supabase
-    const { data: { session }, error } = await supabase.auth.getSession();
+    const { data: { session }, error } = await supabaseAdmin.auth.getSession();
 
     if (session?.user) {
       // Obtener el perfil del usuario
-      const { data: profile } = await supabase
+      const { data: profile } = await supabaseAdmin
         .from('user_profiles')
         .select('*')
         .eq('id', session.user.id)
