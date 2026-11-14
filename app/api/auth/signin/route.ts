@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
+import { supabaseAdmin } from '@/lib/db/supabase';
+import { supabase } from '@/lib/db/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,43 +13,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create Supabase client with cookie handling
-    const response = NextResponse.json({ success: true });
-
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getSetCookie();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              response.cookies.set(name, value, options);
-            });
-          },
-        },
-      }
-    );
-
     // Step 1: Find the email by username using admin client (bypasses RLS)
-    const supabaseAdmin = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getSetCookie();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              response.cookies.set(name, value, options);
-            });
-          },
-        },
-      }
-    );
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
 
     const { data: profiles, error: lookupError } = await supabaseAdmin
       .from('user_profiles')
@@ -77,12 +48,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Return success with cookies set
-    response.headers.set('Content-Type', 'application/json');
-    response.body = JSON.stringify({
+    // Create response with session data
+    const response = NextResponse.json({
       user: data.user,
       session: data.session,
     });
+
+    // Set auth cookies for session persistence
+    if (data.session) {
+      response.cookies.set('sb-session', JSON.stringify(data.session), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+    }
 
     return response;
   } catch (error) {

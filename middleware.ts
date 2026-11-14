@@ -1,35 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
 
 export async function middleware(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const pathName = requestUrl.pathname;
 
-  // Crear cliente de Supabase para acceso a cookies
-  let supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getSetCookie();
-        },
-        setAll(cookiesToSet) {
-          const response = NextResponse.next();
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
-          return response;
-        },
-      },
-    }
-  );
+  // Verificar si hay sesión
+  const sessionCookie = request.cookies.get('sb-session');
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  // Rutas protegidas (no login/signup)
+  // Rutas protegidas
   const protectedRoutes = [
     '/dashboard',
     '/clientes',
@@ -48,12 +26,12 @@ export async function middleware(request: NextRequest) {
   );
 
   // Si intenta acceder a ruta protegida sin sesión
-  if (isProtectedRoute && !user) {
+  if (isProtectedRoute && !sessionCookie) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // Si está en login/signup pero ya autenticado
-  if ((pathName === '/login' || pathName === '/signup') && user) {
+  // Si está en login/signup pero ya tiene sesión
+  if ((pathName === '/login' || pathName === '/signup') && sessionCookie) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
@@ -65,3 +43,4 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.svg|.*\\.png|.*\\.jpg).*)',
   ],
 };
+
