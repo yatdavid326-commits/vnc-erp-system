@@ -9,7 +9,8 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: NextRequest) {
   try {
-    const { username } = await request.json();
+    const body = await request.json();
+    const { username } = body;
 
     if (!username) {
       return NextResponse.json(
@@ -18,28 +19,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log(`[login-lookup] Looking for username: ${username}`);
+    console.log(`[login-lookup] supabaseAdmin available: ${!!supabaseAdmin}`);
+
     // Use admin client to bypass RLS
     const { data, error } = await supabaseAdmin
       .from('user_profiles')
       .select('email, username')
-      .eq('username', username)
-      .single();
+      .eq('username', username);
 
-    if (error || !data) {
+    console.log(`[login-lookup] Query result:`, { data, error });
+
+    if (error) {
+      console.error('[login-lookup] Supabase error:', error);
+      return NextResponse.json(
+        { error: 'Database error' },
+        { status: 500 }
+      );
+    }
+
+    if (!data || data.length === 0) {
+      console.log(`[login-lookup] No user found with username: ${username}`);
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
       );
     }
 
+    const profile = data[0];
+    console.log(`[login-lookup] Found user:`, { email: profile.email, username: profile.username });
+
     return NextResponse.json({
-      email: data.email,
-      username: data.username,
+      email: profile.email,
+      username: profile.username,
     });
   } catch (error) {
-    console.error('Error in login lookup:', error);
+    console.error('[login-lookup] Error in login lookup:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: String(error) },
       { status: 500 }
     );
   }
