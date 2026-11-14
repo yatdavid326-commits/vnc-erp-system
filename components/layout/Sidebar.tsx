@@ -1,6 +1,5 @@
 'use client';
 
-import { useModuleStore } from '@/hooks';
 import Link from 'next/link';
 import {
   LayoutDashboard,
@@ -23,21 +22,20 @@ interface SidebarProps {
 
 const moduleIcons: Record<string, React.ReactNode> = {
   dashboard: <LayoutDashboard size={20} />,
-  clients: <Users size={20} />,
-  inventory: <Package size={20} />,
-  suppliers: <Truck size={20} />,
-  purchases: <ShoppingCart size={20} />,
+  clientes: <Users size={20} />,
+  inventario: <Package size={20} />,
+  proveedores: <Truck size={20} />,
+  compras: <ShoppingCart size={20} />,
   pos: <CreditCard size={20} />,
-  cash: <BarChart3 size={20} />,
-  reports: <BarChart3 size={20} />,
-  attendance: <Clock size={20} />,
-  employees: <Users size={20} />,
+  caja: <BarChart3 size={20} />,
+  reportes: <BarChart3 size={20} />,
+  asistencia: <Clock size={20} />,
+  empleados: <Users size={20} />,
 };
 
 export default function Sidebar({ collapsed = false }: SidebarProps) {
-  const { userModules } = useModuleStore();
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(['main'])
+    new Set(['main', 'operations', 'business', 'admin'])
   );
 
   const toggleSection = (section: string) => {
@@ -54,42 +52,32 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
     main: {
       label: 'Principal',
       items: [
-        {
-          name: 'dashboard',
-          display_name: 'Panel de Control',
-          route: '/dashboard',
-        },
+        { name: 'dashboard', display_name: 'Panel de Control', route: '/dashboard' },
       ],
     },
     operations: {
       label: 'Operaciones',
-      items: userModules
-        .filter((um) =>
-          ['pos', 'inventory', 'cash'].some(
-            (m) => um.module?.name === m && um.can_view
-          )
-        )
-        .map((um) => ({ ...um.module, route: `/${um.module.name}` })),
+      items: [
+        { name: 'pos', display_name: 'Punto de Venta', route: '/pos' },
+        { name: 'inventario', display_name: 'Inventario', route: '/inventario' },
+        { name: 'caja', display_name: 'Gestión de Caja', route: '/caja' },
+      ],
     },
     business: {
       label: 'Negocio',
-      items: userModules
-        .filter((um) =>
-          ['clients', 'suppliers', 'purchases'].some(
-            (m) => um.module?.name === m && um.can_view
-          )
-        )
-        .map((um) => ({ ...um.module, route: `/${um.module.name}` })),
+      items: [
+        { name: 'clientes', display_name: 'Clientes', route: '/clientes' },
+        { name: 'proveedores', display_name: 'Proveedores', route: '/proveedores' },
+        { name: 'compras', display_name: 'Compras/Recibos', route: '/compras' },
+      ],
     },
     admin: {
       label: 'Administración',
-      items: userModules
-        .filter((um) =>
-          ['employees', 'attendance', 'reports'].some(
-            (m) => um.module?.name === m && um.can_view
-          )
-        )
-        .map((um) => ({ ...um.module, route: `/${um.module.name}` })),
+      items: [
+        { name: 'empleados', display_name: 'Empleados', route: '/empleados' },
+        { name: 'asistencia', display_name: 'Asistencia (QR+GPS)', route: '/asistencia' },
+        { name: 'reportes', display_name: 'Reportes', route: '/reportes' },
+      ],
     },
   };
 
