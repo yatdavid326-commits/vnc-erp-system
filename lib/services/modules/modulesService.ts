@@ -12,11 +12,13 @@ export const modulesService = {
         },
       });
 
-      if (!response.ok) return [];
+      if (!response.ok) {
+        throw new Error(`Error fetching modules: HTTP ${response.status}`);
+      }
       const modules = await response.json();
       
       // Filter to active modules only
-      return modules.filter((m: Module) => m.active) || [];
+      return modules.filter((m: Module) => m.is_active);
     } catch (error) {
       console.error('Error fetching modules:', error);
       return [];

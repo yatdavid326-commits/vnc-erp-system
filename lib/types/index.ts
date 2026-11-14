@@ -21,7 +21,8 @@ export interface Module {
   description?: string;
   icon?: string;
   route?: string;
-  active: boolean;
+  is_active: boolean;
+  order_index: number;
   created_at: string;
 }
 
