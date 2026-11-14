@@ -13,8 +13,7 @@ export async function GET(request: NextRequest) {
     // Get all modules using the admin client (bypasses RLS)
     const { data: modules, error } = await supabaseAdmin
       .from('modules')
-      .select('*')
-      .order('order', { ascending: true });
+      .select('*');
 
     if (error) {
       console.error('Error fetching modules:', error);

@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/db/supabase';
+import { supabaseClient } from '@/lib/db/supabase';
 
 // Server-side signin that bypasses RLS
 export async function serverSignIn(username: string, password: string) {
@@ -46,7 +46,7 @@ export async function clientSignIn(emailOrUsername: string, password: string) {
     }
   }
 
-  return await supabase.auth.signInWithPassword({
+  return await supabaseClient.auth.signInWithPassword({
     email,
     password,
   });

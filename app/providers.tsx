@@ -3,7 +3,7 @@
 import { useEffect, ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/hooks';
-import { supabaseClient } from '@/lib/db/supabase-client';
+import { supabaseClient } from '@/lib/db/supabase';
 
 interface AuthProviderProps {
   children: ReactNode;

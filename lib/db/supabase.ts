@@ -8,11 +8,25 @@ if (!supabaseUrl || !supabaseKey) {
   throw new Error('supabaseUrl and supabaseKey (NEXT_PUBLIC_SUPABASE_ANON_KEY) are required.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// Create a single Supabase client - used for both server and client
+// On server, localStorage will be undefined which is expected
+export const supabaseClient = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  },
+});
 
-// supabaseAdmin is only used on the server side
+// supabaseAdmin - only usable on the server side with service role key
 export const supabaseAdmin = serviceRoleKey 
-  ? createClient(supabaseUrl, serviceRoleKey)
+  ? createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
   : null;
 
-export default supabase;
+export default supabaseClient;
