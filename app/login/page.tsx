@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { authService } from '@/lib/services/auth/authService';
+import { serverSignIn } from '@/lib/services/auth/serverSignIn';
 import Link from 'next/link';
 import { AlertCircle, Loader2 } from 'lucide-react';
 
@@ -19,7 +19,8 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const { error } = await authService.signIn(username, password);
+      // Use server-side signin that bypasses RLS
+      const { error } = await serverSignIn(username, password);
 
       if (error) {
         setError(error.message);
