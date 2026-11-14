@@ -3,13 +3,24 @@ import type { Module, UserModule } from '@/lib/types';
 
 export const modulesService = {
   async getAllModules(): Promise<Module[]> {
-    const { data } = await supabase
-      .from('modules')
-      .select('*')
-      .eq('active', true)
-      .order('created_at', { ascending: true });
+    try {
+      // Use server-side API to bypass RLS
+      const response = await fetch('/api/modules/all', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-    return data || [];
+      if (!response.ok) return [];
+      const modules = await response.json();
+      
+      // Filter to active modules only
+      return modules.filter((m: Module) => m.active) || [];
+    } catch (error) {
+      console.error('Error fetching modules:', error);
+      return [];
+    }
   },
 
   async getUserModules(userId: string): Promise<UserModule[]> {
@@ -22,17 +33,29 @@ export const modulesService = {
   },
 
   async getUserModulesWithDetails(userId: string) {
-    const { data } = await supabase
-      .from('user_modules')
-      .select(
-        `
-        *,
-        module:modules (*)
-      `
-      )
-      .eq('user_id', userId);
+    try {
+      // Get the session to get the access token
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    return data || [];
+      if (!session?.access_token) return [];
+
+      // Use server-side API to bypass RLS
+      const response = await fetch('/api/modules/user', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (!response.ok) return [];
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching user modules:', error);
+      return [];
+    }
   },
 
   async grantModuleAccess(

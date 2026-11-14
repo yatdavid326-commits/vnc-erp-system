@@ -13,13 +13,29 @@ export const authService = {
     const user = await this.getCurrentUser();
     if (!user) return null;
 
-    const { data } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('auth_id', user.id)
-      .single();
+    try {
+      // Get the session to get the access token
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    return data;
+      if (!session?.access_token) return null;
+
+      // Use server-side API instead of direct query to bypass RLS
+      const response = await fetch('/api/user/profile', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (!response.ok) return null;
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      return null;
+    }
   },
 
   async signUp(email: string, password: string) {
