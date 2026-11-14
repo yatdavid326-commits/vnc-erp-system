@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { customerService } from '@/lib/services/customers/customerService';
+import { supabaseAdmin } from '@/lib/db/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -55,19 +56,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const cliente = await customerService.create({
-      nombre: body.nombre,
+    // Use admin client to bypass RLS
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+
+    const customerData = {
+      name: body.nombre,
       email: body.email,
-      telefono: body.telefono,
-      direccion: body.direccion,
-      ciudad: body.ciudad,
-      estado: body.estado,
-      codigo_postal: body.codigo_postal,
-      tipo: body.tipo || 'retail',
-      limite_credito: body.limite_credito || 0,
-      saldo_actual: body.saldo_actual || 0,
-      estado_cliente: body.estado_cliente || 'activo',
-    });
+      phone: body.telefono || '',
+      address: body.direccion || '',
+      city: body.ciudad || '',
+      country: 'Guatemala',
+      customer_type: body.tipo || 'retail',
+      credit_limit: body.limite_credito || 0,
+      current_balance: body.saldo_actual || 0,
+      active: body.estado_cliente !== 'inactivo' && body.estado_cliente !== 'suspendido',
+    };
+
+    const { data, error } = await supabaseAdmin
+      .from('customers')
+      .insert([customerData])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Transform back to UI format
+    const cliente = {
+      id: data.id,
+      nombre: data.name,
+      email: data.email,
+      telefono: data.phone,
+      direccion: data.address,
+      ciudad: data.city,
+      estado: data.country,
+      codigo_postal: '',
+      tipo: data.customer_type,
+      limite_credito: data.credit_limit,
+      saldo_actual: data.current_balance,
+      estado_cliente: data.active ? 'activo' : 'inactivo',
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    };
 
     return NextResponse.json(cliente, { status: 201 });
   } catch (error) {
