@@ -1,27 +1,57 @@
-import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { comprasService } from '@/lib/services/compras/comprasService';
 
-const TABLA = 'compras';
-
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const body = await request.json();
-    const supabase = createClient();
-    const { data, error } = await supabase.from(TABLA).update(body).eq('id', params.id).select();
-    if (error) throw error;
-    return NextResponse.json(data[0]);
+    const result = await comprasService.getById(params.id);
+    if (result.error) throw new Error(result.error);
+    if (!result.data) {
+      return NextResponse.json({ error: 'Purchase order not found' }, { status: 404 });
+    }
+    return NextResponse.json(result.data);
   } catch (error) {
-    return NextResponse.json({ error: 'Error' }, { status: 500 });
+    console.error('GET /api/compras/[id] error:', error);
+    return NextResponse.json(
+      { error: 'Error fetching purchase order', details: error instanceof Error ? error.message : '' },
+      { status: 500 }
+    );
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const supabase = createClient();
-    const { error } = await supabase.from(TABLA).delete().eq('id', params.id);
-    if (error) throw error;
+    const body = await request.json();
+    const result = await comprasService.update(params.id, body);
+    if (result.error) throw new Error(result.error);
+    return NextResponse.json(result.data);
+  } catch (error) {
+    console.error('PUT /api/compras/[id] error:', error);
+    return NextResponse.json(
+      { error: 'Error updating purchase order', details: error instanceof Error ? error.message : '' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const result = await comprasService.delete(params.id);
+    if (result.error) throw new Error(result.error);
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ error: 'Error' }, { status: 500 });
+    console.error('DELETE /api/compras/[id] error:', error);
+    return NextResponse.json(
+      { error: 'Error deleting purchase order', details: error instanceof Error ? error.message : '' },
+      { status: 500 }
+    );
   }
 }

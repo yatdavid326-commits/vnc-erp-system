@@ -4,20 +4,10 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/hooks';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-
-interface Producto {
-  id: string;
-  nombre: string;
-  sku: string;
-  descripcion: string;
-  cantidad: number;
-  cantidad_minima: number;
-  precio_costo: number;
-  precio_venta: number;
-  categoria: string;
-  estado: string;
-  created_at: string;
-}
+import InventarioForm from '@/components/inventario/InventarioForm';
+import InventarioTable from '@/components/inventario/InventarioTable';
+import StockAlerts from '@/components/inventario/StockAlerts';
+import { Producto } from '@/lib/services/products/productService';
 
 export default function InventarioPage() {
   const router = useRouter();
@@ -27,17 +17,10 @@ export default function InventarioPage() {
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    nombre: '',
-    sku: '',
-    descripcion: '',
-    cantidad: 0,
-    cantidad_minima: 0,
-    precio_costo: 0,
-    precio_venta: 0,
-    categoria: '',
-    estado: 'activo',
-  });
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [limit] = useState(10);
 
   useEffect(() => {
     if (!session) {
@@ -45,9 +28,193 @@ export default function InventarioPage() {
       return;
     }
     fetchProductos();
-  }, [session, router]);
+  }, [session, router, page, search]);
 
   const fetchProductos = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        ...(search && { search }),
+      });
+
+      const res = await fetch(`/api/inventario?${params}`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!res.ok) throw new Error('Failed to fetch products');
+
+      const data = await res.json();
+      setProductos(data);
+      setTotal(parseInt(res.headers.get('X-Total-Count') || '0'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreate = async (formData: Partial<Producto>) => {
+    try {
+      const res = await fetch('/api/inventario', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (!res.ok) throw new Error('Failed to create product');
+
+      setShowForm(false);
+      fetchProductos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    }
+  };
+
+  const handleUpdate = async (formData: Partial<Producto>) => {
+    if (!editingId) return;
+
+    try {
+      const res = await fetch(`/api/inventario/${editingId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (!res.ok) throw new Error('Failed to update product');
+
+      setEditingId(null);
+      setShowForm(false);
+      fetchProductos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this product?')) return;
+
+    try {
+      const res = await fetch(`/api/inventario/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) throw new Error('Failed to delete product');
+
+      fetchProductos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    }
+  };
+
+  const handleEdit = (producto: Producto) => {
+    setEditingId(producto.id);
+    setShowForm(true);
+  };
+
+  const handleFormCancel = () => {
+    setShowForm(false);
+    setEditingId(null);
+  };
+
+  const editingProducto = editingId
+    ? productos.find(p => p.id === editingId)
+    : undefined;
+
+  const totalPages = Math.ceil(total / limit);
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Inventory Management</h1>
+          <button
+            onClick={() => {
+              setEditingId(null);
+              setShowForm(!showForm);
+            }}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            {showForm ? 'Cancel' : '+ New Product'}
+          </button>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+            {error}
+          </div>
+        )}
+
+        {/* Form */}
+        {showForm && (
+          <InventarioForm
+            producto={editingProducto}
+            onSubmit={editingId ? handleUpdate : handleCreate}
+            onCancel={handleFormCancel}
+            loading={loading}
+          />
+        )}
+
+        {/* Stock Alerts */}
+        <StockAlerts productos={productos} />
+
+        {/* Search */}
+        <div className="flex gap-4">
+          <input
+            type="text"
+            placeholder="Search by name, SKU, or description..."
+            value={search}
+            onChange={e => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+          />
+        </div>
+
+        {/* Table */}
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <InventarioTable
+            productos={productos}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            loading={loading}
+          />
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex justify-between items-center">
+            <div className="text-sm text-gray-600">
+              Page {page} of {totalPages} • Total: {total} products
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage(Math.max(1, page - 1))}
+                disabled={page === 1}
+                className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50"
+              >
+                ← Previous
+              </button>
+              <button
+                onClick={() => setPage(Math.min(totalPages, page + 1))}
+                disabled={page === totalPages}
+                className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </DashboardLayout>
+  );
+}
     try {
       setLoading(true);
       const response = await fetch('/api/inventario');

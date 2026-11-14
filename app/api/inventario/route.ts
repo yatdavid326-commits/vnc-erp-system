@@ -1,30 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/db/supabase';
+import { productService } from '@/lib/services/products/productService';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const search = searchParams.get('search');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const search = searchParams.get('search') || '';
+    const category = searchParams.get('category') || '';
 
-    if (!supabaseAdmin) throw new Error('Server error');
+    const result = await productService.getAll(page, limit, search, category);
 
-    let query = supabaseAdmin.from('products').select('*', { count: 'exact' });
-
-    if (search) {
-      query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%`);
-    }
-
-    const { data, error, count } = await query
-      .order('created_at', { ascending: false })
-      .range((page - 1) * limit, page * limit - 1);
-
-    if (error) throw error;
-
-    return NextResponse.json(data || [], {
+    return NextResponse.json(result.data, {
       headers: {
-        'X-Total-Count': (count || 0).toString(),
+        'X-Total-Count': result.total.toString(),
+        'X-Page': page.toString(),
+        'X-Limit': limit.toString(),
       },
     });
   } catch (error) {
@@ -40,33 +31,27 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    if (!body.sku || !body.name) {
+    if (!body.nombre || !body.sku) {
       return NextResponse.json(
-        { error: 'sku and name are required' },
+        { error: 'nombre and sku are required' },
         { status: 400 }
       );
     }
 
-    if (!supabaseAdmin) throw new Error('Server error');
+    const product = await productService.create({
+      nombre: body.nombre,
+      sku: body.sku,
+      descripcion: body.descripcion || '',
+      categoria: body.categoria || '',
+      costo_unitario: body.costo_unitario || 0,
+      precio_venta: body.precio_venta || 0,
+      cantidad_stock: body.cantidad_stock || 0,
+      stock_minimo: body.stock_minimo || 0,
+      proveedor_id: body.proveedor_id,
+      activo: true,
+    });
 
-    const { data, error } = await supabaseAdmin
-      .from('products')
-      .insert([{
-        sku: body.sku,
-        name: body.name,
-        description: body.description,
-        category: body.category,
-        cost_per_unit: body.costo_unitario || 0,
-        sales_price: body.precio_venta || 0,
-        quantity_stock: body.cantidad_stock || 0,
-        stock_minimum: body.stock_minimo || 0,
-        supplier_id: body.proveedor_id,
-      }])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return NextResponse.json(data, { status: 201 });
+    return NextResponse.json(product, { status: 201 });
   } catch (error) {
     console.error('POST /api/inventario error:', error);
     return NextResponse.json(
