@@ -1,27 +1,35 @@
-import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
-
-const TABLA = 'attendance';
+import { asistenciaService } from '@/lib/services/asistencia/asistenciaService';
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const body = await request.json();
-    const supabase = createClient();
-    const { data, error } = await supabase.from(TABLA).update(body).eq('id', params.id).select();
-    if (error) throw error;
-    return NextResponse.json(data[0]);
+    const result = await asistenciaService.update(params.id, body);
+
+    if (result.error) throw new Error(result.error);
+
+    return NextResponse.json(result.data);
   } catch (error) {
-    return NextResponse.json({ error: 'Error' }, { status: 500 });
+    console.error(`PUT /api/asistencia/[id] error:`, error);
+    return NextResponse.json(
+      { error: 'Error updating attendance', details: error instanceof Error ? error.message : '' },
+      { status: 500 }
+    );
   }
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const supabase = createClient();
-    const { error } = await supabase.from(TABLA).delete().eq('id', params.id);
-    if (error) throw error;
+    const result = await asistenciaService.delete(params.id);
+
+    if (result.error) throw new Error(result.error);
+
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ error: 'Error' }, { status: 500 });
+    console.error(`DELETE /api/asistencia/[id] error:`, error);
+    return NextResponse.json(
+      { error: 'Error deleting attendance', details: error instanceof Error ? error.message : '' },
+      { status: 500 }
+    );
   }
 }

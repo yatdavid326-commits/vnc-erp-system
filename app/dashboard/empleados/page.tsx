@@ -2,9 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/hooks';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
 
 
 interface Empleado {
@@ -21,8 +19,6 @@ interface Empleado {
 }
 
 export default function EmpleadosPage() {
-  const router = useRouter();
-  const { session } = useAuthStore();
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -53,14 +49,14 @@ export default function EmpleadosPage() {
     'asistencia',
     'empleados',
   ];
+  const initialized = useRef(false);
 
   useEffect(() => {
-    if (!session) {
-      router.push('/login');
-      return;
+    if (!initialized.current) {
+      initialized.current = true;
+      fetchEmpleados();
     }
-    fetchEmpleados();
-  }, [session, router]);
+  }, []);
 
   const fetchEmpleados = async () => {
     try {

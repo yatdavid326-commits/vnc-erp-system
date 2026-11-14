@@ -2,9 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/hooks';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
 
 
 interface Compra {
@@ -18,8 +16,6 @@ interface Compra {
 }
 
 export default function ComprasPage() {
-  const router = useRouter();
-  const { session } = useAuthStore();
   const [compras, setCompras] = useState<Compra[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -32,14 +28,14 @@ export default function ComprasPage() {
     total: 0,
     estado: 'pendiente',
   });
+  const initialized = useRef(false);
 
   useEffect(() => {
-    if (!session) {
-      router.push('/login');
-      return;
+    if (!initialized.current) {
+      initialized.current = true;
+      fetchCompras();
     }
-    fetchCompras();
-  }, [session, router]);
+  }, []);
 
   const fetchCompras = async () => {
     try {

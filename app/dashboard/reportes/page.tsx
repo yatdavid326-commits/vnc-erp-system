@@ -2,9 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/hooks';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
 
 
 interface Reporte {
@@ -21,8 +19,6 @@ interface Reporte {
 }
 
 export default function ReportesPage() {
-  const router = useRouter();
-  const { session } = useAuthStore();
   const [reportes, setReportes] = useState<Reporte[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -33,14 +29,14 @@ export default function ReportesPage() {
       .split('T')[0],
     fechaFin: new Date().toISOString().split('T')[0],
   });
+  const initialized = useRef(false);
 
   useEffect(() => {
-    if (!session) {
-      router.push('/login');
-      return;
+    if (!initialized.current) {
+      initialized.current = true;
+      generarReporte();
     }
-    generarReporte();
-  }, [session, router]);
+  }, [filtros]);
 
   const generarReporte = async () => {
     try {

@@ -2,9 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/hooks';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
 import ProveedoresForm from '@/components/proveedores/ProveedoresForm';
 import ProveedoresTable from '@/components/proveedores/ProveedoresTable';
 
@@ -25,8 +23,6 @@ interface Proveedor {
 }
 
 export default function ProveedoresPage() {
-  const router = useRouter();
-  const { session } = useAuthStore();
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -44,14 +40,14 @@ export default function ProveedoresPage() {
     términos_pago: '',
     activo: true,
   });
+  const initialized = useRef(false);
 
   useEffect(() => {
-    if (!session) {
-      router.push('/login');
-      return;
+    if (!initialized.current) {
+      initialized.current = true;
+      fetchProveedores();
     }
-    fetchProveedores();
-  }, [session, router]);
+  }, []);
 
   const fetchProveedores = async () => {
     try {

@@ -12,20 +12,15 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { setUser, setLoading, user } = useAuthStore();
-  const [isInitialized, setIsInitialized] = useState(false);
+  const { setUser, setLoading } = useAuthStore();
+  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
 
-    const checkSession = async () => {
+    const initializeAuth = async () => {
       try {
-        // Only check session once on app initialization
-        if (isInitialized) return;
-
-        setLoading(true);
-
-        // First, try to restore session from localStorage
+        // Restore session from localStorage
         if (typeof window !== 'undefined') {
           const storedSession = localStorage.getItem('supabase-session');
           const storedAccessToken = localStorage.getItem('supabase-access-token');
@@ -34,116 +29,61 @@ export function AuthProvider({ children }: AuthProviderProps) {
           if (storedSession && storedAccessToken) {
             try {
               const session = JSON.parse(storedSession);
-              // Set the session in Supabase client
               await supabaseClient.auth.setSession(session);
 
               if (storedUser && isMounted) {
                 const user = JSON.parse(storedUser);
                 
-                // Obtener perfil del usuario
-                try {
-                  const { data: profile } = await supabaseClient
-                    .from('user_profiles')
-                    .select('*')
-                    .eq('id', user.id)
-                    .single();
-
-                  setUser({
-                    id: user.id,
-                    email: user.email || '',
-                    username: profile?.username || '',
-                    full_name: profile?.full_name || 'Usuario',
-                    role: profile?.role || 'user',
-                  });
-                } catch (error) {
-                  // Profile query failed, set basic user
-                  setUser({
-                    id: user.id,
-                    email: user.email || '',
-                    username: 'user',
-                    full_name: 'Usuario',
-                    role: 'user',
-                  });
-                }
+                // Set user immediately from stored data
+                setUser({
+                  id: user.id,
+                  email: user.email || '',
+                  username: user.username || 'user',
+                  full_name: user.full_name || 'Usuario',
+                  role: user.role || 'user',
+                });
               }
-              
-              if (isMounted) {
-                setIsInitialized(true);
-              }
-              return;
             } catch (error) {
               console.error('Error restoring session:', error);
+              // Redirect to login on error
+              if (isMounted && pathname?.startsWith('/dashboard')) {
+                router.push('/login');
+              }
+            }
+          } else {
+            // No stored session, redirect if on protected route
+            if (isMounted && pathname?.startsWith('/dashboard')) {
+              router.push('/login');
             }
           }
         }
-
-        // If no valid localStorage session and on a protected route, redirect
-        const protectedRoutes = [
-          '/dashboard',
-          '/dashboard/clientes',
-          '/dashboard/inventario',
-          '/dashboard/proveedores',
-          '/dashboard/compras',
-          '/dashboard/pos',
-          '/dashboard/caja',
-          '/dashboard/reportes',
-          '/dashboard/asistencia',
-          '/dashboard/empleados',
-        ];
-
-        if (protectedRoutes.some(route => pathname.startsWith(route)) && !user) {
-          router.push('/login');
-        }
-
-        if (isMounted) {
-          setIsInitialized(true);
-        }
       } catch (error) {
-        console.error('Error checking session:', error);
-        if (isMounted) {
-          setIsInitialized(true);
-        }
+        console.error('Initialization error:', error);
       } finally {
         if (isMounted) {
+          setIsChecking(false);
           setLoading(false);
         }
       }
     };
 
-    checkSession();
+    initializeAuth();
 
-    // Listen for auth changes
+    // Listen for auth state changes from Supabase
     const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         if (!isMounted) return;
 
         if (session?.user) {
-          try {
-            const { data: profile } = await supabaseClient
-              .from('user_profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            username: session.user.user_metadata?.username || 'user',
+            full_name: session.user.user_metadata?.full_name || 'Usuario',
+            role: session.user.user_metadata?.role || 'user',
+          });
 
-            setUser({
-              id: session.user.id,
-              email: session.user.email || '',
-              username: profile?.username || '',
-              full_name: profile?.full_name || 'Usuario',
-              role: profile?.role || 'user',
-            });
-          } catch (error) {
-            setUser({
-              id: session.user.id,
-              email: session.user.email || '',
-              username: 'user',
-              full_name: 'Usuario',
-              role: 'user',
-            });
-          }
-          setLoading(false);
-
-          // Persist to localStorage
+          // Persist session
           if (typeof window !== 'undefined') {
             localStorage.setItem('supabase-session', JSON.stringify(session));
             localStorage.setItem('supabase-access-token', session.access_token);
@@ -152,9 +92,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
         } else {
           setUser(null);
-          setLoading(false);
           
-          // Clear localStorage
+          // Clear storage
           if (typeof window !== 'undefined') {
             localStorage.removeItem('supabase-session');
             localStorage.removeItem('supabase-access-token');
@@ -162,9 +101,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
             localStorage.removeItem('supabase-user');
           }
 
-          // Redirigir a login solo si la sesión expira (evento)
-          if (event === 'SIGNED_OUT' && pathname !== '/login' && pathname !== '/signup') {
-            router.push('/login');
+          // Redirect on logout/session expiry
+          if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+            if (pathname?.startsWith('/dashboard')) {
+              router.push('/login');
+            }
           }
         }
       }
@@ -174,7 +115,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isMounted = false;
       subscription?.unsubscribe();
     };
-  }, [router, pathname, setUser, setLoading, user, isInitialized]);
+  }, [pathname, router, setUser, setLoading]);
+
+  if (isChecking) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Inicializando...</p>
+        </div>
+      </div>
+    );
+  }
 
   return children;
 }

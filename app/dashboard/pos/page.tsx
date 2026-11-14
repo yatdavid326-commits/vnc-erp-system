@@ -2,9 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/hooks';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
 
 
 interface Venta {
@@ -20,8 +18,6 @@ interface Venta {
 }
 
 export default function POSPage() {
-  const router = useRouter();
-  const { session } = useAuthStore();
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -32,14 +28,14 @@ export default function POSPage() {
     cliente_id: '',
     metodo_pago: 'efectivo',
   });
+  const initialized = useRef(false);
 
   useEffect(() => {
-    if (!session) {
-      router.push('/login');
-      return;
+    if (!initialized.current) {
+      initialized.current = true;
+      fetchVentas();
     }
-    fetchVentas();
-  }, [session, router]);
+  }, []);
 
   const fetchVentas = async () => {
     try {

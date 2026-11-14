@@ -1,25 +1,70 @@
-import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { empleadosService } from '@/lib/services/empleados/empleadosService';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
-    const { data, error } = await supabase.from('empleados').select('*').order('created_at', { ascending: false });
-    if (error) throw error;
-    return NextResponse.json(data || []);
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const search = searchParams.get('search');
+
+    if (search) {
+      const results = await empleadosService.search(search, limit);
+      return NextResponse.json(results);
+    }
+
+    const result = await empleadosService.getAll(page, limit);
+    if (result.error) throw new Error(result.error);
+
+    return NextResponse.json(result.data, {
+      headers: {
+        'X-Total-Count': result.count.toString(),
+        'X-Page': page.toString(),
+        'X-Limit': limit.toString(),
+      },
+    });
   } catch (error) {
-    return NextResponse.json({ error: 'Error' }, { status: 500 });
+    console.error('GET /api/empleados error:', error);
+    return NextResponse.json(
+      { error: 'Error fetching employees', details: error instanceof Error ? error.message : '' },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const supabase = createClient();
-    const { data, error } = await supabase.from('empleados').insert([body]).select();
-    if (error) throw error;
-    return NextResponse.json(data[0], { status: 201 });
+
+    if (!body.nombre || !body.email) {
+      return NextResponse.json(
+        { error: 'nombre and email are required' },
+        { status: 400 }
+      );
+    }
+
+    const result = await empleadosService.create({
+      nombre: body.nombre,
+      apellido: body.apellido || '',
+      email: body.email,
+      teléfono: body.teléfono || '',
+      puesto: body.puesto || '',
+      departamento: body.departamento || '',
+      fecha_ingreso: body.fecha_ingreso || new Date().toISOString(),
+      salario: body.salario || 0,
+      estado: body.estado !== false,
+    });
+
+    if (result.error) throw new Error(result.error);
+
+    return NextResponse.json(result.data, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: 'Error' }, { status: 500 });
+    console.error('POST /api/empleados error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return NextResponse.json(
+      { error: 'Error creating employee', details: errorMessage },
+      { status: 500 }
+    );
   }
 }
+

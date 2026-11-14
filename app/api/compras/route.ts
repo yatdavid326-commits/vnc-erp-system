@@ -10,7 +10,8 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       const results = await comprasService.search(search, limit);
-      return NextResponse.json(results);
+      if (results.error) throw new Error(results.error);
+      return NextResponse.json(results.data);
     }
 
     const result = await comprasService.getAll(page, limit);

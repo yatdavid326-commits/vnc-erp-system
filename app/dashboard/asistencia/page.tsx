@@ -2,9 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/hooks';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
 
 
 interface Asistencia {
@@ -20,8 +18,6 @@ interface Asistencia {
 }
 
 export default function AsistenciaPage() {
-  const router = useRouter();
-  const { session } = useAuthStore();
   const [asistencias, setAsistencias] = useState<Asistencia[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -29,14 +25,14 @@ export default function AsistenciaPage() {
   const [qrCode, setQrCode] = useState('');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [registrando, setRegistrando] = useState(false);
+  const initialized = useRef(false);
 
   useEffect(() => {
-    if (!session) {
-      router.push('/login');
-      return;
+    if (!initialized.current) {
+      initialized.current = true;
+      fetchAsistencias();
     }
-    fetchAsistencias();
-  }, [session, router]);
+  }, []);
 
   const fetchAsistencias = async () => {
     try {

@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/lib/db/supabase';
+﻿import { supabaseAdmin } from '@/lib/db/supabase';
 
 export interface Producto {
   id: string;
@@ -82,7 +82,7 @@ class ProductService {
 
   async getAll(page = 1, limit = 10, search = '', category = '') {
     try {
-      const supabase = createAdminClient();
+      const supabase = supabaseAdmin;
       if (!supabase) throw new Error('Supabase admin client not available');
 
       let query = supabase.from('products').select('*', { count: 'exact' });
@@ -118,7 +118,7 @@ class ProductService {
 
   async getById(id: string): Promise<Producto | null> {
     try {
-      const supabase = createAdminClient();
+      const supabase = supabaseAdmin;
       if (!supabase) throw new Error('Supabase admin client not available');
 
       const { data, error } = await supabase
@@ -141,7 +141,7 @@ class ProductService {
         throw new Error('Name and SKU are required');
       }
 
-      const supabase = createAdminClient();
+      const supabase = supabaseAdmin;
       if (!supabase) throw new Error('Supabase admin client not available');
 
       const newProduct: Partial<Product> = {
@@ -175,7 +175,7 @@ class ProductService {
 
   async update(id: string, producto: Partial<Producto>): Promise<Producto> {
     try {
-      const supabase = createAdminClient();
+      const supabase = supabaseAdmin;
       if (!supabase) throw new Error('Supabase admin client not available');
 
       const updateData: Partial<Product> = {};
@@ -209,7 +209,7 @@ class ProductService {
 
   async delete(id: string): Promise<void> {
     try {
-      const supabase = createAdminClient();
+      const supabase = supabaseAdmin;
       if (!supabase) throw new Error('Supabase admin client not available');
 
       const { error } = await supabase.from('products').delete().eq('id', id);
@@ -223,7 +223,7 @@ class ProductService {
 
   async search(query: string, limit = 10): Promise<Producto[]> {
     try {
-      const supabase = createAdminClient();
+      const supabase = supabaseAdmin;
       if (!supabase) throw new Error('Supabase admin client not available');
 
       const { data, error } = await supabase
@@ -245,7 +245,7 @@ class ProductService {
 
   async updateStock(id: string, quantity: number): Promise<void> {
     try {
-      const supabase = createAdminClient();
+      const supabase = supabaseAdmin;
       if (!supabase) throw new Error('Supabase admin client not available');
 
       const { error } = await supabase
@@ -262,7 +262,7 @@ class ProductService {
 
   async getLowStockProducts(): Promise<Producto[]> {
     try {
-      const supabase = createAdminClient();
+      const supabase = supabaseAdmin;
       if (!supabase) throw new Error('Supabase admin client not available');
 
       const { data, error } = await supabase
@@ -281,7 +281,7 @@ class ProductService {
 
   async getByCategory(category: string): Promise<Producto[]> {
     try {
-      const supabase = createAdminClient();
+      const supabase = supabaseAdmin;
       if (!supabase) throw new Error('Supabase admin client not available');
 
       const { data, error } = await supabase
@@ -301,3 +301,4 @@ class ProductService {
 }
 
 export const productService = ProductService.getInstance();
+

@@ -2,9 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/hooks';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
 import ClientesForm from '@/components/clientes/ClientesForm';
 import ClientesTable from '@/components/clientes/ClientesTable';
 
@@ -23,8 +21,6 @@ interface Cliente {
 }
 
 export default function ClientesPage() {
-  const router = useRouter();
-  const { session } = useAuthStore();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -41,14 +37,14 @@ export default function ClientesPage() {
     tipo: 'persona',
     estado_cliente: 'activo',
   });
+  const initialized = useRef(false);
 
   useEffect(() => {
-    if (!session) {
-      router.push('/login');
-      return;
+    if (!initialized.current) {
+      initialized.current = true;
+      fetchClientes();
     }
-    fetchClientes();
-  }, [session, router]);
+  }, []);
 
   const fetchClientes = async () => {
     try {

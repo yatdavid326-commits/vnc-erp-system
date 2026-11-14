@@ -2,9 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/hooks';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
 
 
 interface Movimiento {
@@ -18,8 +16,6 @@ interface Movimiento {
 }
 
 export default function CajaPage() {
-  const router = useRouter();
-  const { session } = useAuthStore();
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -31,14 +27,14 @@ export default function CajaPage() {
     referencia: '',
     fecha: new Date().toISOString().split('T')[0],
   });
+  const initialized = useRef(false);
 
   useEffect(() => {
-    if (!session) {
-      router.push('/login');
-      return;
+    if (!initialized.current) {
+      initialized.current = true;
+      fetchMovimientos();
     }
-    fetchMovimientos();
-  }, [session, router]);
+  }, []);
 
   const fetchMovimientos = async () => {
     try {
