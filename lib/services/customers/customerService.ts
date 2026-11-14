@@ -18,6 +18,23 @@ export interface Cliente {
   updated_at?: string;
 }
 
+// Database model (from Supabase)
+export interface Customer {
+  id?: string;
+  name: string;
+  email: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  customer_type: 'retail' | 'wholesale' | 'business';
+  credit_limit?: number;
+  current_balance?: number;
+  active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface CreditTransaction {
   id?: string;
   cliente_id: string;
@@ -28,6 +45,40 @@ export interface CreditTransaction {
   created_at?: string;
 }
 
+// Helper functions to map between UI and database formats
+function clienteToCustomer(cliente: Cliente): Partial<Customer> {
+  return {
+    name: cliente.nombre,
+    email: cliente.email,
+    phone: cliente.telefono,
+    address: cliente.direccion,
+    city: cliente.ciudad,
+    customer_type: cliente.tipo,
+    credit_limit: cliente.limite_credito,
+    current_balance: cliente.saldo_actual,
+    active: cliente.estado_cliente === 'activo',
+  };
+}
+
+function customerToCliente(customer: any): Cliente {
+  return {
+    id: customer.id,
+    nombre: customer.name,
+    email: customer.email,
+    telefono: customer.phone,
+    direccion: customer.address,
+    ciudad: customer.city,
+    estado: customer.country,
+    codigo_postal: '',
+    tipo: customer.customer_type || 'retail',
+    limite_credito: customer.credit_limit || 0,
+    saldo_actual: customer.current_balance || 0,
+    estado_cliente: customer.active ? 'activo' : 'inactivo',
+    created_at: customer.created_at,
+    updated_at: customer.updated_at,
+  };
+}
+
 class CustomerService {
   async getAll(page = 1, limit = 50): Promise<{ data: Cliente[]; error: PostgrestError | null; count: number }> {
     try {
@@ -35,12 +86,13 @@ class CustomerService {
       const end = start + limit - 1;
 
       const { data, error, count } = await supabase
-        .from('clientes')
+        .from('customers')
         .select('*', { count: 'exact' })
         .order('created_at', { ascending: false })
         .range(start, end);
 
-      return { data: data || [], error, count: count || 0 };
+      const clientes = (data || []).map(customerToCliente);
+      return { data: clientes, error, count: count || 0 };
     } catch (error) {
       throw error;
     }
@@ -49,13 +101,13 @@ class CustomerService {
   async getById(id: string): Promise<Cliente | null> {
     try {
       const { data, error } = await supabase
-        .from('clientes')
+        .from('customers')
         .select('*')
         .eq('id', id)
         .single();
 
       if (error) throw error;
-      return data as Cliente;
+      return data ? customerToCliente(data) : null;
     } catch (error) {
       throw error;
     }
@@ -64,13 +116,13 @@ class CustomerService {
   async search(query: string, limit = 20): Promise<Cliente[]> {
     try {
       const { data, error } = await supabase
-        .from('clientes')
+        .from('customers')
         .select('*')
-        .or(`nombre.ilike.%${query}%,email.ilike.%${query}%,telefono.ilike.%${query}%`)
+        .or(`name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%`)
         .limit(limit);
 
       if (error) throw error;
-      return (data || []) as Cliente[];
+      return (data || []).map(customerToCliente);
     } catch (error) {
       throw error;
     }
@@ -78,26 +130,16 @@ class CustomerService {
 
   async create(cliente: Cliente): Promise<Cliente> {
     try {
+      const customerData = clienteToCustomer(cliente);
+      
       const { data, error } = await supabase
-        .from('clientes')
-        .insert([{
-          nombre: cliente.nombre,
-          email: cliente.email,
-          telefono: cliente.telefono || '',
-          direccion: cliente.direccion || '',
-          ciudad: cliente.ciudad || '',
-          estado: cliente.estado || '',
-          codigo_postal: cliente.codigo_postal || '',
-          tipo: cliente.tipo,
-          limite_credito: cliente.limite_credito || 0,
-          saldo_actual: cliente.saldo_actual || 0,
-          estado_cliente: cliente.estado_cliente,
-        }])
+        .from('customers')
+        .insert([customerData])
         .select()
         .single();
 
       if (error) throw error;
-      return data as Cliente;
+      return customerToCliente(data);
     } catch (error) {
       throw error;
     }
@@ -105,26 +147,27 @@ class CustomerService {
 
   async update(id: string, cliente: Partial<Cliente>): Promise<Cliente> {
     try {
+      const updateData: Partial<Customer> = {};
+      
+      if (cliente.nombre) updateData.name = cliente.nombre;
+      if (cliente.email) updateData.email = cliente.email;
+      if (cliente.telefono !== undefined) updateData.phone = cliente.telefono;
+      if (cliente.direccion !== undefined) updateData.address = cliente.direccion;
+      if (cliente.ciudad !== undefined) updateData.city = cliente.ciudad;
+      if (cliente.tipo) updateData.customer_type = cliente.tipo;
+      if (cliente.limite_credito !== undefined) updateData.credit_limit = cliente.limite_credito;
+      if (cliente.saldo_actual !== undefined) updateData.current_balance = cliente.saldo_actual;
+      if (cliente.estado_cliente) updateData.active = cliente.estado_cliente === 'activo';
+
       const { data, error } = await supabase
-        .from('clientes')
-        .update({
-          ...(cliente.nombre && { nombre: cliente.nombre }),
-          ...(cliente.email && { email: cliente.email }),
-          ...(cliente.telefono !== undefined && { telefono: cliente.telefono }),
-          ...(cliente.direccion !== undefined && { direccion: cliente.direccion }),
-          ...(cliente.ciudad !== undefined && { ciudad: cliente.ciudad }),
-          ...(cliente.estado !== undefined && { estado: cliente.estado }),
-          ...(cliente.codigo_postal !== undefined && { codigo_postal: cliente.codigo_postal }),
-          ...(cliente.tipo && { tipo: cliente.tipo }),
-          ...(cliente.limite_credito !== undefined && { limite_credito: cliente.limite_credito }),
-          ...(cliente.estado_cliente && { estado_cliente: cliente.estado_cliente }),
-        })
+        .from('customers')
+        .update(updateData)
         .eq('id', id)
         .select()
         .single();
 
       if (error) throw error;
-      return data as Cliente;
+      return customerToCliente(data);
     } catch (error) {
       throw error;
     }
@@ -133,7 +176,7 @@ class CustomerService {
   async delete(id: string): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('clientes')
+        .from('customers')
         .delete()
         .eq('id', id);
 
@@ -148,13 +191,13 @@ class CustomerService {
   async getCreditBalance(clienteId: string): Promise<number> {
     try {
       const { data, error } = await supabase
-        .from('clientes')
-        .select('saldo_actual')
+        .from('customers')
+        .select('current_balance')
         .eq('id', clienteId)
         .single();
 
       if (error) throw error;
-      return data?.saldo_actual || 0;
+      return data?.current_balance || 0;
     } catch (error) {
       throw error;
     }
@@ -166,14 +209,14 @@ class CustomerService {
       const newBalance = currentBalance + amount;
 
       const { data, error } = await supabase
-        .from('clientes')
-        .update({ saldo_actual: newBalance })
+        .from('customers')
+        .update({ current_balance: newBalance })
         .eq('id', clienteId)
-        .select('saldo_actual')
+        .select('current_balance')
         .single();
 
       if (error) throw error;
-      return data?.saldo_actual || 0;
+      return data?.current_balance || 0;
     } catch (error) {
       throw error;
     }
@@ -189,7 +232,7 @@ class CustomerService {
 
       if (error) throw error;
       
-      // Update the cliente's saldo_actual
+      // Update the customer's current_balance
       const monto = transaction.tipo === 'pago' ? -transaction.monto : transaction.monto;
       await this.updateCreditBalance(transaction.cliente_id, monto);
 
@@ -218,15 +261,15 @@ class CustomerService {
   async isCreditAvailable(clienteId: string, amount: number): Promise<boolean> {
     try {
       const { data, error } = await supabase
-        .from('clientes')
-        .select('saldo_actual, limite_credito')
+        .from('customers')
+        .select('current_balance, credit_limit')
         .eq('id', clienteId)
         .single();
 
       if (error) throw error;
       
-      const { saldo_actual = 0, limite_credito = 0 } = data || {};
-      const availableCredit = limite_credito - saldo_actual;
+      const { current_balance = 0, credit_limit = 0 } = data || {};
+      const availableCredit = credit_limit - current_balance;
       
       return availableCredit >= amount;
     } catch (error) {
@@ -240,13 +283,14 @@ class CustomerService {
       const end = start + limit - 1;
 
       const { data, error } = await supabase
-        .from('clientes')
+        .from('customers')
         .select('*')
-        .eq('tipo', type)
+        .eq('customer_type', type)
         .order('created_at', { ascending: false })
         .range(start, end);
 
-      return { data: data || [], error };
+      const clientes = (data || []).map(customerToCliente);
+      return { data: clientes, error };
     } catch (error) {
       throw error;
     }
@@ -255,12 +299,12 @@ class CustomerService {
   async getHighCreditRiskCustomers(riskThreshold = 0.8): Promise<Cliente[]> {
     try {
       const { data, error } = await supabase
-        .from('clientes')
+        .from('customers')
         .select('*')
-        .filter('saldo_actual', 'gte', supabase.rpc('get_credit_limit_multiply', { risk: riskThreshold }));
+        .filter('current_balance', 'gte', supabase.rpc('get_credit_limit_multiply', { risk: riskThreshold }));
 
       if (error) throw error;
-      return (data || []) as Cliente[];
+      return (data || []).map(customerToCliente);
     } catch (error) {
       return [] as Cliente[];
     }

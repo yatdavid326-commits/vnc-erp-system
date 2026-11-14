@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/hooks';
 import { useRouter } from 'next/navigation';
 import ClientesForm from '@/components/clientes/ClientesForm';
 import ClientesTable from '@/components/clientes/ClientesTable';

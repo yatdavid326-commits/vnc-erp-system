@@ -72,8 +72,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(cliente, { status: 201 });
   } catch (error) {
     console.error('POST /api/clientes error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: 'Error creating client', details: error instanceof Error ? error.message : '' },
+      { error: 'Error creating client', details: errorMessage },
       { status: 500 }
     );
   }
