@@ -2,13 +2,16 @@
 
 export interface User {
   id: string;
+  auth_id: string;
   email: string;
   full_name: string;
-  avatar_url?: string;
-  role: 'admin' | 'manager' | 'employee' | 'viewer';
-  active: boolean;
-  created_at: string;
-  updated_at: string;
+  phone?: string;
+  role?: string;
+  is_active?: boolean;
+  last_login?: string;
+  created_at?: string;
+  updated_at?: string;
+  username?: string;
 }
 
 export interface Module {
