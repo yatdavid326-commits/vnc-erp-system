@@ -3,6 +3,12 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function middleware(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const pathName = requestUrl.pathname;
+  const searchParams = requestUrl.searchParams;
+
+  // No interceptar peticiones de RSC (React Server Components)
+  if (searchParams.has('_rsc')) {
+    return NextResponse.next();
+  }
 
   // Verificar si hay sesión
   const sessionCookie = request.cookies.get('sb-session');
@@ -40,7 +46,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.svg|.*\\.png|.*\\.jpg).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.svg|.*\\.png|.*\\.jpg|.*\\.gif|.*\\.ico|.*\\.webp).*)',
   ],
 };
 

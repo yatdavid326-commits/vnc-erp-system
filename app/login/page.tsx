@@ -20,17 +20,29 @@ export default function LoginPage() {
 
     try {
       // Use server-side signin that bypasses RLS
-      const { error } = await serverSignIn(username, password);
+      const { data, error } = await serverSignIn(username, password);
 
       if (error) {
         setError(error.message);
-      } else {
-        router.push('/dashboard');
+        setLoading(false);
+        return;
       }
+
+      // Save session and tokens to localStorage for persistence
+      if (data?.session) {
+        localStorage.setItem('supabase-session', JSON.stringify(data.session));
+        localStorage.setItem('supabase-access-token', data.accessToken || data.session.access_token);
+        localStorage.setItem('supabase-refresh-token', data.refreshToken || data.session.refresh_token);
+        localStorage.setItem('supabase-user', JSON.stringify(data.user));
+      }
+
+      // Small delay to ensure localStorage is set
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 100);
     } catch (err) {
       setError('Error al iniciar sesión. Intenta nuevamente.');
       console.error(err);
-    } finally {
       setLoading(false);
     }
   };
@@ -121,3 +133,4 @@ export default function LoginPage() {
     </div>
   );
 }
+

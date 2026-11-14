@@ -11,13 +11,13 @@ export async function serverSignIn(username: string, password: string) {
 
     if (!response.ok) {
       const data = await response.json();
-      return { error: { message: data.error || 'Authentication failed' } };
+      return { data: null, error: { message: data.error || 'Authentication failed' } };
     }
 
     const { user, session } = await response.json();
     return { data: { user, session }, error: null };
   } catch (error) {
-    return { error: { message: 'Network error' } };
+    return { data: null, error: { message: 'Network error' } };
   }
 }
 

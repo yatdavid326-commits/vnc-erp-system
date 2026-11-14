@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/hooks';
 import { useRouter } from 'next/navigation';
@@ -216,3 +218,5 @@ ASISTENCIAS: ${r.total_asistencias}
     </DashboardLayout>
   );
 }
+
+

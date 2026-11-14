@@ -3,6 +3,8 @@
 import { useAuthStore } from '@/hooks';
 import { BarChart3, TrendingUp, Package, Users, DollarSign } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 export default function DashboardPage() {
   const { user } = useAuthStore();
 
@@ -134,3 +136,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

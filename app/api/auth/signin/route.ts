@@ -48,19 +48,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create response with session data
+    // Create response with session data and tokens
     const response = NextResponse.json({
       user: data.user,
       session: data.session,
+      accessToken: data.session?.access_token,
+      refreshToken: data.session?.refresh_token,
     });
 
-    // Set auth cookies for session persistence
+    // Set auth cookies for server-side access
     if (data.session) {
       response.cookies.set('sb-session', JSON.stringify(data.session), {
-        httpOnly: true,
+        httpOnly: false, // Allow client to read for localStorage
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+
+      // Also set individual token cookies
+      response.cookies.set('sb-access-token', data.session.access_token, {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7,
       });
     }
 
