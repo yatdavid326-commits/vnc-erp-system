@@ -14,9 +14,28 @@ export async function serverSignIn(username: string, password: string) {
       return { error: { message: data.error || 'Authentication failed' } };
     }
 
-    const { user, session } = await response.json();
-    return { data: { user, session }, error: null };
+    const { session }: {
+      session?: { access_token?: string; refresh_token?: string };
+    } = await response.json();
+
+    if (!session?.access_token || !session.refresh_token) {
+      console.error('Sign-in response did not contain a valid session');
+      return { error: { message: 'No se recibió una sesión válida.' } };
+    }
+
+    const { data, error } = await supabase.auth.setSession({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+    });
+
+    if (error || !data.session) {
+      console.error('Could not establish browser session:', error?.message);
+      return { error: { message: 'No se pudo iniciar la sesión. Intenta nuevamente.' } };
+    }
+
+    return { data, error: null };
   } catch (error) {
+    console.error('Error during sign-in:', error);
     return { error: { message: 'Network error' } };
   }
 }
