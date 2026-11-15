@@ -28,7 +28,8 @@ function authFixture({ profile = { id: 'profile-id', is_active: true }, access =
       return query;
     },
   };
-  return { ...load('../lib/services/customers/authorization.ts', { '@/lib/db/supabase': { supabaseAdmin: client } }), filters };
+  const moduleAuth = load('../lib/services/modules/authorization.ts', { '@/lib/db/supabase': { supabaseAdmin: client } });
+  return { ...load('../lib/services/customers/authorization.ts', { '@/lib/services/modules/authorization': moduleAuth }), authorizeModule: moduleAuth.authorizeModule, filters };
 }
 const request = (token, body) => new Request('http://localhost/api/clientes', {
   method: body === undefined ? 'GET' : 'POST',
@@ -51,6 +52,8 @@ test('requires a valid session, active profile and operation-specific module per
   assert.ok((await fixture.authorizeCustomer(request('valid'), 'can_edit')).client);
   assert.ok(fixture.filters.some(([table, field, value]) => table === 'user_modules' && field === 'user_id' && value === 'profile-id'));
   assert.ok(fixture.filters.some(([table, field, value]) => table === 'user_modules' && field === 'module.is_active' && value === true));
+  await fixture.authorizeModule(request('valid'), 'suppliers', 'can_create');
+  assert.ok(fixture.filters.some(([table, field, value]) => table === 'user_modules' && field === 'module.name' && value === 'suppliers'));
 });
 
 test('surfaces permission lookup failures', async () => {
