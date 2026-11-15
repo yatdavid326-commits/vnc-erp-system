@@ -75,10 +75,10 @@ test('reports database failures rather than returning an empty permission list',
   assert.equal((await makeRoute({ moduleError: { message: 'db error' } }).GET(request('valid'))).status, 500);
 });
 
-test('shows only assigned active modules as unavailable instead of broken links', () => {
+test('links assigned active clients and keeps other unavailable modules disabled', () => {
   const userModules = [
     { can_view: true, module: { name: 'clients', display_name: 'Clientes', is_active: true } },
-    { can_view: false, module: { name: 'suppliers', display_name: 'Proveedores', is_active: true } },
+    { can_view: true, module: { name: 'suppliers', display_name: 'Proveedores', is_active: true } },
     { can_view: true, module: { name: 'pos', display_name: 'Punto de Venta', is_active: false } },
   ];
   const { default: Sidebar } = load('../components/layout/Sidebar.tsx', {
@@ -86,8 +86,8 @@ test('shows only assigned active modules as unavailable instead of broken links'
     'next/link': { default: ({ href, children, ...props }) => createElement('a', { ...props, href }, children) },
   });
   const html = renderToStaticMarkup(createElement(Sidebar));
-  assert.match(html, /Clientes \(no disponible\)/);
-  assert.doesNotMatch(html, /Proveedores|Punto de Venta/);
-  assert.doesNotMatch(html, /href="\/clients"/);
+  assert.match(html, /href="\/dashboard\/clientes"/);
+  assert.match(html, /Proveedores \(no disponible\)/);
+  assert.doesNotMatch(html, /Punto de Venta/);
   assert.match(html, /href="\/dashboard"/);
 });
