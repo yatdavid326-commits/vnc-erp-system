@@ -134,6 +134,19 @@ export default function ComprasPage() {
     } finally { setSaving(false); }
   }
 
+  async function cancel(order: Order) {
+    if (!window.confirm(`¿Anular la orden ${order.po_number}? Solo se pueden anular órdenes sin recepciones y esta acción no se puede deshacer.`)) return;
+    setSaving(true); setError(''); setNotice('');
+    try {
+      await request(`/api/compras/${order.id}/anulacion`, 'POST');
+      setNotice('Orden anulada. Las existencias no se modificaron.');
+      setLoading(true); setRevision((value) => value + 1);
+    } catch (err) {
+      setError(err instanceof TypeError ? 'No se pudo confirmar la anulación. Revisa la orden antes de reintentar.' :
+        err instanceof Error ? err.message : 'No se pudo confirmar la anulación. Revisa la orden antes de reintentar.');
+    } finally { setSaving(false); }
+  }
+
   const input = 'mt-1 w-full rounded border border-gray-300 px-3 py-2';
   return <div className="space-y-5">
     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -184,7 +197,7 @@ export default function ComprasPage() {
     {loading ? <p>Cargando órdenes...</p> : orders.length === 0 ? <p>{error ? 'No se pudo mostrar la lista.' : 'No hay órdenes de compra.'}</p> :
       <div className="space-y-3">{orders.map((order) => <section key={order.id} className="rounded bg-white p-4 shadow-sm">
         <h2 className="font-semibold">Orden {order.po_number}</h2>
-        <p>Proveedor: {order.supplier?.name ?? 'No disponible'} · Fecha: {order.order_date} · Estado: {order.status === 'pending' ? 'Pendiente' : order.status === 'partially_received' ? 'Parcialmente recibida' : order.status === 'received' ? 'Recibida' : order.status ?? 'Sin estado'} · Total: {Number(order.total_amount).toFixed(2)}</p>
+        <p>Proveedor: {order.supplier?.name ?? 'No disponible'} · Fecha: {order.order_date} · Estado: {order.status === 'pending' ? 'Pendiente' : order.status === 'partially_received' ? 'Parcialmente recibida' : order.status === 'received' ? 'Recibida' : order.status === 'cancelled' ? 'Anulada' : order.status ?? 'Sin estado'} · Total: {Number(order.total_amount).toFixed(2)}</p>
         {order.actual_delivery_date && <p>Fecha de recepción: {order.actual_delivery_date}</p>}
         {order.notes && <p>Notas: {order.notes}</p>}
         <table className="w-full text-left text-sm"><thead><tr>{['Producto', 'Cantidad', 'Recibida', 'Precio unitario', 'Total'].map((h) => <th className="p-2" key={h}>{h}</th>)}
@@ -208,6 +221,9 @@ export default function ComprasPage() {
           </div>}
         {(order.status === 'pending' || order.status === 'partially_received') && access?.can_edit && !inventoryAccess &&
           <p className="mt-3 text-sm text-gray-700">Para recibir la orden necesitas permiso de edición en Inventario.</p>}
+        {order.status === 'pending' && access?.can_edit && <button type="button"
+          className="mt-3 rounded border border-red-600 px-4 py-2 text-red-700 disabled:opacity-40"
+          disabled={saving} onClick={() => void cancel(order)}>Anular orden</button>}
       </section>)}</div>}
     <div className="flex items-center gap-4">
       <button className="rounded border px-3 py-1 disabled:opacity-40" disabled={loading || saving || page === 1} onClick={() => { setLoading(true); setPage(page - 1); }}>Anterior</button>

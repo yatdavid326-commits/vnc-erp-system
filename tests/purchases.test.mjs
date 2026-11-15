@@ -113,6 +113,7 @@ test('partial receipt validates quantities and enforces both edit permissions', 
         } } };
     } },
   });
+
   const context = { params: Promise.resolve({ id }) };
   const receipt = { id, date: '2026-11-14', items: [{ item_id: id, quantity: 2 }] };
   denied = 'purchases';
@@ -138,4 +139,31 @@ test('partial receipt validates quantities and enforces both edit permissions', 
   assert.equal((await api.POST(request(receipt), context)).status, 409);
   rpcResult = { data: null, error: { code: 'P0001', message: 'order_missing' } };
   assert.equal((await api.POST(request(receipt), context)).status, 404);
+});
+
+test('cancellation requires edit permission and uses the authenticated actor', async () => {
+  let allowed = false;
+  let rpcResult = { data: { already_cancelled: false }, error: null };
+  const calls = [];
+  const api = load('../app/api/compras/[id]/anulacion/route.ts', {
+    '@/lib/services/modules/authorization': { authorizeModule: async (_, name, permission) => {
+      calls.push([name, permission]);
+      return allowed ? { profileId: 'server-profile', client: { rpc: async (name, args) => {
+        calls.push([name, args]); return rpcResult;
+      } } } : { error: Response.json({}, { status: 403 }) };
+    } },
+  });
+  const context = { params: Promise.resolve({ id }) };
+  assert.equal((await api.POST(request({}), context)).status, 403);
+  assert.deepEqual(calls[0], ['purchases', 'can_edit']);
+  allowed = true;
+  assert.equal((await api.POST(request({}), { params: Promise.resolve({ id: 'bad' }) })).status, 400);
+  assert.equal((await api.POST(request({ actor: id }), context)).status, 200);
+  const rpc = calls.find(([name]) => name === 'cancel_pending_purchase_order');
+  assert.equal(rpc[1].p_actor, 'server-profile');
+  assert.equal(rpc[1].p_order_id, id);
+  rpcResult = { data: null, error: { code: 'P0001', message: 'order_not_cancellable' } };
+  assert.equal((await api.POST(request({}), context)).status, 409);
+  rpcResult = { data: null, error: { code: 'P0001', message: 'order_missing' } };
+  assert.equal((await api.POST(request({}), context)).status, 404);
 });
