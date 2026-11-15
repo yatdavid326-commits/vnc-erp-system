@@ -43,7 +43,7 @@ Visitar `http://localhost:3000`
 7. **Caja** - Flujo de efectivo y movimientos
 8. **Asistencia** - Check-in con QR y geolocalización GPS
 9. **Empleados** - Gestión de usuarios y asignación de módulos
-10. **Reportes** - Informes básicos de órdenes de compra por estado y periodo de fecha de orden, y de estado actual del inventario de productos activos. Cada informe requiere acceso a Reportes y a su módulo de origen. Se puede descargar en CSV el resumen mostrado; el CSV de compras incluye el periodo aplicado (fechas vacías significan todas las fechas). En inventario, las existencias sin registrar se separan de los registros con existencias o reservas inválidas; las categorías con o sin existencia exigen reservas válidas y no descuentan reservas. Los demás informes, exportaciones detalladas y KPIs están pendientes.
+10. **Reportes** - Informes básicos de órdenes de compra por estado y periodo de fecha de orden, y de estado actual del inventario de productos activos. Cada informe requiere acceso a Reportes y a su módulo de origen. Se puede descargar en CSV el resumen mostrado; el CSV de compras incluye el periodo aplicado (fechas vacías significan todas las fechas). En inventario, las existencias sin registrar se separan de los registros con existencias o reservas inválidas; las categorías con o sin existencia exigen reservas válidas y no descuentan reservas. También se ofrece una descarga CSV del detalle de productos activos, limitada a 50,000 productos por archivo. Los demás informes y KPIs están pendientes.
 
 ## 🔐 Seguridad
 

@@ -22,6 +22,12 @@ test('inventory CSV escapes text and prevents spreadsheet formula execution', ()
   assert.match(exports.reportCsv([[' \t+1', 1]], 'Productos'), /"' \t\+1"/);
 });
 
+test('generic CSV export accepts detail columns and rejects rows with missing values', () => {
+  assert.equal(exports.csvRecords(['Código', 'Nombre'], [['P1', '=1+1']]),
+    '\uFEFF"Código","Nombre"\r\n"P1","\'=1+1"\r\n');
+  assert.throws(() => exports.csvRecords(['A', 'B'], [['only one']]), /match the header/);
+});
+
 test('download uses a CSV blob and cleans up even if the click fails', async () => {
   const events = [];
   let shouldFail = false;

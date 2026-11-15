@@ -2,10 +2,10 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import { useModuleStore } from '@/hooks';
-import { fetchAuthenticatedJson } from '@/lib/services/auth/fetchAuthenticatedJson';
+import { fetchAuthenticatedBlob, fetchAuthenticatedJson } from '@/lib/services/auth/fetchAuthenticatedJson';
 import { purchaseReportSchema, reportPeriodSchema, type PurchaseReport, type ReportPeriod } from '@/lib/purchaseReport';
 import { inventoryReportSchema, type InventoryReport } from '@/lib/inventoryReport';
-import { downloadReportCsv, reportCsv } from '@/lib/reportCsv';
+import { downloadReportBlob, downloadReportCsv, reportCsv } from '@/lib/reportCsv';
 
 function PurchaseStatusReport() {
   const [from, setFrom] = useState('');
@@ -103,6 +103,8 @@ function InventoryStatusReport() {
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
   const [exportError, setExportError] = useState('');
+  const [detailExporting, setDetailExporting] = useState(false);
+  const [detailExportError, setDetailExportError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -121,6 +123,20 @@ function InventoryStatusReport() {
 
   function refresh() {
     setError(''); setExportError(''); setReport(null); setRevision((value) => value + 1);
+  }
+
+  async function exportDetails() {
+    setDetailExportError('');
+    setDetailExporting(true);
+    try {
+      const file = await fetchAuthenticatedBlob('/api/informes/inventario/detalle');
+      downloadReportBlob('informe-inventario-detalle.csv', file);
+    } catch (error) {
+      console.error('Inventory detail export failed:', error);
+      setDetailExportError(error instanceof Error ? error.message : 'No se pudo descargar el detalle del inventario.');
+    } finally {
+      setDetailExporting(false);
+    }
   }
 
   const rows = report && [
@@ -144,7 +160,11 @@ function InventoryStatusReport() {
       try { downloadReportCsv('informe-inventario.csv', reportCsv(rows, 'Productos')); }
       catch (error) { console.error('Inventory report export failed:', error); setExportError('No se pudo descargar el informe de inventario.'); }
     }}>Descargar CSV de inventario</button>}
+    <button type="button" disabled={!rows || !!error || detailExporting} className="rounded border border-gray-300 px-4 py-2 disabled:opacity-50" onClick={() => void exportDetails()}>
+      {detailExporting ? 'Preparando detalle...' : 'Descargar detalle de productos activos'}
+    </button>
     {exportError && <p role="alert" className="text-sm text-red-700">{exportError}</p>}
+    {detailExportError && <p role="alert" className="text-sm text-red-700">{detailExportError}</p>}
     {error ? <div role="alert" className="text-sm text-red-700">
       <p>{error}</p>
       <button type="button" className="underline" onClick={refresh}>Reintentar</button>

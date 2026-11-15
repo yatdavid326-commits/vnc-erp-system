@@ -77,10 +77,10 @@ test('report page gates access independently for reports and purchases', () => {
   function render(userModules) {
     const { default: Page } = load('../app/dashboard/informes/page.tsx', {
       '@/hooks': { useModuleStore: (selector) => selector({ userModules }) },
-      '@/lib/services/auth/fetchAuthenticatedJson': { fetchAuthenticatedJson: () => {} },
+      '@/lib/services/auth/fetchAuthenticatedJson': { fetchAuthenticatedJson: () => {}, fetchAuthenticatedBlob: () => {} },
       '@/lib/purchaseReport': report,
       '@/lib/inventoryReport': inventoryReport,
-      '@/lib/reportCsv': {},
+      '@/lib/reportCsv': { downloadReportBlob() {}, downloadReportCsv() {}, reportCsv() {} },
     });
     return renderToStaticMarkup(createElement(Page));
   }
@@ -96,5 +96,7 @@ test('report page gates access independently for reports and purchases', () => {
   const inventoryOnly = render([assignment('reports'), assignment('inventory')]);
   assert.match(inventoryOnly, /Cargando inventario/);
   assert.match(inventoryOnly, /El informe de compras requiere permiso para ver Compras/);
+  assert.match(inventoryOnly, /Descargar detalle de productos activos/);
+  assert.doesNotMatch(html, /Descargar detalle de productos activos/);
   assert.doesNotMatch(render([assignment('inventory')]), /Cargando inventario/);
 });
