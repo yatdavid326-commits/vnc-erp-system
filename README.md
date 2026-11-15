@@ -38,7 +38,7 @@ Visitar `http://localhost:3000`
 2. **Clientes** - Gestión de clientes y control de crédito
 3. **Inventario** - Productos, categorías y control de stock
 4. **Proveedores** - Base de proveedores y contactos
-5. **Compras/Recibos** - Órdenes de compra y recepción
+5. **Compras/Recibos** - Órdenes de compra y recepción; búsqueda por número y filtro por estado.
 6. **Punto de Venta** - Sistema de venta rápida y efectivo
 7. **Caja** - Flujo de efectivo y movimientos
 8. **Asistencia** - Check-in con QR y geolocalización GPS

@@ -33,6 +33,43 @@ test('purchase validation rejects invalid dates, products, prices and extra fiel
   ]) assert.equal(purchases.purchaseSchema.safeParse(candidate).success, false);
 });
 
+test('purchase list applies literal number and status filters before pagination', async () => {
+  const calls = [];
+  let allowed = true;
+  const query = {
+    select(...args) { calls.push(['select', ...args]); return this; },
+    filter(...args) { calls.push(['filter', ...args]); return this; },
+    eq(...args) { calls.push(['eq', ...args]); return this; },
+    order(...args) { calls.push(['order', ...args]); return this; },
+    async range(...args) { calls.push(['range', ...args]); return { data: [], count: 0, error: null }; },
+  };
+  const api = load('../app/api/compras/route.ts', {
+    '@/lib/purchases': purchases,
+    '@/lib/services/modules/authorization': { authorizeModule: async (_, name, permission) => {
+      calls.push(['authorize', name, permission]);
+      return allowed ? { client: { from: () => query } } : { error: Response.json({}, { status: 403 }) };
+    } },
+  });
+  const get = (params = '') => new Request(`http://localhost/api/compras${params}`);
+  allowed = false;
+  assert.equal((await api.GET(get())).status, 403);
+  assert.deepEqual(calls.shift(), ['authorize', 'purchases', 'can_view']);
+  allowed = true;
+  for (const params of ['?page=0', '?status=unknown', `?search=${'a'.repeat(81)}`, '?search=a%00b']) {
+    assert.equal((await api.GET(get(params))).status, 400);
+  }
+  assert.equal(calls.some(([name]) => name === 'select'), false);
+  calls.length = 0;
+  const params = new URLSearchParams({ page: '2', search: '  A%_*\\B  ', status: 'partially_received' });
+  assert.equal((await api.GET(get(`?${params}`))).status, 200);
+  assert.deepEqual(calls.find(([name]) => name === 'filter'), ['filter', 'po_number', 'imatch', 'A%_\\*\\\\B']);
+  assert.deepEqual(calls.find(([name]) => name === 'eq'), ['eq', 'status', 'partially_received']);
+  assert.deepEqual(calls.find(([name]) => name === 'range'), ['range', 25, 49]);
+  calls.length = 0;
+  assert.equal((await api.GET(get())).status, 200);
+  assert.equal(calls.some(([name]) => name === 'filter' || name === 'eq'), false);
+});
+
 test('creation requires purchase permission and uses the server profile', async () => {
   let allowed = false;
   let rpcResult = { data: { already_recorded: false }, error: null };

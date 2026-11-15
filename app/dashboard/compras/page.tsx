@@ -37,6 +37,9 @@ export default function ComprasPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [page, setPage] = useState(1);
   const [revision, setRevision] = useState(0);
+  const [searchInput, setSearchInput] = useState('');
+  const [statusInput, setStatusInput] = useState('all');
+  const [filters, setFilters] = useState({ search: '', status: 'all' });
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -61,13 +64,19 @@ export default function ComprasPage() {
 
   useEffect(() => {
     let active = true;
-    request<{ data: Order[]; count: number }>(`/api/compras?page=${page}`).then((result) => {
+    const params = new URLSearchParams({ page: String(page), ...filters });
+    request<{ data: Order[]; count: number }>(`/api/compras?${params}`).then((result) => {
       if (active) { setOrders(result.data); setCount(result.count); }
     }).catch((err) => {
-      if (active) { setOrders([]); setError(err instanceof Error ? err.message : 'No se pudieron cargar las órdenes.'); }
+      if (active) { setOrders([]); setCount(0); setError(err instanceof Error ? err.message : 'No se pudieron cargar las órdenes.'); }
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [page, revision]);
+  }, [page, revision, filters]);
+
+  function applyFilters(search: string, status: string) {
+    setError(''); setNotice(''); setLoading(true); setPage(1);
+    setFilters({ search: search.trim(), status });
+  }
 
   async function searchOptions(kind: 'suppliers' | 'products') {
     setError('');
@@ -92,6 +101,7 @@ export default function ComprasPage() {
       });
       setRequestId(crypto.randomUUID()); setShowForm(false); setNumber(''); setDate(''); setNotes('');
       setItems([]); setSupplierId(''); setProductId(''); setSuppliers([]); setProducts([]);
+      setSearchInput(''); setStatusInput('all'); setFilters({ search: '', status: 'all' });
       setNotice('Orden registrada como pendiente. No se modificaron las existencias.');
       setLoading(true); setPage(1); setRevision((value) => value + 1);
     } catch (err) {
@@ -177,6 +187,22 @@ export default function ComprasPage() {
     <p className="text-sm text-gray-700">Crear una orden no modifica existencias. Puedes recibir las cantidades que llegaron; inicializa primero las existencias de esos productos en Inventario.</p>
     {error && <p role="alert" className="rounded bg-red-50 p-3 text-red-800">{error}</p>}
     {notice && <p role="status" className="rounded bg-green-50 p-3 text-green-800">{notice}</p>}
+    <form className="flex flex-wrap items-end gap-3 rounded bg-white p-4 shadow-sm" onSubmit={(event) => {
+      event.preventDefault(); applyFilters(searchInput, statusInput);
+    }}>
+      <label className="min-w-48 flex-1">Buscar por número
+        <input className={input} type="search" maxLength={80} value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
+      </label>
+      <label>Estado<select className={input} value={statusInput} onChange={(event) => setStatusInput(event.target.value)}>
+        <option value="all">Todos</option><option value="pending">Pendiente</option>
+        <option value="partially_received">Parcialmente recibida</option><option value="received">Recibida</option>
+        <option value="cancelled">Anulada</option>
+      </select></label>
+      <button type="submit" disabled={saving || editing !== null} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-40">Buscar</button>
+      <button type="button" disabled={saving || editing !== null} className="rounded border px-4 py-2 disabled:opacity-40" onClick={() => {
+        setSearchInput(''); setStatusInput('all'); applyFilters('', 'all');
+      }}>Limpiar filtros</button>
+    </form>
     {showForm && <form onSubmit={submit} className="space-y-4 rounded bg-white p-5 shadow-sm">
       <h2 className="text-xl font-semibold">Nueva orden de compra</h2>
       <div className="grid gap-3 md:grid-cols-2">
@@ -214,7 +240,7 @@ export default function ComprasPage() {
         <button className="rounded border px-4 py-2" disabled={saving} type="button" onClick={() => setShowForm(false)}>Cerrar formulario</button>
       </div>
     </form>}
-    {loading ? <p>Cargando órdenes...</p> : orders.length === 0 ? <p>{error ? 'No se pudo mostrar la lista.' : 'No hay órdenes de compra.'}</p> :
+    {loading ? <p>Cargando órdenes...</p> : orders.length === 0 ? <p>{error ? 'No se pudo mostrar la lista.' : filters.search || filters.status !== 'all' ? 'No hay órdenes que coincidan con los filtros.' : 'No hay órdenes de compra.'}</p> :
       <div className="space-y-3">{orders.map((order) => <section key={order.id} className="rounded bg-white p-4 shadow-sm">
         <h2 className="font-semibold">Orden {order.po_number}</h2>
         <p>Proveedor: {order.supplier?.name ?? 'No disponible'} · Fecha: {order.order_date} · Estado: {order.status === 'pending' ? 'Pendiente' : order.status === 'partially_received' ? 'Parcialmente recibida' : order.status === 'received' ? 'Recibida' : order.status === 'cancelled' ? 'Anulada' : order.status ?? 'Sin estado'} · Total: {Number(order.total_amount).toFixed(2)}</p>

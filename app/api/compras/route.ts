@@ -7,10 +7,19 @@ export async function GET(request: Request) {
   if (auth.error) return auth.error;
   const params = new URL(request.url).searchParams;
   const page = params.get('page') ?? '1';
-  if (!/^[1-9]\d{0,5}$/.test(page)) return NextResponse.json({ error: 'Página inválida.' }, { status: 400 });
+  const search = (params.get('search') ?? '').trim();
+  const status = params.get('status') ?? 'all';
+  if (!/^[1-9]\d{0,5}$/.test(page) || search.length > 80 ||
+      /[\u0000-\u001f\u007f]/.test(search) ||
+      !['all', 'pending', 'partially_received', 'received', 'cancelled'].includes(status)) {
+    return NextResponse.json({ error: 'Filtros inválidos.' }, { status: 400 });
+  }
   const start = (Number(page) - 1) * 25;
-  const { data, error, count } = await auth.client.from('purchase_orders')
-    .select('id, po_number, order_date, actual_delivery_date, status, total_amount, notes, edit_version, supplier:suppliers(name), items:purchase_order_items(id, quantity_ordered, quantity_received, unit_price, line_total, product:products(name, product_code))', { count: 'exact' })
+  let query = auth.client.from('purchase_orders')
+    .select('id, po_number, order_date, actual_delivery_date, status, total_amount, notes, edit_version, supplier:suppliers(name), items:purchase_order_items(id, quantity_ordered, quantity_received, unit_price, line_total, product:products(name, product_code))', { count: 'exact' });
+  if (search) query = query.filter('po_number', 'imatch', search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  if (status !== 'all') query = query.eq('status', status);
+  const { data, error, count } = await query
     .order('created_at', { ascending: false }).order('id')
     .range(start, start + 24);
   if (error) {
