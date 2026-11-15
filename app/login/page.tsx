@@ -113,10 +113,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Demo Info */}
-        <div className="mt-6 text-center text-white text-sm">
-          <p>📌 Demo: usuario <strong>admin</strong> | contraseña <strong>Admin@12345678</strong></p>
-        </div>
       </div>
     </div>
   );
