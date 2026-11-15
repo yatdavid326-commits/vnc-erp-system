@@ -3,18 +3,18 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useModuleStore } from '@/hooks';
 import { supabase } from '@/lib/db/supabase';
-import type { PurchaseInput, PartialReceiptInput } from '@/lib/purchases';
+import type { PurchaseInput, PartialReceiptInput, PurchaseDetailsInput } from '@/lib/purchases';
 
 type Option = { id: string; name: string };
 type Item = { product: Option; quantity: string; unitPrice: string };
 type Order = {
   id: string; po_number: string; order_date: string; actual_delivery_date: string | null; status: string | null;
-  total_amount: number; notes: string | null; supplier: Option | null;
+  total_amount: number; notes: string | null; edit_version: number; supplier: Option | null;
   items: { id: string; quantity_ordered: number; quantity_received: number | null; unit_price: number; line_total: number;
     product: { name: string; product_code: string } | null }[];
 };
 
-async function request<T>(path: string, method = 'GET', body?: PurchaseInput | PartialReceiptInput): Promise<T> {
+async function request<T>(path: string, method = 'GET', body?: PurchaseInput | PartialReceiptInput | PurchaseDetailsInput): Promise<T> {
   const { data: { session }, error } = await supabase.auth.getSession();
   if (error || !session?.access_token) throw new Error('No se pudo obtener la sesión. Inicia sesión nuevamente.');
   const response = await fetch(path, {
@@ -57,6 +57,7 @@ export default function ComprasPage() {
   const [receiptDates, setReceiptDates] = useState<Record<string, string>>({});
   const [receiptIds, setReceiptIds] = useState<Record<string, string>>({});
   const [receiptQuantities, setReceiptQuantities] = useState<Record<string, string>>({});
+  const [editing, setEditing] = useState<{ orderId: string; date: string; notes: string; version: number } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -147,10 +148,29 @@ export default function ComprasPage() {
     } finally { setSaving(false); }
   }
 
+  async function saveDetails(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editing) return;
+    setSaving(true); setError(''); setNotice('');
+    try {
+      await request(`/api/compras/${editing.orderId}/detalles`, 'PATCH', {
+        order_date: editing.date, notes: editing.notes, edit_version: editing.version,
+      });
+      setEditing(null); setNotice('Fecha y notas actualizadas. Las existencias no se modificaron.');
+      setLoading(true); setRevision((value) => value + 1);
+    } catch (err) {
+      setError(err instanceof TypeError ? 'No se pudo confirmar la edición. Actualiza la lista antes de reintentar.' :
+        err instanceof Error ? err.message : 'No se pudo confirmar la edición. Actualiza la lista antes de reintentar.');
+    } finally { setSaving(false); }
+  }
+
   const input = 'mt-1 w-full rounded border border-gray-300 px-3 py-2';
   return <div className="space-y-5">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h1 className="text-3xl font-bold text-gray-900">Compras</h1>
+      <button className="rounded border px-4 py-2" disabled={saving} onClick={() => {
+        setEditing(null); setError(''); setLoading(true); setRevision((value) => value + 1);
+      }}>Actualizar órdenes</button>
       {access?.can_create && <button className="rounded bg-blue-600 px-4 py-2 text-white" disabled={saving}
         onClick={() => { setShowForm(true); setError(''); setNotice(''); }}>Nueva orden</button>}
     </div>
@@ -200,6 +220,17 @@ export default function ComprasPage() {
         <p>Proveedor: {order.supplier?.name ?? 'No disponible'} · Fecha: {order.order_date} · Estado: {order.status === 'pending' ? 'Pendiente' : order.status === 'partially_received' ? 'Parcialmente recibida' : order.status === 'received' ? 'Recibida' : order.status === 'cancelled' ? 'Anulada' : order.status ?? 'Sin estado'} · Total: {Number(order.total_amount).toFixed(2)}</p>
         {order.actual_delivery_date && <p>Fecha de recepción: {order.actual_delivery_date}</p>}
         {order.notes && <p>Notas: {order.notes}</p>}
+        {order.status === 'pending' && editing?.orderId === order.id && <form onSubmit={saveDetails} className="my-3 space-y-3 rounded border p-3">
+          <p>Editar fecha y notas. Los productos y el proveedor no se pueden cambiar aquí.</p>
+          <label>Fecha de orden de {order.po_number}<input className={input} type="date" required disabled={saving}
+            value={editing.date} onChange={(e) => setEditing({ ...editing, date: e.target.value })} /></label>
+          <label>Notas de {order.po_number}<input className={input} maxLength={500} disabled={saving}
+            value={editing.notes} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} /></label>
+          <div className="flex gap-3">
+            <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white" disabled={saving}>Guardar cambios</button>
+            <button type="button" className="rounded border px-4 py-2" disabled={saving} onClick={() => setEditing(null)}>Cerrar edición</button>
+          </div>
+        </form>}
         <table className="w-full text-left text-sm"><thead><tr>{['Producto', 'Cantidad', 'Recibida', 'Precio unitario', 'Total'].map((h) => <th className="p-2" key={h}>{h}</th>)}
           {(order.status === 'pending' || order.status === 'partially_received') && access?.can_edit && inventoryAccess && <th className="p-2">Recibir ahora</th>}</tr></thead>
           <tbody>{order.items.map((row) => <tr key={row.id} className="border-t"><td className="p-2">{row.product ? `${row.product.product_code} - ${row.product.name}` : 'No disponible'}</td>
@@ -216,19 +247,23 @@ export default function ComprasPage() {
           <div className="mt-3 flex flex-wrap items-end gap-3">
             <label>Fecha de recepción de {order.po_number}<input className={input} type="date" disabled={saving}
               value={receiptDates[order.id] ?? ''} onChange={(e) => setReceiptDates({ ...receiptDates, [order.id]: e.target.value })} /></label>
-            <button type="button" className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-40" disabled={saving}
+            <button type="button" className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-40" disabled={saving || editing !== null}
               onClick={() => void receive(order)}>Registrar recepción</button>
           </div>}
         {(order.status === 'pending' || order.status === 'partially_received') && access?.can_edit && !inventoryAccess &&
           <p className="mt-3 text-sm text-gray-700">Para recibir la orden necesitas permiso de edición en Inventario.</p>}
         {order.status === 'pending' && access?.can_edit && <button type="button"
           className="mt-3 rounded border border-red-600 px-4 py-2 text-red-700 disabled:opacity-40"
-          disabled={saving} onClick={() => void cancel(order)}>Anular orden</button>}
+          disabled={saving || editing !== null} onClick={() => void cancel(order)}>Anular orden</button>}
+        {order.status === 'pending' && access?.can_edit && editing?.orderId !== order.id && <button type="button"
+          className="ml-3 mt-3 rounded border px-4 py-2 disabled:opacity-40" disabled={saving || editing !== null}
+          onClick={() => { setError(''); setNotice(''); setEditing({ orderId: order.id, date: order.order_date,
+            notes: order.notes ?? '', version: order.edit_version }); }}>Editar fecha y notas</button>}
       </section>)}</div>}
     <div className="flex items-center gap-4">
-      <button className="rounded border px-3 py-1 disabled:opacity-40" disabled={loading || saving || page === 1} onClick={() => { setLoading(true); setPage(page - 1); }}>Anterior</button>
+      <button className="rounded border px-3 py-1 disabled:opacity-40" disabled={loading || saving || editing !== null || page === 1} onClick={() => { setLoading(true); setPage(page - 1); }}>Anterior</button>
       <span>Página {page} · {count} órdenes</span>
-      <button className="rounded border px-3 py-1 disabled:opacity-40" disabled={loading || saving || page * 25 >= count} onClick={() => { setLoading(true); setPage(page + 1); }}>Siguiente</button>
+      <button className="rounded border px-3 py-1 disabled:opacity-40" disabled={loading || saving || editing !== null || page * 25 >= count} onClick={() => { setLoading(true); setPage(page + 1); }}>Siguiente</button>
     </div>
   </div>;
 }

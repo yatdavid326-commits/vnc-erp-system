@@ -167,3 +167,41 @@ test('cancellation requires edit permission and uses the authenticated actor', a
   rpcResult = { data: null, error: { code: 'P0001', message: 'order_missing' } };
   assert.equal((await api.POST(request({}), context)).status, 404);
 });
+
+test('editing order details validates input, requires permission and detects conflicts', async () => {
+  let allowed = false;
+  let rpcResult = { data: { edit_version: 1 }, error: null };
+  const calls = [];
+  const api = load('../app/api/compras/[id]/detalles/route.ts', {
+    '@/lib/purchases': purchases,
+    '@/lib/services/modules/authorization': { authorizeModule: async (_, name, permission) => {
+      calls.push([name, permission]);
+      return allowed ? { profileId: 'server-profile', client: { rpc: async (name, args) => {
+        calls.push([name, args]); return rpcResult;
+      } } } : { error: Response.json({}, { status: 403 }) };
+    } },
+  });
+  const context = { params: Promise.resolve({ id }) };
+  const body = { order_date: '2026-11-14', notes: '  Test  ', edit_version: 0 };
+  assert.equal((await api.PATCH(request(body), context)).status, 403);
+  assert.deepEqual(calls[0], ['purchases', 'can_edit']);
+  allowed = true;
+  assert.equal((await api.PATCH(request(body), { params: Promise.resolve({ id: 'bad' }) })).status, 400);
+  for (const invalid of [
+    { ...body, order_date: '2026-02-30' },
+    { ...body, notes: 'x'.repeat(501) },
+    { ...body, edit_version: -1 },
+    { ...body, edit_version: 0.5 },
+    { ...body, actor: id },
+  ]) assert.equal((await api.PATCH(request(invalid), context)).status, 400);
+  assert.equal((await api.PATCH(request(body), context)).status, 200);
+  const rpc = calls.find(([name]) => name === 'edit_pending_purchase_details');
+  assert.equal(rpc[1].p_actor, 'server-profile');
+  assert.equal(rpc[1].p_order_id, id);
+  assert.equal(rpc[1].p_notes, 'Test');
+  assert.equal(rpc[1].p_version, 0);
+  rpcResult = { data: null, error: { code: 'P0001', message: 'order_changed' } };
+  assert.equal((await api.PATCH(request(body), context)).status, 409);
+  rpcResult = { data: null, error: { code: 'P0001', message: 'order_missing' } };
+  assert.equal((await api.PATCH(request(body), context)).status, 404);
+});
