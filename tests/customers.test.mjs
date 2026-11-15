@@ -71,6 +71,34 @@ test('validates input and does not permit balance or arbitrary database fields',
   assert.equal(result.data.nit_number, null);
 });
 
+test('filters the database before pagination and treats wildcard characters literally', async () => {
+  const calls = [];
+  const query = {
+    select(...args) { calls.push(['select', ...args]); return this; },
+    ilike(...args) { calls.push(['ilike', ...args]); return this; },
+    eq(...args) { calls.push(['eq', ...args]); return this; },
+    or(...args) { calls.push(['or', ...args]); return this; },
+    order(...args) { calls.push(['order', ...args]); return this; },
+    async range(...args) { calls.push(['range', ...args]); return { data: [], count: 0, error: null }; },
+  };
+  const { GET } = load('../app/api/clientes/route.ts', {
+    '@/lib/services/customers/authorization': { authorizeCustomer: async () => ({ client: { from: () => query } }) },
+    '@/lib/services/customers/customerApi': api,
+  });
+  let response = await GET(new Request('http://localhost/api/clientes?page=2&search=A%25_%5C&status=active'));
+  assert.equal(response.status, 200);
+  assert.deepEqual(calls.find(([name]) => name === 'ilike'), ['ilike', 'name', '%A\\%\\_\\\\%']);
+  assert.deepEqual(calls.find(([name]) => name === 'eq'), ['eq', 'is_active', true]);
+  assert.deepEqual(calls.find(([name]) => name === 'range'), ['range', 25, 49]);
+  assert.ok(calls.findIndex(([name]) => name === 'ilike') < calls.findIndex(([name]) => name === 'range'));
+  calls.length = 0;
+  response = await GET(new Request('http://localhost/api/clientes?status=inactive'));
+  assert.equal(response.status, 200);
+  assert.deepEqual(calls.find(([name]) => name === 'or'), ['or', 'is_active.is.null,is_active.eq.false']);
+  assert.equal((await GET(new Request('http://localhost/api/clientes?status=unknown'))).status, 400);
+  assert.equal((await GET(new Request(`http://localhost/api/clientes?search=${'a'.repeat(101)}`))).status, 400);
+});
+
 test('CRUD routes enforce permissions, validate IDs and report database conflicts', async () => {
   let allowed = true;
   let operation = '';

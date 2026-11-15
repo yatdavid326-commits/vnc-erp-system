@@ -25,6 +25,9 @@ export default function ClientesPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [page, setPage] = useState(1);
   const [revision, setRevision] = useState(0);
+  const [searchInput, setSearchInput] = useState('');
+  const [statusInput, setStatusInput] = useState('all');
+  const [filters, setFilters] = useState({ search: '', status: 'all' });
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -36,7 +39,8 @@ export default function ClientesPage() {
 
   useEffect(() => {
     let active = true;
-    customerRequest(`/api/clientes?page=${page}`).then((result) => {
+    const params = new URLSearchParams({ page: String(page), ...filters });
+    customerRequest(`/api/clientes?${params}`).then((result) => {
       if (active) {
         setCustomers(result.data);
         setCount(result.count);
@@ -48,11 +52,19 @@ export default function ClientesPage() {
       }
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [page, revision]);
+  }, [page, revision, filters]);
 
   function refresh() {
     setLoading(true);
     setRevision((value) => value + 1);
+  }
+
+  function applyFilters(search: string, status: string) {
+    setError('');
+    setNotice('');
+    setLoading(true);
+    setPage(1);
+    setFilters({ search: search.trim(), status });
   }
 
   function edit(customer: Customer) {
@@ -121,6 +133,23 @@ export default function ClientesPage() {
       </div>
       {error && <p role="alert" className="rounded bg-red-50 p-3 text-red-800">{error}</p>}
       {notice && <p role="status" className="rounded bg-green-50 p-3 text-green-800">{notice}</p>}
+      <form className="flex flex-wrap items-end gap-3 rounded bg-white p-4 shadow-sm" onSubmit={(event) => {
+        event.preventDefault();
+        applyFilters(searchInput, statusInput);
+      }}>
+        <label className="min-w-48 flex-1">Buscar por nombre
+          <input className={inputClass} type="search" maxLength={100} value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
+        </label>
+        <label>Estado
+          <select className={inputClass} value={statusInput} onChange={(event) => setStatusInput(event.target.value)}>
+            <option value="all">Todos</option><option value="active">Activos</option><option value="inactive">Inactivos</option>
+          </select>
+        </label>
+        <button type="submit" disabled={saving} className="rounded bg-blue-600 px-4 py-2 text-white">Buscar</button>
+        <button type="button" disabled={saving} className="rounded border px-4 py-2" onClick={() => {
+          setSearchInput(''); setStatusInput('all'); applyFilters('', 'all');
+        }}>Limpiar filtros</button>
+      </form>
       {showForm && (
         <form onSubmit={submit} className="grid gap-4 rounded bg-white p-5 shadow-sm md:grid-cols-2">
           <h2 className="text-xl font-semibold md:col-span-2">{editing ? 'Editar cliente' : 'Nuevo cliente'}</h2>
@@ -143,7 +172,7 @@ export default function ClientesPage() {
         </form>
       )}
       <div className="overflow-x-auto rounded bg-white shadow-sm">
-        {loading ? <p className="p-5">Cargando clientes...</p> : customers.length === 0 ? <p className="p-5">{error ? 'No se pudo mostrar la lista.' : 'No hay clientes registrados.'}</p> : (
+        {loading ? <p className="p-5">Cargando clientes...</p> : customers.length === 0 ? <p className="p-5">{error ? 'No se pudo mostrar la lista.' : filters.search || filters.status !== 'all' ? 'No hay clientes que coincidan con los filtros.' : 'No hay clientes registrados.'}</p> : (
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50"><tr>{['Nombre', 'NIT', 'Teléfono', 'Correo', 'Estado', 'Acciones'].map((title) => <th className="p-3" key={title}>{title}</th>)}</tr></thead>
             <tbody>{customers.map((customer) => <tr key={customer.id} className="border-t">
