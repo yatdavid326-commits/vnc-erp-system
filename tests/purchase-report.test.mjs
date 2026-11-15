@@ -22,6 +22,7 @@ const report = load('../lib/purchaseReport.ts', { '@/lib/purchases': purchases }
 const inventoryReport = load('../lib/inventoryReport.ts');
 const lowStock = load('../lib/lowStock.ts');
 const valuation = load('../lib/inventoryValuationReport.ts');
+const supplierReport = load('../lib/purchaseSupplierReport.ts');
 
 test('period validation requires two real dates in order or no dates', () => {
   for (const valid of [{}, { from: '2024-02-29', to: '2024-02-29' }, { from: '2026-01-01', to: '2026-12-31' }]) {
@@ -119,6 +120,7 @@ test('report page gates access independently for reports and purchases', () => {
       '@/lib/inventoryReport': inventoryReport,
       '@/lib/lowStock': lowStock,
       '@/lib/inventoryValuationReport': valuation,
+      '@/lib/purchaseSupplierReport': supplierReport,
       '@/lib/reportCsv': { csvRecords() {}, downloadReportBlob() {}, downloadReportCsv() {}, reportCsv() {} },
     });
     return renderToStaticMarkup(createElement(Page));
@@ -127,11 +129,13 @@ test('report page gates access independently for reports and purchases', () => {
   assert.match(render([assignment('purchases')]), /Sin permiso para ver informes/);
   assert.match(render([assignment('reports')]), /requiere permiso para ver Compras/);
   assert.match(render([assignment('reports'), assignment('purchases', false)]), /requiere permiso para ver Compras/);
+  assert.match(render([assignment('reports'), assignment('purchases')]), /requiere permiso para ver Proveedores/);
   assert.match(render([assignment('reports', true, false), assignment('purchases')]), /Sin permiso para ver informes/);
   const html = render([assignment('reports'), assignment('purchases')]);
   assert.match(html, /Cargando informe/);
   assert.match(html, /fecha de orden e incluye ambos días/);
   assert.match(html, /no el valor recibido ni lo pagado/);
+  assert.match(html, /requiere permiso para ver Proveedores/);
   assert.match(html, /El informe de inventario requiere permiso para ver Inventario/);
   assert.match(html, /La valoración del inventario requiere permiso para ver Inventario/);
   assert.match(html, /El informe de bajo stock requiere permiso para ver Inventario/);
@@ -145,5 +149,8 @@ test('report page gates access independently for reports and purchases', () => {
   assert.match(inventoryOnly, /El informe de compras requiere permiso para ver Compras/);
   assert.doesNotMatch(render([assignment('reports'), assignment('inventory', false)]), /Cargando bajo stock/);
   assert.doesNotMatch(render([assignment('reports'), assignment('inventory', false)]), /Cargando valoración/);
+  const allRelevantModules = render([assignment('reports'), assignment('purchases'), assignment('suppliers')]);
+  assert.match(allRelevantModules, /Cargando compras por proveedor/);
+  assert.doesNotMatch(allRelevantModules, /requiere permiso para ver Proveedores/);
   assert.doesNotMatch(render([assignment('inventory')]), /Cargando inventario/);
 });

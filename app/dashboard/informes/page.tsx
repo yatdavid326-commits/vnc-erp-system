@@ -8,6 +8,7 @@ import { inventoryReportSchema, type InventoryReport } from '@/lib/inventoryRepo
 import { csvRecords, downloadReportBlob, downloadReportCsv, reportCsv } from '@/lib/reportCsv';
 import { lowStockSchema, type LowStockSummary } from '@/lib/lowStock';
 import { inventoryValuationReportSchema, type InventoryValuationReport } from '@/lib/inventoryValuationReport';
+import { purchaseSupplierReportSchema, type PurchaseSupplierReport } from '@/lib/purchaseSupplierReport';
 
 function PurchaseStatusReport() {
   const [from, setFrom] = useState('');
@@ -108,6 +109,123 @@ function PurchaseStatusReport() {
     {report && !error && <p className="text-sm text-gray-600">
       Órdenes con importe no confiable, excluidas de las sumas: {report.unvalued_amount_orders}.
     </p>}
+  </section>;
+}
+
+function PurchaseSupplierReportSection() {
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [period, setPeriod] = useState<ReportPeriod>({});
+  const [page, setPage] = useState(1);
+  const [report, setReport] = useState<PurchaseSupplierReport | null>(null);
+  const [error, setError] = useState('');
+  const [formError, setFormError] = useState('');
+  const [exportError, setExportError] = useState('');
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      try {
+        const params = new URLSearchParams({ page: String(page) });
+        if (period.from && period.to) {
+          params.set('from', period.from);
+          params.set('to', period.to);
+        }
+        const result = purchaseSupplierReportSchema.safeParse(
+          await fetchAuthenticatedJson(`/api/informes/compras/proveedores?${params}`)
+        );
+        if (!result.success) throw new Error('El informe de compras por proveedor recibido no es válido.');
+        if (active) setReport(result.data);
+      } catch (error) {
+        if (active) setError(error instanceof Error ? error.message : 'No se pudo consultar el informe por proveedor.');
+      }
+    }
+    void load();
+    return () => { active = false; };
+  }, [period, page, revision]);
+
+  function apply(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const parsed = reportPeriodSchema.safeParse({ from: from || undefined, to: to || undefined });
+    if (!parsed.success) {
+      setFormError('Indica ambas fechas válidas y en orden, o deja ambas vacías.');
+      return;
+    }
+    setFormError(''); setError(''); setExportError(''); setReport(null); setPage(1); setPeriod(parsed.data);
+  }
+
+  function reset() {
+    setFrom(''); setTo(''); setFormError(''); setError(''); setExportError(''); setReport(null); setPage(1); setPeriod({});
+  }
+
+  function movePage(nextPage: number) {
+    setError(''); setExportError(''); setReport(null); setPage(nextPage);
+  }
+
+  const totalPages = report ? Math.ceil(report.supplier_count / report.page_size) : 0;
+
+  return <section className="space-y-4 rounded-lg bg-white p-6 shadow-sm">
+    <h2 className="text-xl font-bold text-gray-900">Compras por proveedor</h2>
+    <p className="text-sm text-gray-600">
+      El periodo usa la fecha de orden. Los importes son el total de las órdenes, no pagos ni el valor recibido;
+      incluyen órdenes anuladas. Los importes no confiables se excluyen y se cuentan aparte.
+    </p>
+    <form onSubmit={apply} className="flex flex-wrap items-end gap-3">
+      <label className="text-sm text-gray-700">Desde
+        <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} className="mt-1 block rounded border border-gray-300 p-2" />
+      </label>
+      <label className="text-sm text-gray-700">Hasta
+        <input type="date" value={to} onChange={(event) => setTo(event.target.value)} className="mt-1 block rounded border border-gray-300 p-2" />
+      </label>
+      <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">Aplicar</button>
+      <button type="button" onClick={reset} className="rounded border border-gray-300 px-4 py-2">Mostrar todo</button>
+    </form>
+    {formError && <p role="alert" className="text-sm text-red-700">{formError}</p>}
+    <p className="text-sm text-gray-600">
+      Periodo consultado: {period.from && period.to ? `${period.from} a ${period.to}` : 'todas las fechas'}.
+    </p>
+    {report && report.items.length > 0 && !error && <button type="button" className="rounded border border-gray-300 px-4 py-2" onClick={() => {
+      setExportError('');
+      try {
+        const headers = ['Página', 'Proveedor', 'Órdenes', 'Importe ordenado (GTQ)', 'Órdenes con importe no confiable', 'Desde', 'Hasta'];
+        const records = report.items.map((item) => [
+          page, item.supplier_name, item.total_orders, item.total_amount_gtq,
+          item.unvalued_amount_orders, period.from ?? '', period.to ?? '',
+        ]);
+        downloadReportCsv('compras-por-proveedor.csv', csvRecords(headers, records));
+      } catch (error) {
+        console.error('Purchase supplier report export failed:', error);
+        setExportError('No se pudo descargar esta página del informe.');
+      }
+    }}>Descargar CSV de esta página</button>}
+    {exportError && <p role="alert" className="text-sm text-red-700">{exportError}</p>}
+    {error ? <div role="alert" className="text-sm text-red-700">
+      <p>{error}</p>
+      <button type="button" className="underline" onClick={() => {
+        setError(''); setReport(null); setRevision((value) => value + 1);
+      }}>Reintentar</button>
+    </div> : !report ? <p className="text-sm text-gray-600" aria-live="polite">Cargando compras por proveedor...</p> : <>
+      <p className="text-sm text-gray-700">Proveedores con órdenes: {report.supplier_count}.</p>
+      {report.items.length === 0 ? <p className="text-sm text-gray-600">No hay órdenes para el periodo consultado.</p> :
+        <table className="w-full text-left text-sm">
+          <thead><tr>
+            <th className="py-2">Proveedor</th><th className="py-2">Órdenes</th>
+            <th className="py-2">Importe ordenado (GTQ)</th><th className="py-2">Importes no confiables</th>
+          </tr></thead>
+          <tbody>{report.items.map((item, index) => <tr key={item.supplier_id ?? `sin-proveedor-${index}`} className="border-t border-gray-200">
+            <th scope="row" className="py-2 font-normal">{item.supplier_name}</th>
+            <td className="py-2">{item.total_orders}</td><td className="py-2">Q {item.total_amount_gtq}</td>
+            <td className="py-2">{item.unvalued_amount_orders}</td>
+          </tr>)}</tbody>
+        </table>}
+      {report.supplier_count > report.page_size && <div className="flex items-center gap-3">
+        <button type="button" disabled={page <= 1} className="rounded border border-gray-300 px-3 py-2 disabled:opacity-50" onClick={() => movePage(page - 1)}>Anterior</button>
+        <p className="text-sm text-gray-600">Página {page} de {totalPages}</p>
+        <button type="button" disabled={page >= totalPages} className="rounded border border-gray-300 px-3 py-2 disabled:opacity-50" onClick={() => movePage(page + 1)}>Siguiente</button>
+      </div>}
+      {report.supplier_count > report.page_size && <p className="text-sm text-gray-600">El CSV descarga únicamente la página mostrada.</p>}
+    </>}
   </section>;
 }
 
@@ -323,6 +441,9 @@ export default function InformesPage() {
   const canViewPurchases = useModuleStore((state) => state.userModules.some(
     (item) => item.module?.name === 'purchases' && item.module.is_active && item.can_view
   ));
+  const canViewSuppliers = useModuleStore((state) => state.userModules.some(
+    (item) => item.module?.name === 'suppliers' && item.module.is_active && item.can_view
+  ));
   const canViewInventory = useModuleStore((state) => state.userModules.some(
     (item) => item.module?.name === 'inventory' && item.module.is_active && item.can_view
   ));
@@ -331,6 +452,8 @@ export default function InformesPage() {
     <h1 className="text-3xl font-bold text-gray-900">Informes</h1>
     {!canViewReports ? <p>Sin permiso para ver informes.</p> : <>
       {canViewPurchases ? <PurchaseStatusReport /> : <p>El informe de compras requiere permiso para ver Compras.</p>}
+      {canViewPurchases && (canViewSuppliers ? <PurchaseSupplierReportSection /> :
+        <p>El informe de compras por proveedor requiere permiso para ver Proveedores.</p>)}
       {canViewInventory ? <InventoryStatusReport /> : <p>El informe de inventario requiere permiso para ver Inventario.</p>}
       {canViewInventory ? <InventoryValuationReportSection /> : <p>La valoración del inventario requiere permiso para ver Inventario.</p>}
       {canViewInventory ? <LowStockReport /> : <p>El informe de bajo stock requiere permiso para ver Inventario.</p>}
