@@ -76,3 +76,44 @@ test('product routes enforce inventory permissions and report conflicts', async 
   result = { data: null, error: { code: '23503' } };
   assert.equal((await item.DELETE(request(), context)).status, 409);
 });
+
+test('movement endpoints validate input, require edit access and use the authenticated profile', async () => {
+  const movement = load('../lib/inventoryMovement.ts');
+  let allowed = true;
+  const calls = [];
+  let rpcResult = { data: { already_recorded: false }, error: null };
+  const query = {
+    select() { return this; }, eq() { return this; }, order() { return this; },
+    async range() { return { data: [], count: 0, error: null }; },
+  };
+  const module = load('../app/api/inventario/[id]/movimientos/route.ts', {
+    '@/lib/inventoryMovement': movement,
+    '@/lib/services/modules/authorization': { authorizeModule: async (_, name, permission) => {
+      calls.push([name, permission]);
+      return allowed ? { profileId: 'profile-id', client: {
+        from: () => query,
+        rpc: async (name, args) => { calls.push([name, args]); return rpcResult; },
+      } } : { error: Response.json({}, { status: 403 }) };
+    } },
+  });
+  const context = { params: Promise.resolve({ id: '7f1cf2ab-91ad-4850-a225-35605dc3203d' }) };
+  const body = { id: 'c4269eab-e850-47e0-8d59-68e22083f696', type: 'adjustment', quantity: 0, notes: 'Conteo' };
+  allowed = false;
+  assert.equal((await module.POST(request(body), context)).status, 403);
+  assert.equal(calls.length, 1);
+  allowed = true;
+  assert.equal((await module.GET(request(), context)).status, 200);
+  assert.equal((await module.POST(request({ ...body, type: 'entry' }), context)).status, 400);
+  assert.equal((await module.POST(request({ ...body, quantity: -1 }), context)).status, 400);
+  assert.equal((await module.POST(request({ ...body, notes: ' ' }), context)).status, 400);
+  assert.equal((await module.POST(request({ ...body, created_by: 'forged' }), context)).status, 400);
+  assert.equal((await module.POST(request(body), context)).status, 200);
+  const rpc = calls.find(([name]) => name === 'record_manual_inventory_movement');
+  assert.equal(rpc[1].p_actor_id, 'profile-id');
+  assert.equal(rpc[1].p_id, body.id);
+  rpcResult = { data: null, error: { code: 'P0001', message: 'insufficient_stock' } };
+  assert.equal((await module.POST(request(body), context)).status, 409);
+  rpcResult = { data: null, error: { code: 'P0001', message: 'product_missing' } };
+  assert.equal((await module.POST(request(body), context)).status, 404);
+  assert.ok(calls.some(([name, permission]) => name === 'inventory' && permission === 'can_edit'));
+});

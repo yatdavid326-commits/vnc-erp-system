@@ -40,5 +40,5 @@ export async function authorizeModule(request: Request, moduleName: ProtectedMod
   if (!access?.can_view || !access[permission]) {
     return { error: NextResponse.json({ error: 'No tienes permiso para esta acción.' }, { status: 403 }) };
   }
-  return { client: supabaseAdmin };
+  return { client: supabaseAdmin, profileId: profile.id };
 }

@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useModuleStore } from '@/hooks';
 import { supabase } from '@/lib/db/supabase';
 import { emptyProduct, type Product, type ProductInput } from '@/lib/products';
+import Movimientos from '@/components/inventario/Movimientos';
 
 async function productRequest(path: string, method = 'GET', body?: ProductInput) {
   const { data: { session }, error } = await supabase.auth.getSession();
@@ -46,6 +47,7 @@ export default function InventarioPage() {
   const [editing, setEditing] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyProduct);
+  const [movementProductId, setMovementProductId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -104,6 +106,7 @@ export default function InventarioPage() {
   }
 
   const inputClass = 'mt-1 w-full rounded border border-gray-300 px-3 py-2';
+  const movementProduct = products.find((product) => product.id === movementProductId);
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -112,7 +115,7 @@ export default function InventarioPage() {
           setForm(emptyProduct); setEditing(null); setShowForm(true); setError(''); setNotice('');
         }}>Nuevo producto</button>}
       </div>
-      <p className="rounded bg-amber-50 p-3 text-amber-900">Catálogo de productos disponible. El registro de entradas, salidas y ajustes de existencias aún no está disponible.</p>
+      <p className="text-sm text-gray-700">Las existencias se inician mediante un ajuste con la cantidad contada.</p>
       {error && <p role="alert" className="rounded bg-red-50 p-3 text-red-800">{error}</p>}
       {notice && <p role="status" className="rounded bg-green-50 p-3 text-green-800">{notice}</p>}
       <form className="flex flex-wrap items-end gap-3 rounded bg-white p-4 shadow-sm" onSubmit={(event) => {
@@ -153,6 +156,7 @@ export default function InventarioPage() {
               <td className="p-3">{product.inventory?.quantity_on_hand ?? 'Sin registrar'}</td>
               <td className="p-3">{product.is_active ? 'Activo' : 'Inactivo'}</td>
               <td className="p-3"><div className="flex gap-3">
+                <button disabled={saving} className="text-blue-700" onClick={() => setMovementProductId(product.id)}>Movimientos</button>
                 {access?.can_edit && <button disabled={saving} className="text-blue-700" onClick={() => edit(product)}>Editar</button>}
                 {access?.can_delete && <button disabled={saving} className="text-red-700" onClick={() => void remove(product)}>Eliminar</button>}
               </div></td>
@@ -160,6 +164,15 @@ export default function InventarioPage() {
           </table>
         )}
       </div>
+      {movementProduct && (
+        <Movimientos
+          key={movementProduct.id}
+          product={movementProduct}
+          canEdit={!!access?.can_edit}
+          onClose={() => setMovementProductId(null)}
+          onUpdated={refresh}
+        />
+      )}
       <div className="flex items-center gap-4">
         <button className="rounded border px-3 py-1 disabled:opacity-40" disabled={loading || saving || page === 1} onClick={() => { setError(''); setLoading(true); setPage(page - 1); }}>Anterior</button>
         <span>Página {page} · {count} productos</span>
