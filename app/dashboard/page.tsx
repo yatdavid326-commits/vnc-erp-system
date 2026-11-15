@@ -3,7 +3,24 @@
 import { useEffect, useState } from 'react';
 import { useAuthStore, useModuleStore } from '@/hooks';
 import { supabase } from '@/lib/db/supabase';
+import { lowStockSchema, type LowStockSummary } from '@/lib/lowStock';
 import { TrendingUp, Package, Users, DollarSign } from 'lucide-react';
+import Link from 'next/link';
+
+async function fetchSummary(path: string): Promise<unknown> {
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error || !session?.access_token) throw new Error('No se pudo obtener la sesión. Inicia sesión nuevamente.');
+  const response = await fetch(path, {
+    headers: { Authorization: `Bearer ${session.access_token}` },
+    cache: 'no-store',
+  });
+  const result: unknown = await response.json();
+  const payload = result !== null && typeof result === 'object' ? result as Record<string, unknown> : null;
+  if (!response.ok) {
+    throw new Error(typeof payload?.error === 'string' && payload.error ? payload.error : 'No se pudo consultar el resumen.');
+  }
+  return result;
+}
 
 function SummaryMetric({ path, field, description }: { path: string; field: string; description: string }) {
   const [summary, setSummary] = useState<{ count: number | null; error: string }>({ count: null, error: '' });
@@ -13,17 +30,8 @@ function SummaryMetric({ path, field, description }: { path: string; field: stri
     let active = true;
     async function loadSummary() {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error || !session?.access_token) throw new Error('No se pudo obtener la sesión. Inicia sesión nuevamente.');
-        const response = await fetch(path, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-          cache: 'no-store',
-        });
-        const result: unknown = await response.json();
+        const result = await fetchSummary(path);
         const payload = result !== null && typeof result === 'object' ? result as Record<string, unknown> : null;
-        if (!response.ok) {
-          throw new Error(typeof payload?.error === 'string' && payload.error ? payload.error : 'No se pudo consultar el resumen.');
-        }
         const count = payload?.[field];
         if (typeof count !== 'number' || !Number.isSafeInteger(count) || count < 0) {
           throw new Error('El resumen recibido no es válido.');
@@ -48,6 +56,55 @@ function SummaryMetric({ path, field, description }: { path: string; field: stri
       }}>Reintentar</button>
     </div> : <p className="mt-2 text-sm text-gray-600">{description}</p>}
   </>;
+}
+
+function LowStock() {
+  const [summary, setSummary] = useState<LowStockSummary | null>(null);
+  const [error, setError] = useState('');
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      try {
+        const result = lowStockSchema.safeParse(await fetchSummary('/api/inventario/bajo-stock'));
+        if (!result.success) throw new Error('El resumen de bajo stock no es válido.');
+        if (active) setSummary(result.data);
+      } catch (error) {
+        if (active) setError(error instanceof Error ? error.message : 'No se pudo consultar el bajo stock.');
+      }
+    }
+    void load();
+    return () => { active = false; };
+  }, [revision]);
+
+  if (error) return <div role="alert" className="text-sm text-red-700">
+    <p>{error}</p>
+    <button type="button" className="underline" onClick={() => {
+      setError(''); setSummary(null); setRevision((value) => value + 1);
+    }}>Reintentar</button>
+  </div>;
+  if (!summary) return <p className="text-sm text-gray-600" aria-live="polite">Cargando...</p>;
+
+  return <div className="space-y-3 text-sm">
+    <p className="text-gray-600">
+      Productos activos cuya existencia física es igual o inferior a su nivel de reposición; no se descuentan reservas.
+    </p>
+    <p className="text-gray-700">
+      {summary.total === 0 ? 'No hay productos con bajo stock evaluados.' :
+        `${summary.total} producto(s) con bajo stock${summary.total > 5 ? '; se muestran los 5 con menor existencia física' : ''}.`}
+    </p>
+    {summary.items.length > 0 && <ul className="divide-y divide-gray-200">
+      {summary.items.map((item) => <li key={item.id} className="py-2">
+        <p className="font-medium text-gray-900">{item.name} ({item.product_code})</p>
+        <p className="text-gray-600">Existencia física: {item.quantity_on_hand} · Nivel de reposición: {item.reorder_level}</p>
+      </li>)}
+    </ul>}
+    {summary.not_evaluated > 0 && <p className="text-amber-700">
+      {summary.not_evaluated} producto(s) sin evaluar por existencia o nivel de reposición sin registrar o inválidos.
+    </p>}
+    <Link href="/dashboard/inventario" className="text-blue-700 underline">Ver inventario</Link>
+  </div>;
 }
 
 export default function DashboardPage() {
@@ -145,7 +202,7 @@ export default function DashboardPage() {
           <h2 className="text-lg font-bold text-gray-900 mb-4">
             Productos con Bajo Stock
           </h2>
-          <p className="text-sm text-gray-600">Datos reales aún no disponibles.</p>
+          {canViewInventory ? <LowStock /> : <p className="text-sm text-gray-600">Sin permiso para ver inventario.</p>}
         </div>
       </div>
     </div>

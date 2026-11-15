@@ -11,6 +11,11 @@ const source = readFileSync(new URL('../app/dashboard/page.tsx', import.meta.url
 const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
 }).outputText;
+const require = createRequire(import.meta.url);
+const lowStockSource = readFileSync(new URL('../lib/lowStock.ts', import.meta.url), 'utf8');
+const lowStockCompiled = ts.transpileModule(lowStockSource, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+const lowStock = {};
+runInNewContext(lowStockCompiled, { exports: lowStock, require });
 
 function renderDashboard(userModules) {
   const exports = {};
@@ -23,6 +28,7 @@ function renderDashboard(userModules) {
         useModuleStore: (selector) => selector({ userModules }),
       };
       if (name === '@/lib/db/supabase') return { supabase: {} };
+      if (name === '@/lib/lowStock') return lowStock;
       return require(name);
     },
   });
@@ -39,9 +45,11 @@ test('dashboard identifies unavailable data and loads authorized summaries witho
   assert.match(html, /Cargando/);
   assert.match(html, /Existencia física registrada mayor que cero/);
   assert.match(html, /Clientes registrados con estado activo/);
-  assert.equal((html.match(/Cargando/g) || []).length, 2);
+  assert.equal((html.match(/Cargando/g) || []).length, 3);
   assert.equal((html.match(/No disponible/g) || []).length, 2);
-  assert.equal((html.match(/Datos reales aún no disponibles/g) || []).length, 2);
+  assert.equal((html.match(/Datos reales aún no disponibles/g) || []).length, 1);
+  assert.match(html, /Ventas Recientes<\/h2><p[^>]*>Datos reales aún no disponibles/);
+  assert.match(html, /Productos con Bajo Stock<\/h2><p[^>]*>Cargando/);
   assert.doesNotMatch(html, /45,230|128,450|Factura #100|PRD-100/);
 });
 
@@ -50,12 +58,54 @@ test('dashboard hides each summary independently when permission or module is in
     { module: { name: 'inventory', is_active: true }, can_view: false },
     { module: { name: 'clients', is_active: false }, can_view: true },
   ]);
-  assert.equal((html.match(/Sin permiso/g) || []).length, 2);
+  assert.equal((html.match(/Sin permiso/g) || []).length, 3);
   assert.doesNotMatch(html, /Existencia física registrada mayor que cero/);
   assert.doesNotMatch(html, /Clientes registrados con estado activo/);
   const inventoryOnly = renderDashboard([{ module: { name: 'inventory', is_active: true }, can_view: true }]);
   assert.match(inventoryOnly, /Existencia física registrada mayor que cero/);
   assert.equal((inventoryOnly.match(/Sin permiso/g) || []).length, 1);
+});
+
+test('low stock route denies access and validates the database result', async () => {
+  const apiSource = readFileSync(new URL('../app/api/inventario/bajo-stock/route.ts', import.meta.url), 'utf8');
+  const apiCompiled = ts.transpileModule(apiSource, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+  const calls = [];
+  let allowed = false;
+  let result = { data: { total: 0, not_evaluated: 2, items: [] }, error: null };
+  const exports = {};
+  runInNewContext(apiCompiled, { exports, console: { error() {} }, require: (name) => {
+    if (name === '@/lib/services/modules/authorization') return {
+      authorizeModule: async (_, module, permission) => {
+        calls.push(['authorize', module, permission]);
+        return allowed ? { client: { rpc: async (method) => { calls.push(['rpc', method]); return result; } } }
+          : { error: Response.json({}, { status: 403 }) };
+      },
+    };
+    if (name === '@/lib/lowStock') return lowStock;
+    return require(name);
+  } });
+  const request = new Request('http://localhost/api/inventario/bajo-stock');
+  assert.equal((await exports.GET(request)).status, 403);
+  assert.equal(calls.length, 1);
+  allowed = true;
+  const response = await exports.GET(request);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.equal((await response.json()).not_evaluated, 2);
+  assert.deepEqual(calls[1], ['authorize', 'inventory', 'can_view']);
+  assert.deepEqual(calls[2], ['rpc', 'dashboard_low_stock']);
+  result = { data: null, error: { message: 'database unavailable' } };
+  assert.equal((await exports.GET(request)).status, 500);
+  result = { data: { total: 1, not_evaluated: 0, items: [] }, error: null };
+  assert.equal((await exports.GET(request)).status, 500);
+});
+
+test('low stock data rejects inconsistent counts and quantities above the threshold', () => {
+  const item = { id: '7f1cf2ab-91ad-4850-a225-35605dc3203d', product_code: 'P1', name: 'Producto', quantity_on_hand: 2, reorder_level: 2 };
+  assert.equal(lowStock.lowStockSchema.safeParse({ total: 1, not_evaluated: 0, items: [item] }).success, true);
+  assert.equal(lowStock.lowStockSchema.safeParse({ total: 0, not_evaluated: 0, items: [item] }).success, false);
+  assert.equal(lowStock.lowStockSchema.safeParse({ total: 1, not_evaluated: 0, items: [{ ...item, quantity_on_hand: 3 }] }).success, false);
+  assert.equal(lowStock.lowStockSchema.safeParse({ total: 1, not_evaluated: -1, items: [item] }).success, false);
 });
 
 test('customer summary requires permission and counts only active customers without pagination', async () => {
