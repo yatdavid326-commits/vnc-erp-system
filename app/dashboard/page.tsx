@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuthStore } from '@/hooks';
-import { BarChart3, TrendingUp, Package, Users, DollarSign } from 'lucide-react';
+import { TrendingUp, Package, Users, DollarSign } from 'lucide-react';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
@@ -9,29 +9,21 @@ export default function DashboardPage() {
   const stats = [
     {
       title: 'Ventas del Mes',
-      value: 'Q 45,230.00',
-      change: '+12.5%',
       icon: TrendingUp,
       color: 'blue',
     },
     {
       title: 'Productos en Stock',
-      value: '1,240',
-      change: '-2.3%',
       icon: Package,
       color: 'green',
     },
     {
       title: 'Clientes Activos',
-      value: '385',
-      change: '+8.1%',
       icon: Users,
       color: 'purple',
     },
     {
       title: 'Ingresos Totales',
-      value: 'Q 128,450.00',
-      change: '+23.4%',
       icon: DollarSign,
       color: 'amber',
     },
@@ -44,7 +36,7 @@ export default function DashboardPage() {
           Bienvenido, {user?.full_name}
         </h1>
         <p className="text-gray-600 mt-1">
-          Aquí está el resumen de tu negocio
+          Las métricas reales todavía no están conectadas.
         </p>
       </div>
 
@@ -67,68 +59,27 @@ export default function DashboardPage() {
                 >
                   <Icon size={24} />
                 </div>
-                <span className="text-green-600 text-sm font-semibold">
-                  {stat.change}
-                </span>
               </div>
               <p className="text-gray-600 text-sm">{stat.title}</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">
-                {stat.value}
+                No disponible
               </p>
             </div>
           );
         })}
       </div>
 
-      {/* Coming Soon */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Sales */}
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-4">Ventas Recientes</h2>
-          <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between pb-4 border-b border-gray-100 last:border-0"
-              >
-                <div>
-                  <p className="text-sm font-medium text-gray-900">
-                    Factura #{1001 + i}
-                  </p>
-                  <p className="text-xs text-gray-500">Cliente #{i}</p>
-                </div>
-                <p className="text-sm font-semibold text-gray-900">
-                  Q {(Math.random() * 5000).toFixed(2)}
-                </p>
-              </div>
-            ))}
-          </div>
+          <p className="text-sm text-gray-600">Datos reales aún no disponibles.</p>
         </div>
 
-        {/* Low Stock Products */}
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-4">
             Productos con Bajo Stock
           </h2>
-          <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between pb-4 border-b border-gray-100 last:border-0"
-              >
-                <div>
-                  <p className="text-sm font-medium text-gray-900">
-                    Producto {i}
-                  </p>
-                  <p className="text-xs text-gray-500">SKU: PRD-{1000 + i}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-red-600">{i} unidades</p>
-                  <p className="text-xs text-gray-500">Stock mínimo: 10</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <p className="text-sm text-gray-600">Datos reales aún no disponibles.</p>
         </div>
       </div>
     </div>
