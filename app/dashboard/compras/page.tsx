@@ -3,18 +3,18 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useModuleStore } from '@/hooks';
 import { supabase } from '@/lib/db/supabase';
-import type { PurchaseInput } from '@/lib/purchases';
+import type { PurchaseInput, ReceiptInput } from '@/lib/purchases';
 
 type Option = { id: string; name: string };
 type Item = { product: Option; quantity: string; unitPrice: string };
 type Order = {
-  id: string; po_number: string; order_date: string; status: string | null;
+  id: string; po_number: string; order_date: string; actual_delivery_date: string | null; status: string | null;
   total_amount: number; notes: string | null; supplier: Option | null;
-  items: { id: string; quantity_ordered: number; unit_price: number; line_total: number;
+  items: { id: string; quantity_ordered: number; quantity_received: number | null; unit_price: number; line_total: number;
     product: { name: string; product_code: string } | null }[];
 };
 
-async function request<T>(path: string, method = 'GET', body?: PurchaseInput): Promise<T> {
+async function request<T>(path: string, method = 'GET', body?: PurchaseInput | ReceiptInput): Promise<T> {
   const { data: { session }, error } = await supabase.auth.getSession();
   if (error || !session?.access_token) throw new Error('No se pudo obtener la sesión. Inicia sesión nuevamente.');
   const response = await fetch(path, {
@@ -30,6 +30,9 @@ async function request<T>(path: string, method = 'GET', body?: PurchaseInput): P
 export default function ComprasPage() {
   const access = useModuleStore((state) => state.userModules.find(
     (item) => item.module?.name === 'purchases' && item.module.is_active && item.can_view
+  ));
+  const inventoryAccess = useModuleStore((state) => state.userModules.find(
+    (item) => item.module?.name === 'inventory' && item.module.is_active && item.can_view && item.can_edit
   ));
   const [orders, setOrders] = useState<Order[]>([]);
   const [page, setPage] = useState(1);
@@ -51,6 +54,8 @@ export default function ComprasPage() {
   const [supplierId, setSupplierId] = useState('');
   const [productId, setProductId] = useState('');
   const [items, setItems] = useState<Item[]>([]);
+  const [receiptDates, setReceiptDates] = useState<Record<string, string>>({});
+  const [receiptIds, setReceiptIds] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let active = true;
@@ -93,6 +98,23 @@ export default function ComprasPage() {
     } finally { setSaving(false); }
   }
 
+  async function receive(order: Order) {
+    const date = receiptDates[order.id];
+    if (!date) { setError('Selecciona la fecha de recepción.'); return; }
+    if (!window.confirm(`¿Recibir todos los productos de la orden ${order.po_number}? Esta acción aumentará las existencias y no puede deshacerse desde Compras.`)) return;
+    const id = receiptIds[order.id] ?? crypto.randomUUID();
+    setReceiptIds((current) => ({ ...current, [order.id]: id }));
+    setSaving(true); setError(''); setNotice('');
+    try {
+      await request(`/api/compras/${order.id}/recepcion`, 'POST', { id, date });
+      setNotice('Orden recibida. Las existencias y el historial de inventario se actualizaron.');
+      setLoading(true); setRevision((value) => value + 1);
+    } catch (err) {
+      setError(err instanceof TypeError ? 'No se pudo confirmar la recepción. Revisa la orden antes de reintentar.' :
+        err instanceof Error ? err.message : 'No se pudo confirmar la recepción. Revisa la orden antes de reintentar.');
+    } finally { setSaving(false); }
+  }
+
   const input = 'mt-1 w-full rounded border border-gray-300 px-3 py-2';
   return <div className="space-y-5">
     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -100,7 +122,7 @@ export default function ComprasPage() {
       {access?.can_create && <button className="rounded bg-blue-600 px-4 py-2 text-white" disabled={saving}
         onClick={() => { setShowForm(true); setError(''); setNotice(''); }}>Nueva orden</button>}
     </div>
-    <p className="text-sm text-gray-700">Las órdenes quedan pendientes y no modifican existencias. La recepción de mercancía aún no está disponible.</p>
+    <p className="text-sm text-gray-700">Crear una orden no modifica existencias. Al recibirla se registran todos sus productos; antes debes inicializar sus existencias en Inventario. La recepción parcial aún no está disponible.</p>
     {error && <p role="alert" className="rounded bg-red-50 p-3 text-red-800">{error}</p>}
     {notice && <p role="status" className="rounded bg-green-50 p-3 text-green-800">{notice}</p>}
     {showForm && <form onSubmit={submit} className="space-y-4 rounded bg-white p-5 shadow-sm">
@@ -143,12 +165,22 @@ export default function ComprasPage() {
     {loading ? <p>Cargando órdenes...</p> : orders.length === 0 ? <p>{error ? 'No se pudo mostrar la lista.' : 'No hay órdenes de compra.'}</p> :
       <div className="space-y-3">{orders.map((order) => <section key={order.id} className="rounded bg-white p-4 shadow-sm">
         <h2 className="font-semibold">Orden {order.po_number}</h2>
-        <p>Proveedor: {order.supplier?.name ?? 'No disponible'} · Fecha: {order.order_date} · Estado: {order.status === 'pending' ? 'Pendiente' : order.status ?? 'Sin estado'} · Total: {Number(order.total_amount).toFixed(2)}</p>
+        <p>Proveedor: {order.supplier?.name ?? 'No disponible'} · Fecha: {order.order_date} · Estado: {order.status === 'pending' ? 'Pendiente' : order.status === 'received' ? 'Recibida' : order.status ?? 'Sin estado'} · Total: {Number(order.total_amount).toFixed(2)}</p>
+        {order.actual_delivery_date && <p>Fecha de recepción: {order.actual_delivery_date}</p>}
         {order.notes && <p>Notas: {order.notes}</p>}
-        <table className="w-full text-left text-sm"><thead><tr>{['Producto', 'Cantidad', 'Precio unitario', 'Total'].map((h) => <th className="p-2" key={h}>{h}</th>)}</tr></thead>
+        <table className="w-full text-left text-sm"><thead><tr>{['Producto', 'Cantidad', 'Recibida', 'Precio unitario', 'Total'].map((h) => <th className="p-2" key={h}>{h}</th>)}</tr></thead>
           <tbody>{order.items.map((row) => <tr key={row.id} className="border-t"><td className="p-2">{row.product ? `${row.product.product_code} - ${row.product.name}` : 'No disponible'}</td>
-            <td className="p-2">{row.quantity_ordered}</td><td className="p-2">{Number(row.unit_price).toFixed(2)}</td><td className="p-2">{Number(row.line_total).toFixed(2)}</td></tr>)}</tbody>
+            <td className="p-2">{row.quantity_ordered}</td><td className="p-2">{row.quantity_received ?? '—'}</td><td className="p-2">{Number(row.unit_price).toFixed(2)}</td><td className="p-2">{Number(row.line_total).toFixed(2)}</td></tr>)}</tbody>
         </table>
+        {order.status === 'pending' && access?.can_edit && inventoryAccess &&
+          <div className="mt-3 flex flex-wrap items-end gap-3">
+            <label>Fecha de recepción de {order.po_number}<input className={input} type="date" disabled={saving}
+              value={receiptDates[order.id] ?? ''} onChange={(e) => setReceiptDates({ ...receiptDates, [order.id]: e.target.value })} /></label>
+            <button type="button" className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-40" disabled={saving}
+              onClick={() => void receive(order)}>Recibir orden completa</button>
+          </div>}
+        {order.status === 'pending' && access?.can_edit && !inventoryAccess &&
+          <p className="mt-3 text-sm text-gray-700">Para recibir la orden necesitas permiso de edición en Inventario.</p>}
       </section>)}</div>}
     <div className="flex items-center gap-4">
       <button className="rounded border px-3 py-1 disabled:opacity-40" disabled={loading || saving || page === 1} onClick={() => { setLoading(true); setPage(page - 1); }}>Anterior</button>

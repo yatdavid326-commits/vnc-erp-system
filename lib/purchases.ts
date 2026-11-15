@@ -7,17 +7,25 @@ const item = z.object({
     .refine((value) => /^\d+(?:\.\d{1,2})?$/.test(String(value))),
 }).strict();
 
+export const purchaseDate = z.string().refine((value) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith('0000-')) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+});
+
+export const receiptSchema = z.object({
+  id: z.string().uuid(),
+  date: purchaseDate,
+}).strict();
+
 export const purchaseSchema = z.object({
   id: z.string().uuid(),
   number: z.string().trim().min(1).max(80),
   supplier_id: z.string().uuid(),
-  order_date: z.string().refine((value) => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith('0000-')) return false;
-    const date = new Date(`${value}T00:00:00Z`);
-    return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
-  }),
+  order_date: purchaseDate,
   notes: z.string().trim().max(500),
   items: z.array(item).min(1).max(100),
 }).strict().refine((value) => new Set(value.items.map((row) => row.product_id)).size === value.items.length);
 
 export type PurchaseInput = z.infer<typeof purchaseSchema>;
+export type ReceiptInput = z.infer<typeof receiptSchema>;

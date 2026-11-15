@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   if (!/^[1-9]\d{0,5}$/.test(page)) return NextResponse.json({ error: 'Página inválida.' }, { status: 400 });
   const start = (Number(page) - 1) * 25;
   const { data, error, count } = await auth.client.from('purchase_orders')
-    .select('id, po_number, order_date, status, total_amount, notes, supplier:suppliers(name), items:purchase_order_items(id, quantity_ordered, unit_price, line_total, product:products(name, product_code))', { count: 'exact' })
+    .select('id, po_number, order_date, actual_delivery_date, status, total_amount, notes, supplier:suppliers(name), items:purchase_order_items(id, quantity_ordered, quantity_received, unit_price, line_total, product:products(name, product_code))', { count: 'exact' })
     .order('created_at', { ascending: false }).order('id')
     .range(start, start + 24);
   if (error) {
