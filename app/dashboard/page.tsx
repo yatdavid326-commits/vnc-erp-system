@@ -1,10 +1,41 @@
 'use client';
 
-import { useAuthStore } from '@/hooks';
+import { useEffect, useState } from 'react';
+import { useAuthStore, useModuleStore } from '@/hooks';
+import { supabase } from '@/lib/db/supabase';
 import { TrendingUp, Package, Users, DollarSign } from 'lucide-react';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
+  const canViewInventory = useModuleStore((state) => state.userModules.some(
+    (item) => item.module?.name === 'inventory' && item.module.is_active && item.can_view
+  ));
+  const [inventory, setInventory] = useState<{ count: number | null; error: string }>({ count: null, error: '' });
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    if (!canViewInventory) return;
+    let active = true;
+    async function loadInventory() {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error || !session?.access_token) throw new Error('No se pudo obtener la sesión. Inicia sesión nuevamente.');
+        const response = await fetch('/api/inventario/resumen', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'No se pudo consultar el resumen de inventario.');
+        if (!Number.isSafeInteger(result.products_in_stock) || result.products_in_stock < 0) {
+          throw new Error('El resumen de inventario recibido no es válido.');
+        }
+        if (active) setInventory({ count: result.products_in_stock, error: '' });
+      } catch (error) {
+        if (active) setInventory({ count: null, error: error instanceof Error ? error.message : 'No se pudo consultar el resumen de inventario.' });
+      }
+    }
+    void loadInventory();
+    return () => { active = false; };
+  }, [canViewInventory, revision]);
 
   const stats = [
     {
@@ -13,9 +44,10 @@ export default function DashboardPage() {
       color: 'blue',
     },
     {
-      title: 'Productos en Stock',
+      title: 'Productos activos con existencias',
       icon: Package,
       color: 'green',
+      inventory: true,
     },
     {
       title: 'Clientes Activos',
@@ -36,7 +68,7 @@ export default function DashboardPage() {
           Bienvenido, {user?.full_name}
         </h1>
         <p className="text-gray-600 mt-1">
-          Las métricas reales todavía no están conectadas.
+          Algunas métricas todavía no están disponibles.
         </p>
       </div>
 
@@ -62,8 +94,21 @@ export default function DashboardPage() {
               </div>
               <p className="text-gray-600 text-sm">{stat.title}</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">
-                No disponible
+                {!stat.inventory ? 'No disponible' :
+                  !canViewInventory ? 'Sin permiso' :
+                  inventory.error ? 'No disponible' :
+                  inventory.count === null ? 'Cargando...' : inventory.count}
               </p>
+              {stat.inventory && canViewInventory && (
+                inventory.error ? <div role="alert" className="mt-2 text-sm text-red-700">
+                  <p>{inventory.error}</p>
+                  <button type="button" className="underline" onClick={() => {
+                    setInventory({ count: null, error: '' }); setRevision((value) => value + 1);
+                  }}>Reintentar</button>
+                </div> : <p className="mt-2 text-sm text-gray-600">
+                  Existencia física registrada mayor que cero; no incluye productos sin conteo.
+                </p>
+              )}
             </div>
           );
         })}

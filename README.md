@@ -34,7 +34,7 @@ Visitar `http://localhost:3000`
 
 ## 📦 Módulos del Sistema
 
-1. **Dashboard** - Panel de control con KPIs y resumen
+1. **Dashboard** - Panel de control; muestra el número de productos activos con existencia física registrada mayor que cero a usuarios con permiso de Inventario. Las demás métricas aún no están disponibles.
 2. **Clientes** - Gestión de clientes y control de crédito
 3. **Inventario** - Productos, categorías y control de stock
 4. **Proveedores** - Base de proveedores y contactos
