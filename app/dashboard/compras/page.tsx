@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useModuleStore } from '@/hooks';
 import { supabase } from '@/lib/db/supabase';
-import type { PurchaseInput, ReceiptInput } from '@/lib/purchases';
+import type { PurchaseInput, PartialReceiptInput } from '@/lib/purchases';
 
 type Option = { id: string; name: string };
 type Item = { product: Option; quantity: string; unitPrice: string };
@@ -14,7 +14,7 @@ type Order = {
     product: { name: string; product_code: string } | null }[];
 };
 
-async function request<T>(path: string, method = 'GET', body?: PurchaseInput | ReceiptInput): Promise<T> {
+async function request<T>(path: string, method = 'GET', body?: PurchaseInput | PartialReceiptInput): Promise<T> {
   const { data: { session }, error } = await supabase.auth.getSession();
   if (error || !session?.access_token) throw new Error('No se pudo obtener la sesión. Inicia sesión nuevamente.');
   const response = await fetch(path, {
@@ -56,6 +56,7 @@ export default function ComprasPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [receiptDates, setReceiptDates] = useState<Record<string, string>>({});
   const [receiptIds, setReceiptIds] = useState<Record<string, string>>({});
+  const [receiptQuantities, setReceiptQuantities] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let active = true;
@@ -101,13 +102,31 @@ export default function ComprasPage() {
   async function receive(order: Order) {
     const date = receiptDates[order.id];
     if (!date) { setError('Selecciona la fecha de recepción.'); return; }
-    if (!window.confirm(`¿Recibir todos los productos de la orden ${order.po_number}? Esta acción aumentará las existencias y no puede deshacerse desde Compras.`)) return;
+    const lines: PartialReceiptInput['items'] = [];
+    for (const item of order.items) {
+      const raw = receiptQuantities[item.id] ?? '';
+      if (raw === '') continue;
+      const quantity = Number(raw);
+      if (!/^\d+$/.test(raw) || !Number.isSafeInteger(quantity) || item.quantity_received === null ||
+        quantity > item.quantity_ordered - item.quantity_received) {
+        setError('Revisa las cantidades: no pueden superar lo pendiente.'); return;
+      }
+      if (quantity > 0) lines.push({ item_id: item.id, quantity });
+    }
+    if (!lines.length) { setError('Indica al menos una cantidad recibida.'); return; }
+    if (!window.confirm(`¿Registrar las cantidades indicadas para la orden ${order.po_number}? Esto aumentará las existencias y no puede deshacerse desde Compras.`)) return;
     const id = receiptIds[order.id] ?? crypto.randomUUID();
     setReceiptIds((current) => ({ ...current, [order.id]: id }));
     setSaving(true); setError(''); setNotice('');
     try {
-      await request(`/api/compras/${order.id}/recepcion`, 'POST', { id, date });
-      setNotice('Orden recibida. Las existencias y el historial de inventario se actualizaron.');
+      await request(`/api/compras/${order.id}/recepcion-parcial`, 'POST', { id, date, items: lines });
+      setReceiptIds((current) => {
+        const next = { ...current }; delete next[order.id]; return next;
+      });
+      setReceiptQuantities((current) => {
+        const next = { ...current }; order.items.forEach((item) => { delete next[item.id]; }); return next;
+      });
+      setNotice('Recepción registrada. Las existencias y el historial de inventario se actualizaron.');
       setLoading(true); setRevision((value) => value + 1);
     } catch (err) {
       setError(err instanceof TypeError ? 'No se pudo confirmar la recepción. Revisa la orden antes de reintentar.' :
@@ -122,7 +141,7 @@ export default function ComprasPage() {
       {access?.can_create && <button className="rounded bg-blue-600 px-4 py-2 text-white" disabled={saving}
         onClick={() => { setShowForm(true); setError(''); setNotice(''); }}>Nueva orden</button>}
     </div>
-    <p className="text-sm text-gray-700">Crear una orden no modifica existencias. Al recibirla se registran todos sus productos; antes debes inicializar sus existencias en Inventario. La recepción parcial aún no está disponible.</p>
+    <p className="text-sm text-gray-700">Crear una orden no modifica existencias. Puedes recibir las cantidades que llegaron; inicializa primero las existencias de esos productos en Inventario.</p>
     {error && <p role="alert" className="rounded bg-red-50 p-3 text-red-800">{error}</p>}
     {notice && <p role="status" className="rounded bg-green-50 p-3 text-green-800">{notice}</p>}
     {showForm && <form onSubmit={submit} className="space-y-4 rounded bg-white p-5 shadow-sm">
@@ -165,21 +184,29 @@ export default function ComprasPage() {
     {loading ? <p>Cargando órdenes...</p> : orders.length === 0 ? <p>{error ? 'No se pudo mostrar la lista.' : 'No hay órdenes de compra.'}</p> :
       <div className="space-y-3">{orders.map((order) => <section key={order.id} className="rounded bg-white p-4 shadow-sm">
         <h2 className="font-semibold">Orden {order.po_number}</h2>
-        <p>Proveedor: {order.supplier?.name ?? 'No disponible'} · Fecha: {order.order_date} · Estado: {order.status === 'pending' ? 'Pendiente' : order.status === 'received' ? 'Recibida' : order.status ?? 'Sin estado'} · Total: {Number(order.total_amount).toFixed(2)}</p>
+        <p>Proveedor: {order.supplier?.name ?? 'No disponible'} · Fecha: {order.order_date} · Estado: {order.status === 'pending' ? 'Pendiente' : order.status === 'partially_received' ? 'Parcialmente recibida' : order.status === 'received' ? 'Recibida' : order.status ?? 'Sin estado'} · Total: {Number(order.total_amount).toFixed(2)}</p>
         {order.actual_delivery_date && <p>Fecha de recepción: {order.actual_delivery_date}</p>}
         {order.notes && <p>Notas: {order.notes}</p>}
-        <table className="w-full text-left text-sm"><thead><tr>{['Producto', 'Cantidad', 'Recibida', 'Precio unitario', 'Total'].map((h) => <th className="p-2" key={h}>{h}</th>)}</tr></thead>
+        <table className="w-full text-left text-sm"><thead><tr>{['Producto', 'Cantidad', 'Recibida', 'Precio unitario', 'Total'].map((h) => <th className="p-2" key={h}>{h}</th>)}
+          {(order.status === 'pending' || order.status === 'partially_received') && access?.can_edit && inventoryAccess && <th className="p-2">Recibir ahora</th>}</tr></thead>
           <tbody>{order.items.map((row) => <tr key={row.id} className="border-t"><td className="p-2">{row.product ? `${row.product.product_code} - ${row.product.name}` : 'No disponible'}</td>
-            <td className="p-2">{row.quantity_ordered}</td><td className="p-2">{row.quantity_received ?? '—'}</td><td className="p-2">{Number(row.unit_price).toFixed(2)}</td><td className="p-2">{Number(row.line_total).toFixed(2)}</td></tr>)}</tbody>
+            <td className="p-2">{row.quantity_ordered}</td><td className="p-2">{row.quantity_received ?? '—'}</td><td className="p-2">{Number(row.unit_price).toFixed(2)}</td><td className="p-2">{Number(row.line_total).toFixed(2)}</td>
+            {(order.status === 'pending' || order.status === 'partially_received') && access?.can_edit && inventoryAccess && <td className="p-2">
+              <input aria-label={`Recibir ${row.product?.product_code ?? row.id} en ${order.po_number}`} className={input}
+                type="number" min="0" max={row.quantity_received === null ? 0 : row.quantity_ordered - row.quantity_received}
+                step="1" disabled={saving || row.quantity_received === null || row.quantity_received >= row.quantity_ordered}
+                value={receiptQuantities[row.id] ?? ''} onChange={(e) => setReceiptQuantities({ ...receiptQuantities, [row.id]: e.target.value })} />
+            </td>}
+          </tr>)}</tbody>
         </table>
-        {order.status === 'pending' && access?.can_edit && inventoryAccess &&
+        {(order.status === 'pending' || order.status === 'partially_received') && access?.can_edit && inventoryAccess &&
           <div className="mt-3 flex flex-wrap items-end gap-3">
             <label>Fecha de recepción de {order.po_number}<input className={input} type="date" disabled={saving}
               value={receiptDates[order.id] ?? ''} onChange={(e) => setReceiptDates({ ...receiptDates, [order.id]: e.target.value })} /></label>
             <button type="button" className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-40" disabled={saving}
-              onClick={() => void receive(order)}>Recibir orden completa</button>
+              onClick={() => void receive(order)}>Registrar recepción</button>
           </div>}
-        {order.status === 'pending' && access?.can_edit && !inventoryAccess &&
+        {(order.status === 'pending' || order.status === 'partially_received') && access?.can_edit && !inventoryAccess &&
           <p className="mt-3 text-sm text-gray-700">Para recibir la orden necesitas permiso de edición en Inventario.</p>}
       </section>)}</div>}
     <div className="flex items-center gap-4">

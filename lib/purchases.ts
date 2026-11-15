@@ -18,6 +18,15 @@ export const receiptSchema = z.object({
   date: purchaseDate,
 }).strict();
 
+export const partialReceiptSchema = z.object({
+  id: z.string().uuid(),
+  date: purchaseDate,
+  items: z.array(z.object({
+    item_id: z.string().uuid(),
+    quantity: z.number().int().positive().max(2147483647),
+  }).strict()).min(1).max(100),
+}).strict().refine((value) => new Set(value.items.map((row) => row.item_id)).size === value.items.length);
+
 export const purchaseSchema = z.object({
   id: z.string().uuid(),
   number: z.string().trim().min(1).max(80),
@@ -29,3 +38,4 @@ export const purchaseSchema = z.object({
 
 export type PurchaseInput = z.infer<typeof purchaseSchema>;
 export type ReceiptInput = z.infer<typeof receiptSchema>;
+export type PartialReceiptInput = z.infer<typeof partialReceiptSchema>;

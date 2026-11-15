@@ -98,3 +98,44 @@ test('full receipt requires both module permissions and uses the authenticated a
   rpcResult = { data: null, error: { code: 'P0001', message: 'order_missing' } };
   assert.equal((await api.POST(request(receipt), context)).status, 404);
 });
+
+test('partial receipt validates quantities and enforces both edit permissions', async () => {
+  let denied = '';
+  let rpcResult = { data: { already_recorded: false, complete: false }, error: null };
+  const calls = [];
+  const api = load('../app/api/compras/[id]/recepcion-parcial/route.ts', {
+    '@/lib/purchases': purchases,
+    '@/lib/services/modules/authorization': { authorizeModule: async (_, name, permission) => {
+      calls.push([name, permission]);
+      return name === denied ? { error: Response.json({}, { status: 403 }) } :
+        { profileId: 'server-profile', client: { rpc: async (name, args) => {
+          calls.push([name, args]); return rpcResult;
+        } } };
+    } },
+  });
+  const context = { params: Promise.resolve({ id }) };
+  const receipt = { id, date: '2026-11-14', items: [{ item_id: id, quantity: 2 }] };
+  denied = 'purchases';
+  assert.equal((await api.POST(request(receipt), context)).status, 403);
+  denied = 'inventory';
+  assert.equal((await api.POST(request(receipt), context)).status, 403);
+  assert.equal(calls.some(([name]) => name === 'receive_partial_purchase_order'), false);
+  denied = '';
+  for (const invalid of [
+    { ...receipt, date: '2026-02-30' },
+    { ...receipt, items: [] },
+    { ...receipt, items: [{ item_id: id, quantity: 0 }] },
+    { ...receipt, items: [{ item_id: id, quantity: 1.5 }] },
+    { ...receipt, items: [receipt.items[0], receipt.items[0]] },
+    { ...receipt, actor: id },
+  ]) assert.equal((await api.POST(request(invalid), context)).status, 400);
+  assert.equal((await api.POST(request(receipt), context)).status, 200);
+  const rpc = calls.find(([name]) => name === 'receive_partial_purchase_order');
+  assert.equal(rpc[1].p_actor, 'server-profile');
+  assert.equal(rpc[1].p_order_id, id);
+  assert.equal(rpc[1].p_items[0].quantity, 2);
+  rpcResult = { data: null, error: { code: 'P0001', message: 'quantity_exceeded' } };
+  assert.equal((await api.POST(request(receipt), context)).status, 409);
+  rpcResult = { data: null, error: { code: 'P0001', message: 'order_missing' } };
+  assert.equal((await api.POST(request(receipt), context)).status, 404);
+});
