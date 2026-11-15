@@ -5,37 +5,59 @@ import { useAuthStore, useModuleStore } from '@/hooks';
 import { supabase } from '@/lib/db/supabase';
 import { TrendingUp, Package, Users, DollarSign } from 'lucide-react';
 
+function SummaryMetric({ path, field, description }: { path: string; field: string; description: string }) {
+  const [summary, setSummary] = useState<{ count: number | null; error: string }>({ count: null, error: '' });
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    async function loadSummary() {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error || !session?.access_token) throw new Error('No se pudo obtener la sesión. Inicia sesión nuevamente.');
+        const response = await fetch(path, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          cache: 'no-store',
+        });
+        const result: unknown = await response.json();
+        const payload = result !== null && typeof result === 'object' ? result as Record<string, unknown> : null;
+        if (!response.ok) {
+          throw new Error(typeof payload?.error === 'string' && payload.error ? payload.error : 'No se pudo consultar el resumen.');
+        }
+        const count = payload?.[field];
+        if (typeof count !== 'number' || !Number.isSafeInteger(count) || count < 0) {
+          throw new Error('El resumen recibido no es válido.');
+        }
+        if (active) setSummary({ count, error: '' });
+      } catch (error) {
+        if (active) setSummary({ count: null, error: error instanceof Error ? error.message : 'No se pudo consultar el resumen.' });
+      }
+    }
+    void loadSummary();
+    return () => { active = false; };
+  }, [path, field, revision]);
+
+  return <>
+    <p className="text-2xl font-bold text-gray-900 mt-1" aria-live="polite">
+      {summary.error ? 'No disponible' : summary.count === null ? 'Cargando...' : summary.count}
+    </p>
+    {summary.error ? <div role="alert" className="mt-2 text-sm text-red-700">
+      <p>{summary.error}</p>
+      <button type="button" className="underline" onClick={() => {
+        setSummary({ count: null, error: '' }); setRevision((value) => value + 1);
+      }}>Reintentar</button>
+    </div> : <p className="mt-2 text-sm text-gray-600">{description}</p>}
+  </>;
+}
+
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const canViewInventory = useModuleStore((state) => state.userModules.some(
     (item) => item.module?.name === 'inventory' && item.module.is_active && item.can_view
   ));
-  const [inventory, setInventory] = useState<{ count: number | null; error: string }>({ count: null, error: '' });
-  const [revision, setRevision] = useState(0);
-
-  useEffect(() => {
-    if (!canViewInventory) return;
-    let active = true;
-    async function loadInventory() {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error || !session?.access_token) throw new Error('No se pudo obtener la sesión. Inicia sesión nuevamente.');
-        const response = await fetch('/api/inventario/resumen', {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'No se pudo consultar el resumen de inventario.');
-        if (!Number.isSafeInteger(result.products_in_stock) || result.products_in_stock < 0) {
-          throw new Error('El resumen de inventario recibido no es válido.');
-        }
-        if (active) setInventory({ count: result.products_in_stock, error: '' });
-      } catch (error) {
-        if (active) setInventory({ count: null, error: error instanceof Error ? error.message : 'No se pudo consultar el resumen de inventario.' });
-      }
-    }
-    void loadInventory();
-    return () => { active = false; };
-  }, [canViewInventory, revision]);
+  const canViewCustomers = useModuleStore((state) => state.userModules.some(
+    (item) => item.module?.name === 'clients' && item.module.is_active && item.can_view
+  ));
 
   const stats = [
     {
@@ -47,12 +69,23 @@ export default function DashboardPage() {
       title: 'Productos activos con existencias',
       icon: Package,
       color: 'green',
-      inventory: true,
+      summary: {
+        allowed: canViewInventory,
+        path: '/api/inventario/resumen',
+        field: 'products_in_stock',
+        description: 'Existencia física registrada mayor que cero; no incluye productos sin conteo.',
+      },
     },
     {
       title: 'Clientes Activos',
       icon: Users,
       color: 'purple',
+      summary: {
+        allowed: canViewCustomers,
+        path: '/api/clientes/resumen',
+        field: 'active_customers',
+        description: 'Clientes registrados con estado activo.',
+      },
     },
     {
       title: 'Ingresos Totales',
@@ -93,22 +126,10 @@ export default function DashboardPage() {
                 </div>
               </div>
               <p className="text-gray-600 text-sm">{stat.title}</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">
-                {!stat.inventory ? 'No disponible' :
-                  !canViewInventory ? 'Sin permiso' :
-                  inventory.error ? 'No disponible' :
-                  inventory.count === null ? 'Cargando...' : inventory.count}
-              </p>
-              {stat.inventory && canViewInventory && (
-                inventory.error ? <div role="alert" className="mt-2 text-sm text-red-700">
-                  <p>{inventory.error}</p>
-                  <button type="button" className="underline" onClick={() => {
-                    setInventory({ count: null, error: '' }); setRevision((value) => value + 1);
-                  }}>Reintentar</button>
-                </div> : <p className="mt-2 text-sm text-gray-600">
-                  Existencia física registrada mayor que cero; no incluye productos sin conteo.
-                </p>
-              )}
+              {stat.summary?.allowed ? <SummaryMetric {...stat.summary} /> :
+                <p className="text-2xl font-bold text-gray-900 mt-1">
+                  {stat.summary ? 'Sin permiso' : 'No disponible'}
+                </p>}
             </div>
           );
         })}
