@@ -6,6 +6,7 @@ import { fetchAuthenticatedBlob, fetchAuthenticatedJson } from '@/lib/services/a
 import { purchaseReportSchema, reportPeriodSchema, type PurchaseReport, type ReportPeriod } from '@/lib/purchaseReport';
 import { inventoryReportSchema, type InventoryReport } from '@/lib/inventoryReport';
 import { downloadReportBlob, downloadReportCsv, reportCsv } from '@/lib/reportCsv';
+import { lowStockSchema, type LowStockSummary } from '@/lib/lowStock';
 
 function PurchaseStatusReport() {
   const [from, setFrom] = useState('');
@@ -178,6 +179,66 @@ function InventoryStatusReport() {
   </section>;
 }
 
+function LowStockReport() {
+  const [summary, setSummary] = useState<LowStockSummary | null>(null);
+  const [error, setError] = useState('');
+  const [revision, setRevision] = useState(0);
+  const [exportError, setExportError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      try {
+        const result = lowStockSchema.safeParse(await fetchAuthenticatedJson('/api/inventario/bajo-stock'));
+        if (!result.success) throw new Error('El informe de bajo stock recibido no es válido.');
+        if (active) setSummary(result.data);
+      } catch (error) {
+        if (active) setError(error instanceof Error ? error.message : 'No se pudo consultar el bajo stock.');
+      }
+    }
+    void load();
+    return () => { active = false; };
+  }, [revision]);
+
+  function refresh() {
+    setError(''); setExportError(''); setSummary(null); setRevision((value) => value + 1);
+  }
+
+  const rows = summary && [
+    ['Productos con bajo stock', summary.total],
+    ['Productos no evaluados', summary.not_evaluated],
+  ] as const;
+
+  return <section className="space-y-4 rounded-lg bg-white p-6 shadow-sm">
+    <h2 className="text-xl font-bold text-gray-900">Bajo stock</h2>
+    <p className="text-sm text-gray-600">
+      Compara la existencia física con el nivel de reposición, sin descontar reservas. El informe muestra el total
+      y hasta cinco productos; las existencias o niveles sin registrar o inválidos se cuentan como no evaluados.
+    </p>
+    <button type="button" onClick={refresh} className="rounded border border-gray-300 px-4 py-2">Actualizar bajo stock</button>
+    {rows && !error && <button type="button" className="rounded border border-gray-300 px-4 py-2" onClick={() => {
+      setExportError('');
+      try { downloadReportCsv('informe-bajo-stock.csv', reportCsv(rows, 'Productos')); }
+      catch (error) { console.error('Low stock report export failed:', error); setExportError('No se pudo descargar el resumen de bajo stock.'); }
+    }}>Descargar resumen de bajo stock</button>}
+    {exportError && <p role="alert" className="text-sm text-red-700">{exportError}</p>}
+    {error ? <div role="alert" className="text-sm text-red-700">
+      <p>{error}</p>
+      <button type="button" className="underline" onClick={refresh}>Reintentar</button>
+    </div> : !summary ? <p className="text-sm text-gray-600" aria-live="polite">Cargando bajo stock...</p> : <>
+      <p className="text-sm text-gray-700">Productos con bajo stock: {summary.total} · No evaluados: {summary.not_evaluated}</p>
+      {summary.items.length === 0 ? <p className="text-sm text-gray-600">No hay productos con bajo stock para mostrar.</p> :
+        <ul className="divide-y divide-gray-200">
+          {summary.items.map((item) => <li key={item.id} className="py-3">
+            <p className="font-medium text-gray-900">{item.product_code} · {item.name}</p>
+            <p className="text-sm text-gray-600">Existencia física: {item.quantity_on_hand} · Nivel de reposición: {item.reorder_level}</p>
+          </li>)}
+        </ul>}
+      {summary.total > summary.items.length && <p className="text-sm text-gray-600">Se muestran {summary.items.length} de {summary.total} productos con bajo stock.</p>}
+    </>}
+  </section>;
+}
+
 export default function InformesPage() {
   const canViewReports = useModuleStore((state) => state.userModules.some(
     (item) => item.module?.name === 'reports' && item.module.is_active && item.can_view
@@ -194,6 +255,7 @@ export default function InformesPage() {
     {!canViewReports ? <p>Sin permiso para ver informes.</p> : <>
       {canViewPurchases ? <PurchaseStatusReport /> : <p>El informe de compras requiere permiso para ver Compras.</p>}
       {canViewInventory ? <InventoryStatusReport /> : <p>El informe de inventario requiere permiso para ver Inventario.</p>}
+      {canViewInventory ? <LowStockReport /> : <p>El informe de bajo stock requiere permiso para ver Inventario.</p>}
     </>}
     <p className="text-sm text-gray-600">Los demás informes están pendientes de implementación.</p>
   </div>;
