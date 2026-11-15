@@ -54,17 +54,20 @@ function PurchaseStatusReport() {
   }
 
   const rows = report && [
-    ['Pendientes', report.pending],
-    ['Parcialmente recibidas', report.partially_received],
-    ['Recibidas', report.received],
-    ['Anuladas', report.cancelled],
-    ['Otros estados o sin estado', report.other],
-    ['Total', report.total],
+    ['Pendientes', report.pending, report.pending_amount_gtq],
+    ['Parcialmente recibidas', report.partially_received, report.partially_received_amount_gtq],
+    ['Recibidas', report.received, report.received_amount_gtq],
+    ['Anuladas', report.cancelled, report.cancelled_amount_gtq],
+    ['Otros estados o sin estado', report.other, report.other_amount_gtq],
+    ['Total', report.total, report.total_amount_gtq],
   ] as const;
 
   return <section className="space-y-4 rounded-lg bg-white p-6 shadow-sm">
     <h2 className="text-xl font-bold text-gray-900">Órdenes de compra por estado</h2>
-    <p className="text-sm text-gray-600">El periodo usa la fecha de orden e incluye ambos días. No representa ventas ni pagos.</p>
+    <p className="text-sm text-gray-600">
+      El periodo usa la fecha de orden e incluye ambos días. El importe es el total de cada orden, no el valor recibido ni lo pagado;
+      el total incluye órdenes anuladas. Las órdenes sin importe confiable se excluyen de las sumas.
+    </p>
     <form onSubmit={apply} className="flex flex-wrap items-end gap-3">
       <label className="text-sm text-gray-700">Desde
         <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} className="mt-1 block rounded border border-gray-300 p-2" />
@@ -81,7 +84,12 @@ function PurchaseStatusReport() {
     </p>
     {rows && !error && <button type="button" className="rounded border border-gray-300 px-4 py-2" onClick={() => {
       setExportError('');
-      try { downloadReportCsv('informe-compras.csv', reportCsv(rows, 'Órdenes', period)); }
+      try {
+        const headers = ['Estado', 'Órdenes', 'Importe ordenado (GTQ)', 'Desde', 'Hasta'];
+        const records = rows.map(([label, count, amount]) => [label, count, amount, period.from ?? '', period.to ?? '']);
+        records.push(['Órdenes con importe no confiable', report.unvalued_amount_orders, '', period.from ?? '', period.to ?? '']);
+        downloadReportCsv('informe-compras.csv', csvRecords(headers, records));
+      }
       catch (error) { console.error('Purchase report export failed:', error); setExportError('No se pudo descargar el informe de compras.'); }
     }}>Descargar CSV de compras</button>}
     {exportError && <p role="alert" className="text-sm text-red-700">{exportError}</p>}
@@ -92,11 +100,14 @@ function PurchaseStatusReport() {
       }}>Reintentar</button>
     </div> : !report ? <p className="text-sm text-gray-600" aria-live="polite">Cargando informe...</p> :
       <table className="w-full max-w-lg text-left text-sm">
-        <thead><tr><th className="py-2">Estado</th><th className="py-2">Órdenes</th></tr></thead>
-        <tbody>{rows?.map(([label, amount]) => <tr key={label} className="border-t border-gray-200">
-          <th scope="row" className="py-2 font-normal">{label}</th><td className="py-2">{amount}</td>
+        <thead><tr><th className="py-2">Estado</th><th className="py-2">Órdenes</th><th className="py-2">Importe ordenado (GTQ)</th></tr></thead>
+        <tbody>{rows?.map(([label, count, amount]) => <tr key={label} className="border-t border-gray-200">
+          <th scope="row" className="py-2 font-normal">{label}</th><td className="py-2">{count}</td><td className="py-2">Q {amount}</td>
         </tr>)}</tbody>
       </table>}
+    {report && !error && <p className="text-sm text-gray-600">
+      Órdenes con importe no confiable, excluidas de las sumas: {report.unvalued_amount_orders}.
+    </p>}
   </section>;
 }
 

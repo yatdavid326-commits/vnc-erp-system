@@ -35,7 +35,12 @@ test('period validation requires two real dates in order or no dates', () => {
 
 test('report requires both permissions, validates dates and returns consistent counts', async () => {
   let denied = 'reports';
-  let rpcResult = { data: { total: 4, pending: 1, partially_received: 1, received: 0, cancelled: 1, other: 1 }, error: null };
+  let rpcResult = { data: {
+    total: 4, pending: 1, partially_received: 1, received: 0, cancelled: 1, other: 1,
+    total_amount_gtq: '136', pending_amount_gtq: '100.25', partially_received_amount_gtq: '5.50',
+    received_amount_gtq: '0', cancelled_amount_gtq: '20.25', other_amount_gtq: '10',
+    unvalued_amount_orders: 0,
+  }, error: null };
   const calls = [];
   const { GET } = load('../app/api/informes/compras/route.ts', {
     '@/lib/purchaseReport': report,
@@ -61,11 +66,41 @@ test('report requires both permissions, validates dates and returns consistent c
   const response = await GET(request('?from=2026-01-01&to=2026-01-31'));
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('cache-control'), 'no-store');
-  assert.equal((await response.json()).total, 4);
+  const parsedReport = await response.json();
+  assert.equal(parsedReport.total, 4);
+  assert.equal(parsedReport.total_amount_gtq, '136');
   assert.deepEqual(calls.map((call) => call[1]), ['reports', 'purchases', 'purchase_status_report']);
   assert.equal(calls[2][2].p_start, '2026-01-01');
   assert.equal(calls[2][2].p_end, '2026-01-31');
+  rpcResult = { data: {
+    total: 1, pending: 1, partially_received: 0, received: 0, cancelled: 0, other: 0,
+    total_amount_gtq: '123456789012345.67', pending_amount_gtq: '123456789012345.67',
+    partially_received_amount_gtq: '0', received_amount_gtq: '0', cancelled_amount_gtq: '0',
+    other_amount_gtq: '0', unvalued_amount_orders: 0,
+  }, error: null };
+  const exactAmount = await (await GET(request())).json();
+  assert.equal(exactAmount.total_amount_gtq, '123456789012345.67');
   calls.length = 0;
+  rpcResult = { data: {
+    total: 1, pending: 1, partially_received: 0, received: 0, cancelled: 0, other: 0,
+    total_amount_gtq: '1.00', pending_amount_gtq: '0.99', partially_received_amount_gtq: '0',
+    received_amount_gtq: '0', cancelled_amount_gtq: '0', other_amount_gtq: '0',
+    unvalued_amount_orders: 0,
+  }, error: null };
+  assert.equal((await GET(request())).status, 500);
+  rpcResult = { data: {
+    total: 1, pending: 1, partially_received: 0, received: 0, cancelled: 0, other: 0,
+    total_amount_gtq: '1.001', pending_amount_gtq: '1.001', partially_received_amount_gtq: '0',
+    received_amount_gtq: '0', cancelled_amount_gtq: '0', other_amount_gtq: '0',
+    unvalued_amount_orders: 0,
+  }, error: null };
+  assert.equal((await GET(request())).status, 500);
+  rpcResult = { data: {
+    total: 0, pending: 0, partially_received: 0, received: 0, cancelled: 0, other: 0,
+    total_amount_gtq: '0', pending_amount_gtq: '0', partially_received_amount_gtq: '0',
+    received_amount_gtq: '0', cancelled_amount_gtq: '0', other_amount_gtq: '0',
+    unvalued_amount_orders: 0,
+  }, error: null };
   assert.equal((await GET(request())).status, 200);
   assert.equal(calls[2][2].p_start, null);
   assert.equal(calls[2][2].p_end, null);
@@ -96,6 +131,7 @@ test('report page gates access independently for reports and purchases', () => {
   const html = render([assignment('reports'), assignment('purchases')]);
   assert.match(html, /Cargando informe/);
   assert.match(html, /fecha de orden e incluye ambos días/);
+  assert.match(html, /no el valor recibido ni lo pagado/);
   assert.match(html, /El informe de inventario requiere permiso para ver Inventario/);
   assert.match(html, /La valoración del inventario requiere permiso para ver Inventario/);
   assert.match(html, /El informe de bajo stock requiere permiso para ver Inventario/);
