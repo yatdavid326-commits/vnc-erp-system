@@ -9,6 +9,7 @@ import { csvRecords, downloadReportBlob, downloadReportCsv, reportCsv } from '@/
 import { lowStockSchema, type LowStockSummary } from '@/lib/lowStock';
 import { inventoryValuationReportSchema, type InventoryValuationReport } from '@/lib/inventoryValuationReport';
 import { purchaseSupplierReportSchema, type PurchaseSupplierReport } from '@/lib/purchaseSupplierReport';
+import { inventoryMovementReportSchema, type InventoryMovementReport } from '@/lib/inventoryMovementReport';
 
 function PurchaseStatusReport() {
   const [from, setFrom] = useState('');
@@ -225,6 +226,145 @@ function PurchaseSupplierReportSection() {
         <button type="button" disabled={page >= totalPages} className="rounded border border-gray-300 px-3 py-2 disabled:opacity-50" onClick={() => movePage(page + 1)}>Siguiente</button>
       </div>}
       {report.supplier_count > report.page_size && <p className="text-sm text-gray-600">El CSV descarga únicamente la página mostrada.</p>}
+    </>}
+  </section>;
+}
+
+function InventoryMovementReportSection() {
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [period, setPeriod] = useState<ReportPeriod>({});
+  const [page, setPage] = useState(1);
+  const [report, setReport] = useState<InventoryMovementReport | null>(null);
+  const [error, setError] = useState('');
+  const [formError, setFormError] = useState('');
+  const [exportError, setExportError] = useState('');
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      try {
+        const params = new URLSearchParams({ page: String(page) });
+        if (period.from && period.to) {
+          params.set('from', period.from);
+          params.set('to', period.to);
+        }
+        const result = inventoryMovementReportSchema.safeParse(
+          await fetchAuthenticatedJson(`/api/informes/inventario/movimientos?${params}`)
+        );
+        if (!result.success) throw new Error('El informe de movimientos recibido no es válido.');
+        if (active) setReport(result.data);
+      } catch (error) {
+        if (active) setError(error instanceof Error ? error.message : 'No se pudo consultar el informe de movimientos.');
+      }
+    }
+    void load();
+    return () => { active = false; };
+  }, [period, page, revision]);
+
+  function apply(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const parsed = reportPeriodSchema.safeParse({ from: from || undefined, to: to || undefined });
+    if (!parsed.success) {
+      setFormError('Indica ambas fechas válidas y en orden, o deja ambas vacías.');
+      return;
+    }
+    setFormError(''); setError(''); setExportError(''); setReport(null); setPage(1);
+    setPeriod(parsed.data); setRevision((value) => value + 1);
+  }
+
+  function reset() {
+    setFrom(''); setTo(''); setFormError(''); setError(''); setExportError(''); setReport(null); setPage(1);
+    setPeriod({}); setRevision((value) => value + 1);
+  }
+
+  function movePage(nextPage: number) {
+    setError(''); setExportError(''); setReport(null); setPage(nextPage);
+  }
+
+  function movementLabel(value: string) {
+    const labels: Record<string, string> = {
+      entry: 'Entrada',
+      exit: 'Salida',
+      adjustment: 'Ajuste',
+      return: 'Devolución',
+    };
+    return labels[value] ?? value;
+  }
+
+  const totalPages = report ? Math.ceil(report.total_count / report.page_size) : 0;
+
+  return <section className="space-y-4 rounded-lg bg-white p-6 shadow-sm">
+    <h2 className="text-xl font-bold text-gray-900">Movimientos de inventario</h2>
+    <p className="text-sm text-gray-600">
+      Historial de entradas, salidas, ajustes y otros movimientos. Las fechas se filtran por el momento de registro en hora de Guatemala.
+      En los ajustes, la cantidad es la existencia final indicada; en los demás movimientos, son unidades registradas.
+      El nombre del producto y del usuario corresponde al que tienen actualmente.
+    </p>
+    <form onSubmit={apply} className="flex flex-wrap items-end gap-3">
+      <label className="text-sm text-gray-700">Desde
+        <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} className="mt-1 block rounded border border-gray-300 p-2" />
+      </label>
+      <label className="text-sm text-gray-700">Hasta
+        <input type="date" value={to} onChange={(event) => setTo(event.target.value)} className="mt-1 block rounded border border-gray-300 p-2" />
+      </label>
+      <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">Aplicar</button>
+      <button type="button" onClick={reset} className="rounded border border-gray-300 px-4 py-2">Mostrar todo</button>
+      <button type="button" onClick={() => { setError(''); setReport(null); setRevision((value) => value + 1); }} className="rounded border border-gray-300 px-4 py-2">Actualizar</button>
+    </form>
+    {formError && <p role="alert" className="text-sm text-red-700">{formError}</p>}
+    <p className="text-sm text-gray-600">
+      Periodo consultado: {period.from && period.to ? `${period.from} a ${period.to}` : 'todas las fechas'}.
+    </p>
+    {report && report.items.length > 0 && !error && <button type="button" className="rounded border border-gray-300 px-4 py-2" onClick={() => {
+      setExportError('');
+      try {
+        const headers = ['Página', 'Fecha y hora', 'Producto', 'Tipo', 'Cantidad', 'Referencia', 'ID de referencia', 'Usuario', 'Notas', 'Desde', 'Hasta'];
+        const records = report.items.map((item) => [
+          page, item.created_at ?? '', item.product_name, movementLabel(item.movement_type), item.quantity,
+          item.reference_type ?? '', item.reference_id ?? '', item.actor_name ?? 'Usuario sin nombre registrado',
+          item.notes ?? '', period.from ?? '', period.to ?? '',
+        ]);
+        downloadReportCsv('movimientos-de-inventario.csv', csvRecords(headers, records));
+      } catch (error) {
+        console.error('Inventory movement report export failed:', error);
+        setExportError('No se pudo descargar esta página del informe.');
+      }
+    }}>Descargar CSV de esta página</button>}
+    {exportError && <p role="alert" className="text-sm text-red-700">{exportError}</p>}
+    {error ? <div role="alert" className="text-sm text-red-700">
+      <p>{error}</p>
+      <button type="button" className="underline" onClick={() => {
+        setError(''); setReport(null); setRevision((value) => value + 1);
+      }}>Reintentar</button>
+    </div> : !report ? <p className="text-sm text-gray-600" aria-live="polite">Cargando movimientos...</p> : <>
+      <p className="text-sm text-gray-700">Movimientos encontrados: {report.total_count}.</p>
+      {report.items.length === 0 ? <p className="text-sm text-gray-600">No hay movimientos para el periodo consultado.</p> :
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead><tr>
+              <th className="py-2 pr-3">Fecha y hora</th><th className="py-2 pr-3">Producto</th>
+              <th className="py-2 pr-3">Tipo</th><th className="py-2 pr-3">Cantidad</th>
+              <th className="py-2 pr-3">Referencia</th><th className="py-2 pr-3">Usuario</th><th className="py-2">Notas</th>
+            </tr></thead>
+            <tbody>{report.items.map((item) => <tr key={item.id} className="border-t border-gray-200">
+              <td className="py-2 pr-3">{item.created_at ?
+                new Intl.DateTimeFormat('es-GT', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Guatemala' }).format(new Date(item.created_at)) :
+                'Fecha no disponible'}</td>
+              <td className="py-2 pr-3">{item.product_name}</td><td className="py-2 pr-3">{movementLabel(item.movement_type)}</td>
+              <td className="py-2 pr-3">{item.quantity}</td>
+              <td className="py-2 pr-3">{item.reference_type ?? 'Sin referencia'}{item.reference_id ? ` (${item.reference_id})` : ''}</td>
+              <td className="py-2 pr-3">{item.actor_name ?? 'Usuario sin nombre registrado'}</td><td className="py-2">{item.notes ?? ''}</td>
+            </tr>)}</tbody>
+          </table>
+        </div>}
+      {report.total_count > report.page_size && <div className="flex items-center gap-3">
+        <button type="button" disabled={page <= 1} className="rounded border border-gray-300 px-3 py-2 disabled:opacity-50" onClick={() => movePage(page - 1)}>Anterior</button>
+        <p className="text-sm text-gray-600">Página {page} de {totalPages}</p>
+        <button type="button" disabled={page >= totalPages} className="rounded border border-gray-300 px-3 py-2 disabled:opacity-50" onClick={() => movePage(page + 1)}>Siguiente</button>
+        <p className="text-sm text-gray-600">El CSV descarga únicamente la página mostrada.</p>
+      </div>}
     </>}
   </section>;
 }
@@ -455,6 +595,7 @@ export default function InformesPage() {
       {canViewPurchases && (canViewSuppliers ? <PurchaseSupplierReportSection /> :
         <p>El informe de compras por proveedor requiere permiso para ver Proveedores.</p>)}
       {canViewInventory ? <InventoryStatusReport /> : <p>El informe de inventario requiere permiso para ver Inventario.</p>}
+      {canViewInventory ? <InventoryMovementReportSection /> : <p>El informe de movimientos requiere permiso para ver Inventario.</p>}
       {canViewInventory ? <InventoryValuationReportSection /> : <p>La valoración del inventario requiere permiso para ver Inventario.</p>}
       {canViewInventory ? <LowStockReport /> : <p>El informe de bajo stock requiere permiso para ver Inventario.</p>}
     </>}
