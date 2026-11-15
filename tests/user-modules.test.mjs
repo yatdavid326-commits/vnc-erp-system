@@ -75,7 +75,7 @@ test('reports database failures rather than returning an empty permission list',
   assert.equal((await makeRoute({ moduleError: { message: 'db error' } }).GET(request('valid'))).status, 500);
 });
 
-test('links assigned active clients, suppliers and inventory while keeping unavailable modules disabled', () => {
+test('links assigned active modules and hides inactive modules', () => {
   const userModules = [
     { can_view: true, module: { name: 'clients', display_name: 'Clientes', is_active: true } },
     { can_view: true, module: { name: 'suppliers', display_name: 'Proveedores', is_active: true } },
@@ -91,7 +91,7 @@ test('links assigned active clients, suppliers and inventory while keeping unava
   assert.match(html, /href="\/dashboard\/clientes"/);
   assert.match(html, /href="\/dashboard\/proveedores"/);
   assert.match(html, /href="\/dashboard\/inventario"/);
-  assert.match(html, /Compras \(no disponible\)/);
+  assert.match(html, /href="\/dashboard\/compras"/);
   assert.doesNotMatch(html, /Punto de Venta/);
   assert.match(html, /href="\/dashboard"/);
 });

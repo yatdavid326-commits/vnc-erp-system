@@ -42,7 +42,7 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
   const unavailableItems = (names: string[]) =>
     userModules.flatMap(({ module, can_view }) =>
       module && module.is_active && can_view && names.includes(module.name)
-        ? [{ name: module.name, display_name: module.display_name, route: module.name === 'clients' ? '/dashboard/clientes' : module.name === 'suppliers' ? '/dashboard/proveedores' : module.name === 'inventory' ? '/dashboard/inventario' : null }]
+        ? [{ name: module.name, display_name: module.display_name, route: module.name === 'clients' ? '/dashboard/clientes' : module.name === 'suppliers' ? '/dashboard/proveedores' : module.name === 'inventory' ? '/dashboard/inventario' : module.name === 'purchases' ? '/dashboard/compras' : null }]
         : []
     );
 
