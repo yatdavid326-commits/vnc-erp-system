@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/db/supabase';
-import type { Module, UserModule } from '@/lib/types';
+import type { Module, UserModule, UserModuleWithDetails } from '@/lib/types';
 
 export const modulesService = {
   async getAllModules(): Promise<Module[]> {
@@ -34,30 +34,28 @@ export const modulesService = {
     return data || [];
   },
 
-  async getUserModulesWithDetails(userId: string) {
-    try {
-      // Get the session to get the access token
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+  async getUserModulesWithDetails(_userId: string): Promise<UserModuleWithDetails[]> {
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
 
-      if (!session?.access_token) return [];
-
-      // Use server-side API to bypass RLS
-      const response = await fetch('/api/modules/user', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
-
-      if (!response.ok) return [];
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching user modules:', error);
-      return [];
+    if (error || !session?.access_token) {
+      throw new Error('No se pudo obtener la sesión para consultar los permisos.');
     }
+
+    const response = await fetch('/api/modules/user', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error al consultar permisos (HTTP ${response.status}).`);
+    }
+    return await response.json();
   },
 
   async grantModuleAccess(

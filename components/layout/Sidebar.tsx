@@ -8,7 +8,6 @@ import {
   ShoppingCart,
   Package,
   Truck,
-  Receipt,
   CreditCard,
   BarChart3,
   Clock,
@@ -37,8 +36,15 @@ const moduleIcons: Record<string, React.ReactNode> = {
 export default function Sidebar({ collapsed = false }: SidebarProps) {
   const { userModules } = useModuleStore();
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(['main'])
+    new Set(['main', 'operations', 'business', 'admin'])
   );
+
+  const unavailableItems = (names: string[]) =>
+    userModules.flatMap(({ module, can_view }) =>
+      module && module.is_active && can_view && names.includes(module.name)
+        ? [{ name: module.name, display_name: module.display_name, route: null }]
+        : []
+    );
 
   const toggleSection = (section: string) => {
     const newExpanded = new Set(expandedSections);
@@ -63,33 +69,15 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
     },
     operations: {
       label: 'Operaciones',
-      items: userModules
-        .filter((um) =>
-          ['pos', 'inventory', 'cash'].some(
-            (m) => um.module?.name === m && um.can_view
-          )
-        )
-        .map((um) => ({ ...um.module, route: `/${um.module.name}` })),
+      items: unavailableItems(['pos', 'inventory', 'cash']),
     },
     business: {
       label: 'Negocio',
-      items: userModules
-        .filter((um) =>
-          ['clients', 'suppliers', 'purchases'].some(
-            (m) => um.module?.name === m && um.can_view
-          )
-        )
-        .map((um) => ({ ...um.module, route: `/${um.module.name}` })),
+      items: unavailableItems(['clients', 'suppliers', 'purchases']),
     },
     admin: {
       label: 'Administración',
-      items: userModules
-        .filter((um) =>
-          ['employees', 'attendance', 'reports'].some(
-            (m) => um.module?.name === m && um.can_view
-          )
-        )
-        .map((um) => ({ ...um.module, route: `/${um.module.name}` })),
+      items: unavailableItems(['employees', 'attendance', 'reports']),
     },
   };
 
@@ -127,18 +115,28 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
                 </button>
               )}
 
-              {expandedSections.has(key) && (
+              {(collapsed || expandedSections.has(key)) && (
                 <div className="space-y-1">
-                  {section.items.map((item) => (
+                  {section.items.map((item) => item.route ? (
                     <Link
-                      key={item.name || item.id}
-                      href={item.route || '#'}
+                      key={item.name}
+                      href={item.route}
                       className="flex items-center gap-3 px-3 py-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
                       title={collapsed ? item.display_name : ''}
                     >
                       {moduleIcons[item.name] || <Settings size={20} />}
                       {!collapsed && <span className="text-sm">{item.display_name}</span>}
                     </Link>
+                  ) : (
+                    <div
+                      key={item.name}
+                      aria-disabled="true"
+                      title={`${item.display_name}: aún no disponible`}
+                      className="flex items-center gap-3 px-3 py-2 text-gray-500"
+                    >
+                      {moduleIcons[item.name] || <Settings size={20} />}
+                      {!collapsed && <span className="text-sm">{item.display_name} (no disponible)</span>}
+                    </div>
                   ))}
                 </div>
               )}

@@ -40,6 +40,13 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
     new Set(['main'])
   );
 
+  const moduleItems = (names: string[]) =>
+    userModules.flatMap(({ module, can_view }) =>
+      module && can_view && names.includes(module.name)
+        ? [{ ...module, route: `/${module.name}` }]
+        : []
+    );
+
   const toggleSection = (section: string) => {
     const newExpanded = new Set(expandedSections);
     if (newExpanded.has(section)) {
@@ -63,33 +70,15 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
     },
     operations: {
       label: 'Operaciones',
-      items: userModules
-        .filter((um) =>
-          ['pos', 'inventory', 'cash'].some(
-            (m) => um.module?.name === m && um.can_view
-          )
-        )
-        .map((um) => ({ ...um.module, route: `/${um.module.name}` })),
+      items: moduleItems(['pos', 'inventory', 'cash']),
     },
     business: {
       label: 'Negocio',
-      items: userModules
-        .filter((um) =>
-          ['clients', 'suppliers', 'purchases'].some(
-            (m) => um.module?.name === m && um.can_view
-          )
-        )
-        .map((um) => ({ ...um.module, route: `/${um.module.name}` })),
+      items: moduleItems(['clients', 'suppliers', 'purchases']),
     },
     admin: {
       label: 'Administración',
-      items: userModules
-        .filter((um) =>
-          ['employees', 'attendance', 'reports'].some(
-            (m) => um.module?.name === m && um.can_view
-          )
-        )
-        .map((um) => ({ ...um.module, route: `/${um.module.name}` })),
+      items: moduleItems(['employees', 'attendance', 'reports']),
     },
   };
 
@@ -131,7 +120,7 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
                 <div className="space-y-1">
                   {section.items.map((item) => (
                     <Link
-                      key={item.name || item.id}
+                      key={item.name}
                       href={item.route || '#'}
                       className="flex items-center gap-3 px-3 py-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
                       title={collapsed ? item.display_name : ''}

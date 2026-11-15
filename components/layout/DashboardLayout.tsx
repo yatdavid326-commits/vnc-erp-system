@@ -20,6 +20,7 @@ export default function DashboardLayout({
   const { setModules, setUserModules } = useModuleStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [moduleError, setModuleError] = useState(false);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -37,10 +38,17 @@ export default function DashboardLayout({
         const modules = await modulesService.getAllModules();
         setModules(modules);
 
-        const userModules = await modulesService.getUserModulesWithDetails(
-          currentUser.id
-        );
-        setUserModules(userModules);
+        try {
+          const userModules = await modulesService.getUserModulesWithDetails(
+            currentUser.id
+          );
+          setUserModules(userModules);
+          setModuleError(false);
+        } catch (error) {
+          console.error('Error loading user modules:', error);
+          setUserModules([]);
+          setModuleError(true);
+        }
       } catch (error) {
         console.error('Error loading user:', error);
         router.push('/login');
@@ -169,6 +177,11 @@ export default function DashboardLayout({
 
         {/* Page Content */}
         <main className="flex-1 overflow-auto p-4">
+          {moduleError && (
+            <p role="alert" className="mx-auto mb-4 max-w-7xl rounded bg-red-50 p-3 text-red-700">
+              No se pudieron cargar los permisos de módulos. Recarga la página para volver a intentar.
+            </p>
+          )}
           <div className="max-w-7xl mx-auto">{children}</div>
         </main>
       </div>

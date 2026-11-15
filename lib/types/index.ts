@@ -37,6 +37,10 @@ export interface UserModule {
   assigned_at: string;
 }
 
+export interface UserModuleWithDetails extends UserModule {
+  module: Module | null;
+}
+
 export interface Employee {
   id: string;
   user_id?: string;
