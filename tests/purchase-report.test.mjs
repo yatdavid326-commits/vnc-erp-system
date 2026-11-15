@@ -24,6 +24,7 @@ const lowStock = load('../lib/lowStock.ts');
 const valuation = load('../lib/inventoryValuationReport.ts');
 const supplierReport = load('../lib/purchaseSupplierReport.ts');
 const movementReport = load('../lib/inventoryMovementReport.ts', { '@/lib/purchaseReport': report });
+const productReport = load('../lib/purchaseProductReport.ts', { '@/lib/purchaseReport': report });
 
 test('period validation requires two real dates in order or no dates', () => {
   for (const valid of [{}, { from: '2024-02-29', to: '2024-02-29' }, { from: '2026-01-01', to: '2026-12-31' }]) {
@@ -123,6 +124,7 @@ test('report page gates access independently for reports and purchases', () => {
       '@/lib/inventoryValuationReport': valuation,
       '@/lib/purchaseSupplierReport': supplierReport,
       '@/lib/inventoryMovementReport': movementReport,
+      '@/lib/purchaseProductReport': productReport,
       '@/lib/reportCsv': { csvRecords() {}, downloadReportBlob() {}, downloadReportCsv() {}, reportCsv() {} },
     });
     return renderToStaticMarkup(createElement(Page));
@@ -143,15 +145,19 @@ test('report page gates access independently for reports and purchases', () => {
   assert.match(html, /El informe de bajo stock requiere permiso para ver Inventario/);
   assert.doesNotMatch(html, /Bajo stock/);
   const inventoryOnly = render([assignment('reports'), assignment('inventory')]);
+  assert.match(inventoryOnly, /requiere permiso para ver Compras/);
   assert.match(inventoryOnly, /Cargando inventario/);
   assert.match(inventoryOnly, /Cargando valoración/);
   assert.match(inventoryOnly, /Valoración del inventario/);
   assert.match(inventoryOnly, /Cargando bajo stock/);
   assert.match(inventoryOnly, /Cargando movimientos/);
+  const purchaseInventory = render([assignment('reports'), assignment('purchases'), assignment('inventory')]);
+  assert.match(purchaseInventory, /Cargando compras por producto/);
   assert.match(inventoryOnly, /Descargar detalle de productos activos/);
   assert.match(inventoryOnly, /El informe de compras requiere permiso para ver Compras/);
   assert.doesNotMatch(render([assignment('reports'), assignment('inventory', false)]), /Cargando bajo stock/);
   assert.doesNotMatch(render([assignment('reports'), assignment('inventory', false)]), /Cargando movimientos/);
+  assert.match(render([assignment('reports'), assignment('purchases')]), /requiere permiso para ver Inventario/);
   assert.doesNotMatch(render([assignment('reports'), assignment('inventory', false)]), /Cargando valoración/);
   const allRelevantModules = render([assignment('reports'), assignment('purchases'), assignment('suppliers')]);
   assert.match(allRelevantModules, /Cargando compras por proveedor/);
