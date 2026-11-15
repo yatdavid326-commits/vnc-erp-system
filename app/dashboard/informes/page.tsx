@@ -5,8 +5,9 @@ import { useModuleStore } from '@/hooks';
 import { fetchAuthenticatedBlob, fetchAuthenticatedJson } from '@/lib/services/auth/fetchAuthenticatedJson';
 import { purchaseReportSchema, reportPeriodSchema, type PurchaseReport, type ReportPeriod } from '@/lib/purchaseReport';
 import { inventoryReportSchema, type InventoryReport } from '@/lib/inventoryReport';
-import { downloadReportBlob, downloadReportCsv, reportCsv } from '@/lib/reportCsv';
+import { csvRecords, downloadReportBlob, downloadReportCsv, reportCsv } from '@/lib/reportCsv';
 import { lowStockSchema, type LowStockSummary } from '@/lib/lowStock';
+import { inventoryValuationReportSchema, type InventoryValuationReport } from '@/lib/inventoryValuationReport';
 
 function PurchaseStatusReport() {
   const [from, setFrom] = useState('');
@@ -239,6 +240,71 @@ function LowStockReport() {
   </section>;
 }
 
+function InventoryValuationReportSection() {
+  const [report, setReport] = useState<InventoryValuationReport | null>(null);
+  const [error, setError] = useState('');
+  const [revision, setRevision] = useState(0);
+  const [exportError, setExportError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      try {
+        const result = inventoryValuationReportSchema.safeParse(
+          await fetchAuthenticatedJson('/api/informes/inventario/valoracion')
+        );
+        if (!result.success) throw new Error('La valoración del inventario recibida no es válida.');
+        if (active) setReport(result.data);
+      } catch (error) {
+        if (active) setError(error instanceof Error ? error.message : 'No se pudo consultar la valoración del inventario.');
+      }
+    }
+    void load();
+    return () => { active = false; };
+  }, [revision]);
+
+  function refresh() {
+    setError(''); setExportError(''); setReport(null); setRevision((value) => value + 1);
+  }
+
+  const rows = report && [
+    ['Valor de costo de existencias físicas (GTQ)', report.inventory_cost_value_gtq],
+    ['Productos activos', report.total_products],
+    ['Productos valorados', report.valued_products],
+    ['Productos sin valor confiable', report.not_valued_products],
+    ['Con costo inválido (subconjunto sin valor confiable)', report.invalid_cost_products],
+  ] as const;
+
+  return <section className="space-y-4 rounded-lg bg-white p-6 shadow-sm">
+    <h2 className="text-xl font-bold text-gray-900">Valoración del inventario</h2>
+    <p className="text-sm text-gray-600">
+      Valor al costo de la existencia física de productos activos con existencias y costo válidos. No descuenta reservas;
+      productos sin existencias registradas o inválidas, o con costo inexistente o negativo, no se valoran.
+    </p>
+    <button type="button" onClick={refresh} className="rounded border border-gray-300 px-4 py-2">Actualizar valoración</button>
+    {rows && !error && <button type="button" className="rounded border border-gray-300 px-4 py-2" onClick={() => {
+      setExportError('');
+      try { downloadReportCsv('valoracion-inventario.csv', csvRecords(['Métrica', 'Valor'], rows)); }
+      catch (error) { console.error('Inventory valuation export failed:', error); setExportError('No se pudo descargar la valoración del inventario.'); }
+    }}>Descargar valoración CSV</button>}
+    {exportError && <p role="alert" className="text-sm text-red-700">{exportError}</p>}
+    {error ? <div role="alert" className="text-sm text-red-700">
+      <p>{error}</p>
+      <button type="button" className="underline" onClick={refresh}>Reintentar</button>
+    </div> : !report ? <p className="text-sm text-gray-600" aria-live="polite">Cargando valoración...</p> :
+      <table className="w-full max-w-lg text-left text-sm">
+        <thead><tr><th className="py-2">Métrica</th><th className="py-2">Valor</th></tr></thead>
+        <tbody>
+          <tr className="border-t border-gray-200"><th scope="row" className="py-2 font-normal">Valor al costo (GTQ)</th><td className="py-2">Q {report.inventory_cost_value_gtq}</td></tr>
+          <tr className="border-t border-gray-200"><th scope="row" className="py-2 font-normal">Productos activos</th><td className="py-2">{report.total_products}</td></tr>
+          <tr className="border-t border-gray-200"><th scope="row" className="py-2 font-normal">Productos valorados</th><td className="py-2">{report.valued_products}</td></tr>
+          <tr className="border-t border-gray-200"><th scope="row" className="py-2 font-normal">Productos sin valor confiable</th><td className="py-2">{report.not_valued_products}</td></tr>
+          <tr className="border-t border-gray-200"><th scope="row" className="py-2 font-normal">Con costo inválido (subconjunto incluido arriba)</th><td className="py-2">{report.invalid_cost_products}</td></tr>
+        </tbody>
+      </table>}
+  </section>;
+}
+
 export default function InformesPage() {
   const canViewReports = useModuleStore((state) => state.userModules.some(
     (item) => item.module?.name === 'reports' && item.module.is_active && item.can_view
@@ -255,6 +321,7 @@ export default function InformesPage() {
     {!canViewReports ? <p>Sin permiso para ver informes.</p> : <>
       {canViewPurchases ? <PurchaseStatusReport /> : <p>El informe de compras requiere permiso para ver Compras.</p>}
       {canViewInventory ? <InventoryStatusReport /> : <p>El informe de inventario requiere permiso para ver Inventario.</p>}
+      {canViewInventory ? <InventoryValuationReportSection /> : <p>La valoración del inventario requiere permiso para ver Inventario.</p>}
       {canViewInventory ? <LowStockReport /> : <p>El informe de bajo stock requiere permiso para ver Inventario.</p>}
     </>}
     <p className="text-sm text-gray-600">Los demás informes están pendientes de implementación.</p>

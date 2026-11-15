@@ -21,6 +21,7 @@ const purchases = load('../lib/purchases.ts');
 const report = load('../lib/purchaseReport.ts', { '@/lib/purchases': purchases });
 const inventoryReport = load('../lib/inventoryReport.ts');
 const lowStock = load('../lib/lowStock.ts');
+const valuation = load('../lib/inventoryValuationReport.ts');
 
 test('period validation requires two real dates in order or no dates', () => {
   for (const valid of [{}, { from: '2024-02-29', to: '2024-02-29' }, { from: '2026-01-01', to: '2026-12-31' }]) {
@@ -82,7 +83,8 @@ test('report page gates access independently for reports and purchases', () => {
       '@/lib/purchaseReport': report,
       '@/lib/inventoryReport': inventoryReport,
       '@/lib/lowStock': lowStock,
-      '@/lib/reportCsv': { downloadReportBlob() {}, downloadReportCsv() {}, reportCsv() {} },
+      '@/lib/inventoryValuationReport': valuation,
+      '@/lib/reportCsv': { csvRecords() {}, downloadReportBlob() {}, downloadReportCsv() {}, reportCsv() {} },
     });
     return renderToStaticMarkup(createElement(Page));
   }
@@ -95,13 +97,17 @@ test('report page gates access independently for reports and purchases', () => {
   assert.match(html, /Cargando informe/);
   assert.match(html, /fecha de orden e incluye ambos días/);
   assert.match(html, /El informe de inventario requiere permiso para ver Inventario/);
+  assert.match(html, /La valoración del inventario requiere permiso para ver Inventario/);
   assert.match(html, /El informe de bajo stock requiere permiso para ver Inventario/);
   assert.doesNotMatch(html, /Bajo stock/);
   const inventoryOnly = render([assignment('reports'), assignment('inventory')]);
   assert.match(inventoryOnly, /Cargando inventario/);
+  assert.match(inventoryOnly, /Cargando valoración/);
+  assert.match(inventoryOnly, /Valoración del inventario/);
   assert.match(inventoryOnly, /Cargando bajo stock/);
   assert.match(inventoryOnly, /Descargar detalle de productos activos/);
   assert.match(inventoryOnly, /El informe de compras requiere permiso para ver Compras/);
   assert.doesNotMatch(render([assignment('reports'), assignment('inventory', false)]), /Cargando bajo stock/);
+  assert.doesNotMatch(render([assignment('reports'), assignment('inventory', false)]), /Cargando valoración/);
   assert.doesNotMatch(render([assignment('inventory')]), /Cargando inventario/);
 });
