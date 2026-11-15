@@ -69,7 +69,7 @@ test('report requires both permissions, validates dates and returns consistent c
   const parsedReport = await response.json();
   assert.equal(parsedReport.total, 4);
   assert.equal(parsedReport.total_amount_gtq, '136');
-  assert.deepEqual(calls.map((call) => call[1]), ['reports', 'purchases', 'purchase_status_report']);
+  assert.deepEqual(calls.map((call) => call[1]), ['reports', 'purchases', 'purchase_amount_status_report']);
   assert.equal(calls[2][2].p_start, '2026-01-01');
   assert.equal(calls[2][2].p_end, '2026-01-31');
   rpcResult = { data: {

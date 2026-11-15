@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Indica ambas fechas válidas y en orden.' }, { status: 400 });
   }
 
-  const { data, error } = await purchaseAuth.client.rpc('purchase_status_report', {
+  const { data, error } = await purchaseAuth.client.rpc('purchase_amount_status_report', {
     p_start: period.data.from ?? null,
     p_end: period.data.to ?? null,
   });
