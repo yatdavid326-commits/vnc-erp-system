@@ -5,6 +5,7 @@ import { useModuleStore } from '@/hooks';
 import { fetchAuthenticatedJson } from '@/lib/services/auth/fetchAuthenticatedJson';
 import { purchaseReportSchema, reportPeriodSchema, type PurchaseReport, type ReportPeriod } from '@/lib/purchaseReport';
 import { inventoryReportSchema, type InventoryReport } from '@/lib/inventoryReport';
+import { downloadReportCsv, reportCsv } from '@/lib/reportCsv';
 
 function PurchaseStatusReport() {
   const [from, setFrom] = useState('');
@@ -13,6 +14,7 @@ function PurchaseStatusReport() {
   const [report, setReport] = useState<PurchaseReport | null>(null);
   const [error, setError] = useState('');
   const [formError, setFormError] = useState('');
+  const [exportError, setExportError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -42,11 +44,11 @@ function PurchaseStatusReport() {
       setFormError('Indica ambas fechas válidas y en orden, o deja ambas vacías.');
       return;
     }
-    setFormError(''); setError(''); setReport(null); setPeriod(parsed.data);
+    setFormError(''); setError(''); setExportError(''); setReport(null); setPeriod(parsed.data);
   }
 
   function reset() {
-    setFrom(''); setTo(''); setFormError(''); setError(''); setReport(null); setPeriod({});
+    setFrom(''); setTo(''); setFormError(''); setError(''); setExportError(''); setReport(null); setPeriod({});
   }
 
   const rows = report && [
@@ -75,6 +77,12 @@ function PurchaseStatusReport() {
     <p className="text-sm text-gray-600">
       Periodo consultado: {period.from && period.to ? `${period.from} a ${period.to}` : 'todas las fechas'}.
     </p>
+    {rows && !error && <button type="button" className="rounded border border-gray-300 px-4 py-2" onClick={() => {
+      setExportError('');
+      try { downloadReportCsv('informe-compras.csv', reportCsv(rows, 'Órdenes', period)); }
+      catch (error) { console.error('Purchase report export failed:', error); setExportError('No se pudo descargar el informe de compras.'); }
+    }}>Descargar CSV de compras</button>}
+    {exportError && <p role="alert" className="text-sm text-red-700">{exportError}</p>}
     {error ? <div role="alert" className="text-sm text-red-700">
       <p>{error}</p>
       <button type="button" className="underline" onClick={() => {
@@ -94,6 +102,7 @@ function InventoryStatusReport() {
   const [report, setReport] = useState<InventoryReport | null>(null);
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
+  const [exportError, setExportError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -111,7 +120,7 @@ function InventoryStatusReport() {
   }, [revision]);
 
   function refresh() {
-    setError(''); setReport(null); setRevision((value) => value + 1);
+    setError(''); setExportError(''); setReport(null); setRevision((value) => value + 1);
   }
 
   const rows = report && [
@@ -130,6 +139,12 @@ function InventoryStatusReport() {
       Las categorías con y sin existencia física solo incluyen registros válidos; no se descuentan reservas.
     </p>
     <button type="button" onClick={refresh} className="rounded border border-gray-300 px-4 py-2">Actualizar inventario</button>
+    {rows && !error && <button type="button" className="rounded border border-gray-300 px-4 py-2" onClick={() => {
+      setExportError('');
+      try { downloadReportCsv('informe-inventario.csv', reportCsv(rows, 'Productos')); }
+      catch (error) { console.error('Inventory report export failed:', error); setExportError('No se pudo descargar el informe de inventario.'); }
+    }}>Descargar CSV de inventario</button>}
+    {exportError && <p role="alert" className="text-sm text-red-700">{exportError}</p>}
     {error ? <div role="alert" className="text-sm text-red-700">
       <p>{error}</p>
       <button type="button" className="underline" onClick={refresh}>Reintentar</button>

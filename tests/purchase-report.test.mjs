@@ -80,6 +80,7 @@ test('report page gates access independently for reports and purchases', () => {
       '@/lib/services/auth/fetchAuthenticatedJson': { fetchAuthenticatedJson: () => {} },
       '@/lib/purchaseReport': report,
       '@/lib/inventoryReport': inventoryReport,
+      '@/lib/reportCsv': {},
     });
     return renderToStaticMarkup(createElement(Page));
   }
