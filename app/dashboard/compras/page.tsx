@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useModuleStore } from '@/hooks';
 import { supabase } from '@/lib/db/supabase';
-import type { PurchaseInput, PartialReceiptInput, PurchaseDetailsInput } from '@/lib/purchases';
+import { purchaseStatusLabel, type PurchaseInput, type PartialReceiptInput, type PurchaseDetailsInput } from '@/lib/purchases';
 
 type Option = { id: string; name: string };
 type Item = { product: Option; quantity: string; unitPrice: string };
@@ -243,7 +243,7 @@ export default function ComprasPage() {
     {loading ? <p>Cargando órdenes...</p> : orders.length === 0 ? <p>{error ? 'No se pudo mostrar la lista.' : filters.search || filters.status !== 'all' ? 'No hay órdenes que coincidan con los filtros.' : 'No hay órdenes de compra.'}</p> :
       <div className="space-y-3">{orders.map((order) => <section key={order.id} className="rounded bg-white p-4 shadow-sm">
         <h2 className="font-semibold">Orden {order.po_number}</h2>
-        <p>Proveedor: {order.supplier?.name ?? 'No disponible'} · Fecha: {order.order_date} · Estado: {order.status === 'pending' ? 'Pendiente' : order.status === 'partially_received' ? 'Parcialmente recibida' : order.status === 'received' ? 'Recibida' : order.status === 'cancelled' ? 'Anulada' : order.status ?? 'Sin estado'} · Total: {Number(order.total_amount).toFixed(2)}</p>
+        <p>Proveedor: {order.supplier?.name ?? 'No disponible'} · Fecha: {order.order_date} · Estado: {purchaseStatusLabel(order.status)} · Total: {Number(order.total_amount).toFixed(2)}</p>
         {order.actual_delivery_date && <p>Fecha de recepción: {order.actual_delivery_date}</p>}
         {order.notes && <p>Notas: {order.notes}</p>}
         {order.status === 'pending' && editing?.orderId === order.id && <form onSubmit={saveDetails} className="my-3 space-y-3 rounded border p-3">

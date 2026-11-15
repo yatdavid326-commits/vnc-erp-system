@@ -42,7 +42,25 @@ export const purchaseSchema = z.object({
   items: z.array(item).min(1).max(100),
 }).strict().refine((value) => new Set(value.items.map((row) => row.product_id)).size === value.items.length);
 
+export const recentPurchasesSchema = z.array(z.object({
+  id: z.string().uuid(),
+  po_number: z.string(),
+  order_date: z.string(),
+  status: z.string().nullable(),
+}).strict()).max(5);
+
+export function purchaseStatusLabel(status: string | null): string {
+  switch (status) {
+    case 'pending': return 'Pendiente';
+    case 'partially_received': return 'Parcialmente recibida';
+    case 'received': return 'Recibida';
+    case 'cancelled': return 'Anulada';
+    default: return status ?? 'Sin estado';
+  }
+}
+
 export type PurchaseInput = z.infer<typeof purchaseSchema>;
 export type ReceiptInput = z.infer<typeof receiptSchema>;
 export type PartialReceiptInput = z.infer<typeof partialReceiptSchema>;
 export type PurchaseDetailsInput = z.infer<typeof purchaseDetailsSchema>;
+export type RecentPurchases = z.infer<typeof recentPurchasesSchema>;

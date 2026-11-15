@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuthStore, useModuleStore } from '@/hooks';
 import { supabase } from '@/lib/db/supabase';
 import { lowStockSchema, type LowStockSummary } from '@/lib/lowStock';
+import { recentPurchasesSchema, purchaseStatusLabel, type RecentPurchases } from '@/lib/purchases';
 import { TrendingUp, Package, Users, DollarSign } from 'lucide-react';
 import Link from 'next/link';
 
@@ -107,6 +108,49 @@ function LowStock() {
   </div>;
 }
 
+function RecentOrders() {
+  const [orders, setOrders] = useState<RecentPurchases | null>(null);
+  const [error, setError] = useState('');
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      try {
+        const result = await fetchSummary('/api/compras/recientes');
+        const payload = result !== null && typeof result === 'object' ? result as Record<string, unknown> : null;
+        const parsed = recentPurchasesSchema.safeParse(payload?.items);
+        if (!parsed.success) throw new Error('Las compras recientes recibidas no son válidas.');
+        if (active) setOrders(parsed.data);
+      } catch (error) {
+        if (active) setError(error instanceof Error ? error.message : 'No se pudieron consultar las compras recientes.');
+      }
+    }
+    void load();
+    return () => { active = false; };
+  }, [revision]);
+
+  if (error) return <div role="alert" className="text-sm text-red-700">
+    <p>{error}</p>
+    <button type="button" className="underline" onClick={() => {
+      setError(''); setOrders(null); setRevision((value) => value + 1);
+    }}>Reintentar</button>
+  </div>;
+  if (!orders) return <p className="text-sm text-gray-600" aria-live="polite">Cargando...</p>;
+
+  return <div className="space-y-3 text-sm">
+    <p className="text-gray-600">Hasta cinco órdenes, ordenadas por fecha de registro.</p>
+    {orders.length === 0 ? <p className="text-gray-700">No hay órdenes de compra registradas.</p> :
+      <ul className="divide-y divide-gray-200">
+        {orders.map((order) => <li key={order.id} className="py-2">
+          <p className="font-medium text-gray-900">{order.po_number}</p>
+          <p className="text-gray-600">Fecha de orden: {order.order_date} · Estado: {purchaseStatusLabel(order.status)}</p>
+        </li>)}
+      </ul>}
+    <Link href="/dashboard/compras" className="text-blue-700 underline">Ver compras</Link>
+  </div>;
+}
+
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const canViewInventory = useModuleStore((state) => state.userModules.some(
@@ -114,6 +158,9 @@ export default function DashboardPage() {
   ));
   const canViewCustomers = useModuleStore((state) => state.userModules.some(
     (item) => item.module?.name === 'clients' && item.module.is_active && item.can_view
+  ));
+  const canViewPurchases = useModuleStore((state) => state.userModules.some(
+    (item) => item.module?.name === 'purchases' && item.module.is_active && item.can_view
   ));
 
   const stats = [
@@ -196,6 +243,10 @@ export default function DashboardPage() {
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-4">Ventas Recientes</h2>
           <p className="text-sm text-gray-600">Datos reales aún no disponibles.</p>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <h2 className="text-lg font-bold text-gray-900 mb-4">Órdenes de compra recientes</h2>
+          {canViewPurchases ? <RecentOrders /> : <p className="text-sm text-gray-600">Sin permiso para ver compras.</p>}
         </div>
 
         <div className="bg-white rounded-lg shadow-sm p-6">

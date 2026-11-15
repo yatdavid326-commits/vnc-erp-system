@@ -16,6 +16,10 @@ const lowStockSource = readFileSync(new URL('../lib/lowStock.ts', import.meta.ur
 const lowStockCompiled = ts.transpileModule(lowStockSource, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
 const lowStock = {};
 runInNewContext(lowStockCompiled, { exports: lowStock, require });
+const purchaseSource = readFileSync(new URL('../lib/purchases.ts', import.meta.url), 'utf8');
+const purchaseCompiled = ts.transpileModule(purchaseSource, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+const purchases = {};
+runInNewContext(purchaseCompiled, { exports: purchases, require });
 
 function renderDashboard(userModules) {
   const exports = {};
@@ -29,6 +33,7 @@ function renderDashboard(userModules) {
       };
       if (name === '@/lib/db/supabase') return { supabase: {} };
       if (name === '@/lib/lowStock') return lowStock;
+      if (name === '@/lib/purchases') return purchases;
       return require(name);
     },
   });
@@ -39,17 +44,19 @@ test('dashboard identifies unavailable data and loads authorized summaries witho
   const html = renderDashboard([
     { module: { name: 'inventory', is_active: true }, can_view: true },
     { module: { name: 'clients', is_active: true }, can_view: true },
+    { module: { name: 'purchases', is_active: true }, can_view: true },
   ]);
   assert.match(html, /Bienvenido, Usuario de prueba/);
   assert.match(html, /Algunas métricas todavía no están disponibles/);
   assert.match(html, /Cargando/);
   assert.match(html, /Existencia física registrada mayor que cero/);
   assert.match(html, /Clientes registrados con estado activo/);
-  assert.equal((html.match(/Cargando/g) || []).length, 3);
+  assert.equal((html.match(/Cargando/g) || []).length, 4);
   assert.equal((html.match(/No disponible/g) || []).length, 2);
   assert.equal((html.match(/Datos reales aún no disponibles/g) || []).length, 1);
   assert.match(html, /Ventas Recientes<\/h2><p[^>]*>Datos reales aún no disponibles/);
   assert.match(html, /Productos con Bajo Stock<\/h2><p[^>]*>Cargando/);
+  assert.match(html, /Órdenes de compra recientes<\/h2><p[^>]*>Cargando/);
   assert.doesNotMatch(html, /45,230|128,450|Factura #100|PRD-100/);
 });
 
@@ -58,12 +65,72 @@ test('dashboard hides each summary independently when permission or module is in
     { module: { name: 'inventory', is_active: true }, can_view: false },
     { module: { name: 'clients', is_active: false }, can_view: true },
   ]);
-  assert.equal((html.match(/Sin permiso/g) || []).length, 3);
+  assert.equal((html.match(/Sin permiso/g) || []).length, 4);
   assert.doesNotMatch(html, /Existencia física registrada mayor que cero/);
   assert.doesNotMatch(html, /Clientes registrados con estado activo/);
   const inventoryOnly = renderDashboard([{ module: { name: 'inventory', is_active: true }, can_view: true }]);
   assert.match(inventoryOnly, /Existencia física registrada mayor que cero/);
-  assert.equal((inventoryOnly.match(/Sin permiso/g) || []).length, 1);
+  assert.equal((inventoryOnly.match(/Sin permiso/g) || []).length, 2);
+  const purchasesOnly = renderDashboard([{ module: { name: 'purchases', is_active: true }, can_view: true }]);
+  assert.match(purchasesOnly, /Órdenes de compra recientes<\/h2><p[^>]*>Cargando/);
+});
+
+test('recent orders require purchase access and query only the five latest orders', async () => {
+  const apiSource = readFileSync(new URL('../app/api/compras/recientes/route.ts', import.meta.url), 'utf8');
+  const apiCompiled = ts.transpileModule(apiSource, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+  const calls = [];
+  let allowed = false;
+  const order = { id: '7f1cf2ab-91ad-4850-a225-35605dc3203d', po_number: 'OC-1', order_date: '2026-11-15', status: 'pending' };
+  let result = { data: [order], error: null };
+  const query = {
+    select(...args) { calls.push(['select', ...args]); return this; },
+    order(...args) { calls.push(['order', ...args]); return this; },
+    async limit(...args) { calls.push(['limit', ...args]); return result; },
+  };
+  const exports = {};
+  runInNewContext(apiCompiled, { exports, console: { error() {} }, require: (name) => {
+    if (name === '@/lib/services/modules/authorization') return {
+      authorizeModule: async (_, module, permission) => {
+        calls.push(['authorize', module, permission]);
+        return allowed ? { client: { from: (table) => { calls.push(['from', table]); return query; } } }
+          : { error: Response.json({}, { status: 403 }) };
+      },
+    };
+    if (name === '@/lib/purchases') return purchases;
+    return require(name);
+  } });
+  const request = new Request('http://localhost/api/compras/recientes');
+  assert.equal((await exports.GET(request)).status, 403);
+  assert.equal(calls.length, 1);
+  allowed = true;
+  const response = await exports.GET(request);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.deepEqual((await response.json()).items, [order]);
+  assert.deepEqual(calls[1], ['authorize', 'purchases', 'can_view']);
+  assert.deepEqual(calls[2], ['from', 'purchase_orders']);
+  assert.deepEqual(calls[3], ['select', 'id, po_number, order_date, status']);
+  assert.equal(calls[4][1], 'created_at');
+  assert.equal(calls[4][2].ascending, false);
+  assert.equal(calls[4][2].nullsFirst, false);
+  assert.equal(calls[5][1], 'id');
+  assert.equal(calls[5][2].ascending, false);
+  assert.deepEqual(calls[6], ['limit', 5]);
+  result = { data: [], error: null };
+  assert.deepEqual((await (await exports.GET(request)).json()).items, []);
+  result = { data: null, error: { message: 'database unavailable' } };
+  assert.equal((await exports.GET(request)).status, 500);
+  result = { data: [{ ...order, status: 42 }], error: null };
+  assert.equal((await exports.GET(request)).status, 500);
+});
+
+test('purchase state labels preserve known and legacy states', () => {
+  assert.equal(purchases.purchaseStatusLabel('pending'), 'Pendiente');
+  assert.equal(purchases.purchaseStatusLabel('partially_received'), 'Parcialmente recibida');
+  assert.equal(purchases.purchaseStatusLabel('received'), 'Recibida');
+  assert.equal(purchases.purchaseStatusLabel('cancelled'), 'Anulada');
+  assert.equal(purchases.purchaseStatusLabel(null), 'Sin estado');
+  assert.equal(purchases.purchaseStatusLabel('legacy'), 'legacy');
 });
 
 test('low stock route denies access and validates the database result', async () => {

@@ -34,7 +34,7 @@ Visitar `http://localhost:3000`
 
 ## 📦 Módulos del Sistema
 
-1. **Dashboard** - Panel de control; muestra el número de productos activos con existencia física registrada mayor que cero, el de clientes con estado activo y hasta cinco productos con bajo stock, cada uno a usuarios con permiso de su módulo. Bajo stock significa existencia física igual o inferior al nivel de reposición, sin descontar reservas. Los productos con existencia o nivel sin registrar o inválidos se indican como no evaluados. Las métricas de ventas aún no están disponibles.
+1. **Dashboard** - Panel de control; muestra el número de productos activos con existencia física registrada mayor que cero, el de clientes con estado activo, hasta cinco productos con bajo stock y las cinco órdenes de compra registradas más recientemente, cada uno a usuarios con permiso de su módulo. Bajo stock significa existencia física igual o inferior al nivel de reposición, sin descontar reservas. Los productos con existencia o nivel sin registrar o inválidos se indican como no evaluados. Las métricas de ventas aún no están disponibles.
 2. **Clientes** - Gestión de clientes y control de crédito
 3. **Inventario** - Productos, categorías y control de stock
 4. **Proveedores** - Base de proveedores y contactos
