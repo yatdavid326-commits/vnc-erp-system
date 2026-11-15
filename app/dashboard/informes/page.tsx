@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useModuleStore } from '@/hooks';
 import { fetchAuthenticatedJson } from '@/lib/services/auth/fetchAuthenticatedJson';
 import { purchaseReportSchema, reportPeriodSchema, type PurchaseReport, type ReportPeriod } from '@/lib/purchaseReport';
+import { inventoryReportSchema, type InventoryReport } from '@/lib/inventoryReport';
 
 function PurchaseStatusReport() {
   const [from, setFrom] = useState('');
@@ -89,6 +90,59 @@ function PurchaseStatusReport() {
   </section>;
 }
 
+function InventoryStatusReport() {
+  const [report, setReport] = useState<InventoryReport | null>(null);
+  const [error, setError] = useState('');
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      try {
+        const result = inventoryReportSchema.safeParse(await fetchAuthenticatedJson('/api/informes/inventario'));
+        if (!result.success) throw new Error('El informe de inventario recibido no es válido.');
+        if (active) setReport(result.data);
+      } catch (error) {
+        if (active) setError(error instanceof Error ? error.message : 'No se pudo consultar el informe de inventario.');
+      }
+    }
+    void load();
+    return () => { active = false; };
+  }, [revision]);
+
+  function refresh() {
+    setError(''); setReport(null); setRevision((value) => value + 1);
+  }
+
+  const rows = report && [
+    ['Con existencia física', report.positive],
+    ['Sin existencia física', report.zero],
+    ['Existencia física sin registrar', report.unregistered],
+    ['Existencias o reservas inválidas', report.invalid],
+    ['Total de productos activos', report.total],
+  ] as const;
+
+  return <section className="space-y-4 rounded-lg bg-white p-6 shadow-sm">
+    <h2 className="text-xl font-bold text-gray-900">Estado del inventario</h2>
+    <p className="text-sm text-gray-600">
+      Productos activos al momento de la consulta. Sin existencia registrada se clasifican como sin registrar;
+      si está registrada, las reservas deben estar registradas, ser no negativas y no superar la existencia.
+      Las categorías con y sin existencia física solo incluyen registros válidos; no se descuentan reservas.
+    </p>
+    <button type="button" onClick={refresh} className="rounded border border-gray-300 px-4 py-2">Actualizar inventario</button>
+    {error ? <div role="alert" className="text-sm text-red-700">
+      <p>{error}</p>
+      <button type="button" className="underline" onClick={refresh}>Reintentar</button>
+    </div> : !report ? <p className="text-sm text-gray-600" aria-live="polite">Cargando inventario...</p> :
+      <table className="w-full max-w-lg text-left text-sm">
+        <thead><tr><th className="py-2">Estado</th><th className="py-2">Productos</th></tr></thead>
+        <tbody>{rows?.map(([label, amount]) => <tr key={label} className="border-t border-gray-200">
+          <th scope="row" className="py-2 font-normal">{label}</th><td className="py-2">{amount}</td>
+        </tr>)}</tbody>
+      </table>}
+  </section>;
+}
+
 export default function InformesPage() {
   const canViewReports = useModuleStore((state) => state.userModules.some(
     (item) => item.module?.name === 'reports' && item.module.is_active && item.can_view
@@ -96,12 +150,16 @@ export default function InformesPage() {
   const canViewPurchases = useModuleStore((state) => state.userModules.some(
     (item) => item.module?.name === 'purchases' && item.module.is_active && item.can_view
   ));
+  const canViewInventory = useModuleStore((state) => state.userModules.some(
+    (item) => item.module?.name === 'inventory' && item.module.is_active && item.can_view
+  ));
 
   return <div className="space-y-5">
     <h1 className="text-3xl font-bold text-gray-900">Informes</h1>
-    {!canViewReports ? <p>Sin permiso para ver informes.</p> :
-      !canViewPurchases ? <p>El informe de compras requiere permiso para ver Compras.</p> :
-        <PurchaseStatusReport />}
+    {!canViewReports ? <p>Sin permiso para ver informes.</p> : <>
+      {canViewPurchases ? <PurchaseStatusReport /> : <p>El informe de compras requiere permiso para ver Compras.</p>}
+      {canViewInventory ? <InventoryStatusReport /> : <p>El informe de inventario requiere permiso para ver Inventario.</p>}
+    </>}
     <p className="text-sm text-gray-600">Los demás informes están pendientes de implementación.</p>
   </div>;
 }
