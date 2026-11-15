@@ -31,7 +31,7 @@ function renderDashboard(userModules) {
         useAuthStore: () => ({ user: { full_name: 'Usuario de prueba' } }),
         useModuleStore: (selector) => selector({ userModules }),
       };
-      if (name === '@/lib/db/supabase') return { supabase: {} };
+      if (name === '@/lib/services/auth/fetchAuthenticatedJson') return { fetchAuthenticatedJson: () => {} };
       if (name === '@/lib/lowStock') return lowStock;
       if (name === '@/lib/purchases') return purchases;
       return require(name);

@@ -81,6 +81,7 @@ test('links assigned active modules and hides inactive modules', () => {
     { can_view: true, module: { name: 'suppliers', display_name: 'Proveedores', is_active: true } },
     { can_view: true, module: { name: 'inventory', display_name: 'Inventario', is_active: true } },
     { can_view: true, module: { name: 'purchases', display_name: 'Compras', is_active: true } },
+    { can_view: true, module: { name: 'reports', display_name: 'Reportes', is_active: true } },
     { can_view: true, module: { name: 'pos', display_name: 'Punto de Venta', is_active: false } },
   ];
   const { default: Sidebar } = load('../components/layout/Sidebar.tsx', {
@@ -92,6 +93,7 @@ test('links assigned active modules and hides inactive modules', () => {
   assert.match(html, /href="\/dashboard\/proveedores"/);
   assert.match(html, /href="\/dashboard\/inventario"/);
   assert.match(html, /href="\/dashboard\/compras"/);
+  assert.match(html, /href="\/dashboard\/informes"/);
   assert.doesNotMatch(html, /Punto de Venta/);
   assert.match(html, /href="\/dashboard"/);
 });

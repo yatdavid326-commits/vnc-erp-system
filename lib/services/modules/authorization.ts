@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/db/supabase';
 
 export type ModulePermission = 'can_view' | 'can_create' | 'can_edit' | 'can_delete';
-export type ProtectedModule = 'clients' | 'suppliers' | 'inventory' | 'purchases';
+export type ProtectedModule = 'clients' | 'suppliers' | 'inventory' | 'purchases' | 'reports';
 
 export async function authorizeModule(request: Request, moduleName: ProtectedModule, permission: ModulePermission) {
   if (!supabaseAdmin) {

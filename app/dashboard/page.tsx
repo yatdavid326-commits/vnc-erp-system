@@ -2,26 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useAuthStore, useModuleStore } from '@/hooks';
-import { supabase } from '@/lib/db/supabase';
+import { fetchAuthenticatedJson } from '@/lib/services/auth/fetchAuthenticatedJson';
 import { lowStockSchema, type LowStockSummary } from '@/lib/lowStock';
 import { recentPurchasesSchema, purchaseStatusLabel, type RecentPurchases } from '@/lib/purchases';
 import { TrendingUp, Package, Users, DollarSign } from 'lucide-react';
 import Link from 'next/link';
-
-async function fetchSummary(path: string): Promise<unknown> {
-  const { data: { session }, error } = await supabase.auth.getSession();
-  if (error || !session?.access_token) throw new Error('No se pudo obtener la sesión. Inicia sesión nuevamente.');
-  const response = await fetch(path, {
-    headers: { Authorization: `Bearer ${session.access_token}` },
-    cache: 'no-store',
-  });
-  const result: unknown = await response.json();
-  const payload = result !== null && typeof result === 'object' ? result as Record<string, unknown> : null;
-  if (!response.ok) {
-    throw new Error(typeof payload?.error === 'string' && payload.error ? payload.error : 'No se pudo consultar el resumen.');
-  }
-  return result;
-}
 
 function SummaryMetric({ path, field, description }: { path: string; field: string; description: string }) {
   const [summary, setSummary] = useState<{ count: number | null; error: string }>({ count: null, error: '' });
@@ -31,7 +16,7 @@ function SummaryMetric({ path, field, description }: { path: string; field: stri
     let active = true;
     async function loadSummary() {
       try {
-        const result = await fetchSummary(path);
+        const result = await fetchAuthenticatedJson(path);
         const payload = result !== null && typeof result === 'object' ? result as Record<string, unknown> : null;
         const count = payload?.[field];
         if (typeof count !== 'number' || !Number.isSafeInteger(count) || count < 0) {
@@ -68,7 +53,7 @@ function LowStock() {
     let active = true;
     async function load() {
       try {
-        const result = lowStockSchema.safeParse(await fetchSummary('/api/inventario/bajo-stock'));
+        const result = lowStockSchema.safeParse(await fetchAuthenticatedJson('/api/inventario/bajo-stock'));
         if (!result.success) throw new Error('El resumen de bajo stock no es válido.');
         if (active) setSummary(result.data);
       } catch (error) {
@@ -117,7 +102,7 @@ function RecentOrders() {
     let active = true;
     async function load() {
       try {
-        const result = await fetchSummary('/api/compras/recientes');
+        const result = await fetchAuthenticatedJson('/api/compras/recientes');
         const payload = result !== null && typeof result === 'object' ? result as Record<string, unknown> : null;
         const parsed = recentPurchasesSchema.safeParse(payload?.items);
         if (!parsed.success) throw new Error('Las compras recientes recibidas no son válidas.');

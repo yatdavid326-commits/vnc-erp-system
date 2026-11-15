@@ -43,7 +43,7 @@ Visitar `http://localhost:3000`
 7. **Caja** - Flujo de efectivo y movimientos
 8. **Asistencia** - Check-in con QR y geolocalización GPS
 9. **Empleados** - Gestión de usuarios y asignación de módulos
-10. **Reportes** - Análisis completo y KPIs del negocio
+10. **Reportes** - Informe básico de órdenes de compra por estado y periodo de fecha de orden. Requiere acceso a Reportes y Compras. Los demás informes y KPIs están pendientes.
 
 ## 🔐 Seguridad
 
