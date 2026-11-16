@@ -6,7 +6,7 @@ import { fetchAuthenticatedBlob, fetchAuthenticatedJson } from '@/lib/services/a
 import { purchaseReportSchema, reportPeriodSchema, type PurchaseReport, type ReportPeriod } from '@/lib/purchaseReport';
 import { inventoryReportSchema, type InventoryReport } from '@/lib/inventoryReport';
 import { csvRecords, downloadReportBlob, downloadReportCsv, reportCsv } from '@/lib/reportCsv';
-import { lowStockSchema, type LowStockSummary } from '@/lib/lowStock';
+import { lowStockProductsReportSchema, lowStockSchema, type LowStockProductsReport, type LowStockSummary } from '@/lib/lowStock';
 import { inventoryValuationReportSchema, type InventoryValuationReport } from '@/lib/inventoryValuationReport';
 import { purchaseSupplierReportSchema, type PurchaseSupplierReport } from '@/lib/purchaseSupplierReport';
 import { inventoryMovementReportSchema, type InventoryMovementReport } from '@/lib/inventoryMovementReport';
@@ -582,6 +582,10 @@ function LowStockReport() {
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
   const [exportError, setExportError] = useState('');
+  const [productsReport, setProductsReport] = useState<LowStockProductsReport | null>(null);
+  const [productsError, setProductsError] = useState('');
+  const [productsExportError, setProductsExportError] = useState('');
+  const [productsPage, setProductsPage] = useState(1);
 
   useEffect(() => {
     let active = true;
@@ -598,20 +602,43 @@ function LowStockReport() {
     return () => { active = false; };
   }, [revision]);
 
+  useEffect(() => {
+    let active = true;
+    async function loadProducts() {
+      try {
+        const result = lowStockProductsReportSchema.safeParse(
+          await fetchAuthenticatedJson(`/api/inventario/bajo-stock/productos?page=${productsPage}`)
+        );
+        if (!result.success) throw new Error('El listado de bajo stock recibido no es válido.');
+        if (active) setProductsReport(result.data);
+      } catch (error) {
+        if (active) setProductsError(error instanceof Error ? error.message : 'No se pudo consultar el listado de bajo stock.');
+      }
+    }
+    void loadProducts();
+    return () => { active = false; };
+  }, [productsPage, revision]);
+
   function refresh() {
-    setError(''); setExportError(''); setSummary(null); setRevision((value) => value + 1);
+    setError(''); setExportError(''); setSummary(null); setProductsError(''); setProductsExportError('');
+    setProductsReport(null); setProductsPage(1); setRevision((value) => value + 1);
+  }
+
+  function moveProductsPage(nextPage: number) {
+    setProductsError(''); setProductsExportError(''); setProductsReport(null); setProductsPage(nextPage);
   }
 
   const rows = summary && [
     ['Productos con bajo stock', summary.total],
     ['Productos no evaluados', summary.not_evaluated],
   ] as const;
+  const productTotalPages = productsReport ? Math.ceil(productsReport.total / productsReport.page_size) : 0;
 
   return <section className="space-y-4 rounded-lg bg-white p-6 shadow-sm">
     <h2 className="text-xl font-bold text-gray-900">Bajo stock</h2>
     <p className="text-sm text-gray-600">
-      Compara la existencia física con el nivel de reposición, sin descontar reservas. El informe muestra el total
-      y hasta cinco productos; las existencias o niveles sin registrar o inválidos se cuentan como no evaluados.
+      Compara la existencia física con el nivel de reposición, sin descontar reservas. Incluye todos los productos activos
+      con existencias iguales o inferiores al nivel de reposición; las existencias o niveles sin registrar o inválidos se cuentan como no evaluados.
     </p>
     <button type="button" onClick={refresh} className="rounded border border-gray-300 px-4 py-2">Actualizar bajo stock</button>
     {rows && !error && <button type="button" className="rounded border border-gray-300 px-4 py-2" onClick={() => {
@@ -623,17 +650,49 @@ function LowStockReport() {
     {error ? <div role="alert" className="text-sm text-red-700">
       <p>{error}</p>
       <button type="button" className="underline" onClick={refresh}>Reintentar</button>
-    </div> : !summary ? <p className="text-sm text-gray-600" aria-live="polite">Cargando bajo stock...</p> : <>
-      <p className="text-sm text-gray-700">Productos con bajo stock: {summary.total} · No evaluados: {summary.not_evaluated}</p>
-      {summary.items.length === 0 ? <p className="text-sm text-gray-600">No hay productos con bajo stock para mostrar.</p> :
-        <ul className="divide-y divide-gray-200">
-          {summary.items.map((item) => <li key={item.id} className="py-3">
-            <p className="font-medium text-gray-900">{item.product_code} · {item.name}</p>
-            <p className="text-sm text-gray-600">Existencia física: {item.quantity_on_hand} · Nivel de reposición: {item.reorder_level}</p>
-          </li>)}
-        </ul>}
-      {summary.total > summary.items.length && <p className="text-sm text-gray-600">Se muestran {summary.items.length} de {summary.total} productos con bajo stock.</p>}
-    </>}
+    </div> : !summary ? <p className="text-sm text-gray-600" aria-live="polite">Cargando bajo stock...</p> :
+      <p className="text-sm text-gray-700">Productos con bajo stock: {summary.total} · No evaluados: {summary.not_evaluated}</p>}
+    <h3 className="text-lg font-semibold text-gray-900">Listado completo</h3>
+    {productsReport && productsReport.items.length > 0 && !productsError && <button type="button" className="rounded border border-gray-300 px-4 py-2" onClick={() => {
+      setProductsExportError('');
+      try {
+        const headers = ['Página', 'Código', 'Producto', 'Existencia física', 'Nivel de reposición'];
+        const records = productsReport.items.map((item) => [
+          productsPage, item.product_code, item.name, item.quantity_on_hand, item.reorder_level,
+        ]);
+        downloadReportCsv('productos-bajo-stock.csv', csvRecords(headers, records));
+      } catch (error) {
+        console.error('Low stock product export failed:', error);
+        setProductsExportError('No se pudo descargar esta página del listado.');
+      }
+    }}>Descargar CSV de esta página</button>}
+    {productsExportError && <p role="alert" className="text-sm text-red-700">{productsExportError}</p>}
+    {productsError ? <div role="alert" className="text-sm text-red-700">
+      <p>{productsError}</p>
+      <button type="button" className="underline" onClick={() => {
+        setProductsError(''); setProductsReport(null); setRevision((value) => value + 1);
+      }}>Reintentar listado</button>
+    </div> : !productsReport ? <p className="text-sm text-gray-600" aria-live="polite">Cargando listado completo de bajo stock...</p> :
+      productsReport.items.length === 0 ? <p className="text-sm text-gray-600">No hay productos con bajo stock para mostrar.</p> : <>
+        <div className="overflow-x-auto">
+          <table className="w-full max-w-3xl text-left text-sm">
+            <thead><tr>
+              <th className="py-2 pr-3">Código</th><th className="py-2 pr-3">Producto</th>
+              <th className="py-2 pr-3">Existencia física</th><th className="py-2">Nivel de reposición</th>
+            </tr></thead>
+            <tbody>{productsReport.items.map((item) => <tr key={item.id} className="border-t border-gray-200">
+              <td className="py-2 pr-3">{item.product_code}</td><th scope="row" className="py-2 pr-3 font-normal">{item.name}</th>
+              <td className="py-2 pr-3">{item.quantity_on_hand}</td><td className="py-2">{item.reorder_level}</td>
+            </tr>)}</tbody>
+          </table>
+        </div>
+        {productsReport.total > productsReport.page_size && <div className="flex items-center gap-3">
+          <button type="button" disabled={productsPage <= 1} className="rounded border border-gray-300 px-3 py-2 disabled:opacity-50" onClick={() => moveProductsPage(productsPage - 1)}>Anterior</button>
+          <p className="text-sm text-gray-600">Página {productsPage} de {productTotalPages} · {productsReport.total} productos</p>
+          <button type="button" disabled={productsPage >= productTotalPages} className="rounded border border-gray-300 px-3 py-2 disabled:opacity-50" onClick={() => moveProductsPage(productsPage + 1)}>Siguiente</button>
+          <p className="text-sm text-gray-600">El CSV descarga únicamente la página mostrada.</p>
+        </div>}
+      </>}
   </section>;
 }
 

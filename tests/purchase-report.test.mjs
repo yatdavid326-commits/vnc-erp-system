@@ -150,12 +150,14 @@ test('report page gates access independently for reports and purchases', () => {
   assert.match(inventoryOnly, /Cargando valoración/);
   assert.match(inventoryOnly, /Valoración del inventario/);
   assert.match(inventoryOnly, /Cargando bajo stock/);
+  assert.match(inventoryOnly, /Cargando listado completo de bajo stock/);
   assert.match(inventoryOnly, /Cargando movimientos/);
   const purchaseInventory = render([assignment('reports'), assignment('purchases'), assignment('inventory')]);
   assert.match(purchaseInventory, /Cargando compras por producto/);
   assert.match(inventoryOnly, /Descargar detalle de productos activos/);
   assert.match(inventoryOnly, /El informe de compras requiere permiso para ver Compras/);
   assert.doesNotMatch(render([assignment('reports'), assignment('inventory', false)]), /Cargando bajo stock/);
+  assert.doesNotMatch(render([assignment('reports'), assignment('inventory', false)]), /Cargando listado completo de bajo stock/);
   assert.doesNotMatch(render([assignment('reports'), assignment('inventory', false)]), /Cargando movimientos/);
   assert.match(render([assignment('reports'), assignment('purchases')]), /requiere permiso para ver Inventario/);
   assert.doesNotMatch(render([assignment('reports'), assignment('inventory', false)]), /Cargando valoración/);
