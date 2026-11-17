@@ -68,6 +68,7 @@ test('provider CRUD checks each permission and handles conflicts and missing rec
   assert.equal((await item.DELETE(request(), { params: Promise.resolve({ id: 'bad' }) })).status, 400);
   result = { data: null, error: null };
   assert.equal((await item.PUT(request(valid), context)).status, 404);
+  assert.equal((await item.DELETE(request(), context)).status, 404);
   result = { data: null, error: { code: '23505' } };
   assert.equal((await collection.POST(request(valid))).status, 409);
   result = { data: null, error: { code: '23503' } };

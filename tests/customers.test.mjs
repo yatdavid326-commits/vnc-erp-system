@@ -138,6 +138,7 @@ test('CRUD routes enforce permissions, validate IDs and report database conflict
   assert.equal(operation, 'delete');
   assert.equal((await item.DELETE(request('valid'), { params: Promise.resolve({ id: 'invalid' }) })).status, 400);
   databaseResult = { data: null, error: null };
+  assert.equal((await item.PUT(request('valid', valid), context)).status, 404);
   assert.equal((await item.DELETE(request('valid'), context)).status, 404);
   databaseResult = { data: null, error: { code: '23505' } };
   assert.equal((await collection.POST(request('valid', valid))).status, 409);
