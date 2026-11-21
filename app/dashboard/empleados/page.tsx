@@ -25,7 +25,6 @@ export default function EmpleadosPage() {
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     nombre: '',
     email: '',
@@ -33,7 +32,6 @@ export default function EmpleadosPage() {
     cargo: '',
     departamento: '',
     salario: 0,
-    password: '',
     modulos: [] as string[],
     estado: 'activo',
   });
@@ -102,7 +100,6 @@ export default function EmpleadosPage() {
         cargo: '',
         departamento: '',
         salario: 0,
-        password: '',
         modulos: [],
         estado: 'activo',
       });
@@ -119,7 +116,6 @@ export default function EmpleadosPage() {
       cargo: empleado.cargo,
       departamento: empleado.departamento,
       salario: empleado.salario,
-      password: '',
       modulos: empleado.modulos || [],
       estado: empleado.estado,
     });
@@ -214,22 +210,6 @@ export default function EmpleadosPage() {
                   onChange={(e) => setFormData({ ...formData, salario: parseFloat(e.target.value) })}
                   className="px-3 py-2 border rounded-md"
                 />
-                <div>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Contraseña"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="px-3 py-2 border rounded-md w-full"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-xs text-gray-600 mt-1"
-                  >
-                    {showPassword ? 'Ocultar' : 'Mostrar'}
-                  </button>
-                </div>
               </div>
 
               <div>
