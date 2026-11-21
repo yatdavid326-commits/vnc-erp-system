@@ -33,6 +33,8 @@ test('all data APIs reject requests without an authenticated session', async () 
     '/api/empleados',
     '/api/inventario',
     '/api/pos',
+    '/api/pos/catalog',
+    '/api/pos/register',
     '/api/proveedores',
     '/api/reportes',
     '/api/modules/user',
@@ -45,6 +47,33 @@ test('all data APIs reject requests without an authenticated session', async () 
   assert.deepEqual(
     responses.map((response) => response.status),
     Array(paths.length).fill(401)
+  );
+});
+
+test('POS checkout and cash-register writes reject unauthenticated requests', async () => {
+  const baseUrl = process.env.VNC_BASE_URL;
+  assert.ok(baseUrl, 'Set VNC_BASE_URL to the server under test');
+
+  const responses = await Promise.all([
+    fetch(new URL('/api/pos', baseUrl), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    }),
+    fetch(new URL('/api/pos/register', baseUrl), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ opening_balance: 0 }),
+    }),
+    fetch(new URL('/api/pos/register', baseUrl), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ closing_balance: 0 }),
+    }),
+  ]);
+  assert.deepEqual(
+    responses.map((response) => response.status),
+    [401, 401, 401]
   );
 });
 
