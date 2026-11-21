@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { ACCESS_TOKEN_COOKIE } from '@/lib/auth/constants';
+import {
+  getRequiredApiPermission,
+  selfServiceApiPaths,
+} from '@/lib/auth/apiPermissions';
+import { supabaseAdmin } from '@/lib/db/supabase';
 
 const publicApiPaths = new Set([
   '/api/auth/signin',
@@ -48,6 +53,67 @@ export async function middleware(request: NextRequest) {
 
   if (error || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  if (selfServiceApiPaths.has(pathname)) {
+    return NextResponse.next();
+  }
+
+  const requirement = getRequiredApiPermission(pathname, request.method);
+  if (!requirement) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  if (!supabaseAdmin) {
+    console.error('Supabase admin client is not configured.');
+    return NextResponse.json(
+      { error: 'Server configuration error' },
+      { status: 500 }
+    );
+  }
+
+  const { data: profile, error: profileError } = await supabaseAdmin
+    .from('user_profiles')
+    .select('role')
+    .eq('auth_id', user.id)
+    .maybeSingle();
+
+  if (profileError) {
+    console.error('Error checking API permissions:', profileError);
+    return NextResponse.json(
+      { error: 'Authorization check failed' },
+      { status: 500 }
+    );
+  }
+
+  if (!profile) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  if (profile.role === 'admin') {
+    return NextResponse.next();
+  }
+
+  const { data: moduleAccess, error: accessError } = await supabaseAdmin
+    .from('user_modules')
+    .select(
+      'can_view, can_create, can_edit, can_delete, module:modules!inner(name, is_active)'
+    )
+    .eq('user_id', user.id)
+    .eq('module.name', requirement.moduleName)
+    .eq('module.is_active', true)
+    .maybeSingle();
+
+  if (accessError) {
+    console.error('Error checking module permissions:', accessError);
+    return NextResponse.json(
+      { error: 'Authorization check failed' },
+      { status: 500 }
+    );
+  }
+
+  if (moduleAccess?.[requirement.permission] !== true) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   return NextResponse.next();

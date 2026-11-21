@@ -14,6 +14,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useModuleStore } from '@/hooks';
 
 interface SidebarProps {
   collapsed?: boolean;
@@ -33,6 +34,7 @@ const moduleIcons: Record<string, React.ReactNode> = {
 };
 
 export default function Sidebar({ collapsed = false }: SidebarProps) {
+  const { userModules } = useModuleStore();
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(['main', 'operations', 'business', 'admin'])
   );
@@ -47,35 +49,46 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
     setExpandedSections(newExpanded);
   };
 
+  const visibleModules = new Set(
+    userModules
+      .filter(({ can_view, module }) => can_view && module?.is_active)
+      .map(({ module }) => module?.name)
+  );
+
   const sections = {
     main: {
       label: 'Principal',
       items: [
-        { name: 'dashboard', display_name: 'Panel de Control', route: '/dashboard' },
+        {
+          name: 'dashboard',
+          moduleName: 'dashboard',
+          display_name: 'Panel de Control',
+          route: '/dashboard',
+        },
       ],
     },
     operations: {
       label: 'Operaciones',
       items: [
-        { name: 'pos', display_name: 'Punto de Venta', route: '/dashboard/pos' },
-        { name: 'inventario', display_name: 'Inventario', route: '/dashboard/inventario' },
-        { name: 'caja', display_name: 'Gestión de Caja', route: '/dashboard/caja' },
+        { name: 'pos', moduleName: 'pos', display_name: 'Punto de Venta', route: '/dashboard/pos' },
+        { name: 'inventario', moduleName: 'inventory', display_name: 'Inventario', route: '/dashboard/inventario' },
+        { name: 'caja', moduleName: 'cash', display_name: 'Gestión de Caja', route: '/dashboard/caja' },
       ],
     },
     business: {
       label: 'Negocio',
       items: [
-        { name: 'clientes', display_name: 'Clientes', route: '/dashboard/clientes' },
-        { name: 'proveedores', display_name: 'Proveedores', route: '/dashboard/proveedores' },
-        { name: 'compras', display_name: 'Compras/Recibos', route: '/dashboard/compras' },
+        { name: 'clientes', moduleName: 'clients', display_name: 'Clientes', route: '/dashboard/clientes' },
+        { name: 'proveedores', moduleName: 'suppliers', display_name: 'Proveedores', route: '/dashboard/proveedores' },
+        { name: 'compras', moduleName: 'purchases', display_name: 'Compras/Recibos', route: '/dashboard/compras' },
       ],
     },
     admin: {
       label: 'Administración',
       items: [
-        { name: 'empleados', display_name: 'Empleados', route: '/dashboard/empleados' },
-        { name: 'asistencia', display_name: 'Asistencia (QR+GPS)', route: '/dashboard/asistencia' },
-        { name: 'reportes', display_name: 'Reportes', route: '/dashboard/reportes' },
+        { name: 'empleados', moduleName: 'employees', display_name: 'Empleados', route: '/dashboard/empleados' },
+        { name: 'asistencia', moduleName: 'attendance', display_name: 'Asistencia (QR+GPS)', route: '/dashboard/asistencia' },
+        { name: 'reportes', moduleName: 'reports', display_name: 'Reportes', route: '/dashboard/reportes' },
       ],
     },
   };
@@ -95,7 +108,10 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 space-y-2 px-2">
         {Object.entries(sections).map(([key, section]) => {
-          if (section.items.length === 0) return null;
+          const items = section.items.filter((item) =>
+            visibleModules.has(item.moduleName)
+          );
+          if (items.length === 0) return null;
 
           return (
             <div key={key}>
@@ -116,7 +132,7 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
 
               {expandedSections.has(key) && (
                 <div className="space-y-1">
-                  {section.items.map((item) => (
+                  {items.map((item) => (
                     <Link
                       key={item.name}
                       href={item.route || '#'}

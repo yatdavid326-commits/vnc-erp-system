@@ -21,12 +21,31 @@ test('modules API returns the configured modules in database order', async () =>
   }
 });
 
-test('customers API rejects requests without an authenticated session', async () => {
+test('all data APIs reject requests without an authenticated session', async () => {
   const baseUrl = process.env.VNC_BASE_URL;
   assert.ok(baseUrl, 'Set VNC_BASE_URL to the server under test');
 
-  const response = await fetch(new URL('/api/clientes?limit=1', baseUrl));
-  assert.equal(response.status, 401);
+  const paths = [
+    '/api/asistencia',
+    '/api/caja',
+    '/api/clientes?limit=1',
+    '/api/compras',
+    '/api/empleados',
+    '/api/inventario',
+    '/api/pos',
+    '/api/proveedores',
+    '/api/reportes',
+    '/api/modules/user',
+    '/api/user/profile',
+    '/api/auth/restore',
+  ];
+  const responses = await Promise.all(
+    paths.map((path) => fetch(new URL(path, baseUrl)))
+  );
+  assert.deepEqual(
+    responses.map((response) => response.status),
+    Array(paths.length).fill(401)
+  );
 });
 
 test('customers API rejects invalid bearer tokens', async () => {
