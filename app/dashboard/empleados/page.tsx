@@ -14,7 +14,6 @@ interface Empleado {
   cargo: string;
   departamento: string;
   salario: number;
-  modulos: string[];
   estado: string;
   created_at: string;
 }
@@ -32,22 +31,8 @@ export default function EmpleadosPage() {
     cargo: '',
     departamento: '',
     salario: 0,
-    modulos: [] as string[],
     estado: 'activo',
   });
-
-  const modulosDisponibles = [
-    'dashboard',
-    'clientes',
-    'inventario',
-    'proveedores',
-    'compras',
-    'pos',
-    'caja',
-    'reportes',
-    'asistencia',
-    'empleados',
-  ];
   const fetchEmpleados = useCallback(async () => {
     try {
       const data = await fetchJson<Empleado[]>('/api/empleados', 'Error');
@@ -100,7 +85,6 @@ export default function EmpleadosPage() {
         cargo: '',
         departamento: '',
         salario: 0,
-        modulos: [],
         estado: 'activo',
       });
     } catch (err) {
@@ -116,7 +100,6 @@ export default function EmpleadosPage() {
       cargo: empleado.cargo,
       departamento: empleado.departamento,
       salario: empleado.salario,
-      modulos: empleado.modulos || [],
       estado: empleado.estado,
     });
     setEditingId(empleado.id);
@@ -134,15 +117,6 @@ export default function EmpleadosPage() {
     }
   };
 
-  const toggleModulo = (modulo: string) => {
-    setFormData({
-      ...formData,
-      modulos: formData.modulos.includes(modulo)
-        ? formData.modulos.filter((m) => m !== modulo)
-        : [...formData.modulos, modulo],
-    });
-  };
-
   return (
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
@@ -151,6 +125,15 @@ export default function EmpleadosPage() {
             onClick={() => {
               setShowForm(!showForm);
               setEditingId(null);
+              setFormData({
+                nombre: '',
+                email: '',
+                telefono: '',
+                cargo: '',
+                departamento: '',
+                salario: 0,
+                estado: 'activo',
+              });
             }}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg"
           >
@@ -212,23 +195,6 @@ export default function EmpleadosPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-3">Módulos Permitidos</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {modulosDisponibles.map((modulo) => (
-                    <label key={modulo} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.modulos.includes(modulo)}
-                        onChange={() => toggleModulo(modulo)}
-                        className="w-4 h-4"
-                      />
-                      <span className="text-sm capitalize">{modulo}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
               <select
                 value={formData.estado}
                 onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
@@ -255,7 +221,6 @@ export default function EmpleadosPage() {
                   <th className="px-6 py-3 text-left">Nombre</th>
                   <th className="px-6 py-3 text-left">Email</th>
                   <th className="px-6 py-3 text-left">Cargo</th>
-                  <th className="px-6 py-3 text-left">Módulos</th>
                   <th className="px-6 py-3 text-left">Estado</th>
                   <th className="px-6 py-3 text-left">Acciones</th>
                 </tr>
@@ -263,7 +228,7 @@ export default function EmpleadosPage() {
               <tbody>
                 {empleados.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                    <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
                       No hay empleados
                     </td>
                   </tr>
@@ -273,20 +238,6 @@ export default function EmpleadosPage() {
                       <td className="px-6 py-4 text-sm">{emp.nombre}</td>
                       <td className="px-6 py-4 text-sm">{emp.email}</td>
                       <td className="px-6 py-4 text-sm">{emp.cargo}</td>
-                      <td className="px-6 py-4 text-sm">
-                        <div className="flex flex-wrap gap-1">
-                          {emp.modulos?.slice(0, 3).map((mod) => (
-                            <span key={mod} className="bg-gray-100 px-2 py-1 rounded text-xs">
-                              {mod}
-                            </span>
-                          ))}
-                          {emp.modulos && emp.modulos.length > 3 && (
-                            <span className="bg-gray-100 px-2 py-1 rounded text-xs">
-                              +{emp.modulos.length - 3}
-                            </span>
-                          )}
-                        </div>
-                      </td>
                       <td className="px-6 py-4 text-sm">
                         <span
                           className={`px-2 py-1 rounded text-xs ${

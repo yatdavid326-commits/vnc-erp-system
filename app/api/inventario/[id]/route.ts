@@ -57,6 +57,28 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error(`DELETE /api/inventario/${(await params).id} error:`, error);
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'P0001'
+    ) {
+      return NextResponse.json(
+        { error: 'No se puede eliminar un producto con existencias; registra una salida primero.' },
+        { status: 409 }
+      );
+    }
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === '23503'
+    ) {
+      return NextResponse.json(
+        { error: 'No se puede eliminar un producto que tiene movimientos asociados.' },
+        { status: 409 }
+      );
+    }
     return NextResponse.json(
       { error: 'Error deleting product' },
       { status: 500 }

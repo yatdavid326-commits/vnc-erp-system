@@ -1,11 +1,19 @@
 import { supabaseAdmin } from '@/lib/db/supabase';
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
+    return error.message;
+  }
+  return 'Database operation failed';
+}
+
 export interface Compra {
   id: string;
   numero_po: string;
   proveedor_id: string;
   fecha_orden: string;
-  fecha_entrega_esperada: string;
+  fecha_entrega_esperada: string | null;
   estado: string;
   monto_total: number;
   created_at: string;
@@ -28,7 +36,7 @@ export const comprasService = {
       if (error) throw error;
       return { data: data || [], count: count || 0 };
     } catch (error) {
-      return { data: [], count: 0, error: error instanceof Error ? error.message : 'Unknown error' };
+      return { data: [], count: 0, error: getErrorMessage(error) };
     }
   },
 
@@ -45,7 +53,7 @@ export const comprasService = {
       if (error) throw error;
       return { data: data || [], error: null };
     } catch (error) {
-      return { data: [], error: error instanceof Error ? error.message : 'Unknown error' };
+      return { data: [], error: getErrorMessage(error) };
     }
   },
 
@@ -57,12 +65,12 @@ export const comprasService = {
         .from('compras')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
-      return { data: null, error: error instanceof Error ? error.message : 'Unknown error' };
+      return { data: null, error: getErrorMessage(error) };
     }
   },
 
@@ -79,7 +87,7 @@ export const comprasService = {
       if (error) throw error;
       return { data };
     } catch (error) {
-      return { error: error instanceof Error ? error.message : 'Unknown error' };
+      return { error: getErrorMessage(error) };
     }
   },
 
@@ -92,12 +100,12 @@ export const comprasService = {
         .update(compra)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
       return { data };
     } catch (error) {
-      return { error: error instanceof Error ? error.message : 'Unknown error' };
+      return { error: getErrorMessage(error) };
     }
   },
 
@@ -105,15 +113,17 @@ export const comprasService = {
     try {
       if (!supabaseAdmin) throw new Error('Admin client not available');
       
-      const { error } = await supabaseAdmin
+      const { data, error } = await supabaseAdmin
         .from('compras')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select('id')
+        .maybeSingle();
       
       if (error) throw error;
-      return { success: true };
+      return { success: Boolean(data) };
     } catch (error) {
-      return { error: error instanceof Error ? error.message : 'Unknown error' };
+      return { error: getErrorMessage(error) };
     }
   },
 };

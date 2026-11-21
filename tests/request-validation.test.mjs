@@ -4,9 +4,12 @@ import { validateRequestBody } from '../lib/validation/requestBody.ts';
 import {
   attendanceCreateSchema,
   cashMovementCreateSchema,
+  cashMovementFormSchema,
   customerCreateSchema,
   customerUpdateSchema,
   employeeCreateSchema,
+  employeeUpdateSchema,
+  inventoryMovementSchema,
   purchaseCreateSchema,
   productCreateSchema,
   signInSchema,
@@ -47,9 +50,19 @@ test('update validation rejects empty objects and product validation enforces nu
     sku: 'SKU-1',
     categoria: 'General',
     precio_venta: 10,
-    cantidad_stock: 1.5,
+    stock_minimo: 1.5,
   });
   assert.equal(invalidProduct.success, false);
+  assert.equal(
+    productCreateSchema.safeParse({
+      nombre: 'Producto',
+      sku: 'SKU-1',
+      categoria: 'General',
+      precio_venta: 10,
+      cantidad_stock: 5,
+    }).success,
+    false
+  );
 
   const negativePrice = productCreateSchema.safeParse({
     nombre: 'Producto',
@@ -80,9 +93,9 @@ test('write schemas reject malformed business values and accept employee form da
     departamento: 'Ventas',
     salario: 0,
     estado: 'activo',
-    modulos: ['dashboard'],
   });
   assert.equal(employee.success, true);
+  assert.equal(employeeUpdateSchema.safeParse({ telefono: '555-0101', cargo: 'Cajera', estado: 'inactivo' }).success, true);
 
   assert.equal(
     supplierCreateSchema.safeParse({
@@ -104,6 +117,43 @@ test('write schemas reject malformed business values and accept employee form da
       cash_register_id: 'ed8c4009-88bf-4aeb-a0a8-6e63841f3d09',
       movement_type: 'ingreso',
       amount: 0,
+    }).success,
+    false
+  );
+  assert.equal(
+    cashMovementFormSchema.safeParse({
+      tipo: 'ingreso',
+      concepto: 'Venta',
+      monto: 15,
+      referencia: 'REF-1',
+      fecha: '2026-11-21',
+    }).success,
+    true
+  );
+  assert.equal(
+    cashMovementFormSchema.safeParse({
+      tipo: 'egreso',
+      concepto: 'Compra',
+      monto: 0,
+      fecha: '2026-02-31',
+    }).success,
+    false
+  );
+  assert.equal(
+    inventoryMovementSchema.safeParse({
+      id: 'ed8c4009-88bf-4aeb-a0a8-6e63841f3d09',
+      type: 'adjustment',
+      quantity: 0,
+      notes: 'Inventario inicial',
+    }).success,
+    true
+  );
+  assert.equal(
+    inventoryMovementSchema.safeParse({
+      id: 'ed8c4009-88bf-4aeb-a0a8-6e63841f3d09',
+      type: 'entry',
+      quantity: 0,
+      notes: 'Entrada',
     }).success,
     false
   );

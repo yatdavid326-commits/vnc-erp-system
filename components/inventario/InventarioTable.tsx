@@ -5,6 +5,7 @@ import { Producto } from '@/lib/services/products/productService';
 interface InventarioTableProps {
   productos: Producto[];
   onEdit: (producto: Producto) => void;
+  onMovement: (producto: Producto) => void;
   onDelete: (id: string) => void;
   loading?: boolean;
 }
@@ -12,6 +13,7 @@ interface InventarioTableProps {
 export default function InventarioTable({
   productos,
   onEdit,
+  onMovement,
   onDelete,
   loading = false,
 }: InventarioTableProps) {
@@ -108,6 +110,14 @@ export default function InventarioTable({
                   title="Edit"
                 >
                   ✎
+                </button>
+                <button
+                  onClick={() => onMovement(producto)}
+                  disabled={!producto.activo}
+                  className="px-3 py-1 text-xs bg-amber-100 text-amber-800 rounded hover:bg-amber-200"
+                  title="Manage stock"
+                >
+                  Stock
                 </button>
                 <button
                   onClick={() => onDelete(producto.id)}

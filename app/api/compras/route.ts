@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       numero_po: body.numero_po,
       proveedor_id: body.proveedor_id,
       fecha_orden: body.fecha_orden,
-      fecha_entrega_esperada: body.fecha_entrega_esperada || '',
+      fecha_entrega_esperada: body.fecha_entrega_esperada ?? null,
       estado: body.estado || 'pending',
       monto_total: body.monto_total || 0,
     });

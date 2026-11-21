@@ -16,15 +16,14 @@ export default function InventarioForm({
   onCancel,
   loading = false,
 }: InventarioFormProps) {
-  const [formData, setFormData] = useState<Partial<Producto>>(producto ?? {
-    nombre: '',
-    sku: '',
-    descripcion: '',
-    categoria: '',
-    costo_unitario: 0,
-    precio_venta: 0,
-    cantidad_stock: 0,
-    stock_minimo: 0,
+  const [formData, setFormData] = useState<Partial<Producto>>({
+    nombre: producto?.nombre ?? '',
+    sku: producto?.sku ?? '',
+    descripcion: producto?.descripcion ?? '',
+    categoria: producto?.categoria ?? '',
+    costo_unitario: producto?.costo_unitario ?? 0,
+    precio_venta: producto?.precio_venta ?? 0,
+    stock_minimo: producto?.stock_minimo ?? 0,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -58,7 +57,6 @@ export default function InventarioForm({
           categoria: '',
           costo_unitario: 0,
           precio_venta: 0,
-          cantidad_stock: 0,
           stock_minimo: 0,
         });
         setErrors({});
@@ -77,7 +75,6 @@ export default function InventarioForm({
     const numFields = [
       'costo_unitario',
       'precio_venta',
-      'cantidad_stock',
       'stock_minimo',
     ];
 
@@ -203,22 +200,6 @@ export default function InventarioForm({
           )}
         </div>
 
-        {/* Stock */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Current Stock
-          </label>
-          <input
-            type="number"
-            name="cantidad_stock"
-            value={formData.cantidad_stock || 0}
-            onChange={handleChange}
-            placeholder="0"
-            step="1"
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-          />
-        </div>
-
         {/* Min Stock */}
         <div>
           <label className="block text-sm font-medium text-gray-700">
@@ -234,6 +215,20 @@ export default function InventarioForm({
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
           />
         </div>
+
+        {producto && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Current Stock
+            </label>
+            <p className="mt-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-2">
+              {producto.cantidad_stock}
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              Use the stock movement control to change inventory.
+            </p>
+          </div>
+        )}
 
         {/* Margin */}
         <div>

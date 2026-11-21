@@ -39,7 +39,10 @@ export function getRequiredApiPermission(
     ([prefix]) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
   const permission =
-    method === 'POST' && /^\/api\/clientes\/[^/]+\/credit$/.test(pathname)
+    method === 'POST' && (
+      /^\/api\/clientes\/[^/]+\/credit$/.test(pathname) ||
+      /^\/api\/inventario\/[^/]+\/movimientos$/.test(pathname)
+    )
       ? 'can_edit'
       : permissionByMethod[method];
 

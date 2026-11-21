@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       const results = await empleadosService.search(search, limit);
-      return NextResponse.json(results);
+      if (results.error) throw new Error(results.error);
+      return NextResponse.json(results.data);
     }
 
     const result = await empleadosService.getAll(page, limit);
@@ -44,12 +45,12 @@ export async function POST(request: NextRequest) {
       nombre: body.nombre,
       apellido: body.apellido || '',
       email: body.email,
-      teléfono: body.teléfono || '',
-      puesto: body.puesto || '',
+      telefono: body.telefono ?? body.teléfono ?? '',
+      cargo: body.cargo ?? body.puesto ?? '',
       departamento: body.departamento || '',
-      fecha_ingreso: body.fecha_ingreso || new Date().toISOString(),
+      fecha_ingreso: body.fecha_ingreso || new Date().toISOString().slice(0, 10),
       salario: body.salario || 0,
-      estado: body.estado !== false,
+      estado: body.estado === 'inactivo' || body.estado === false ? 'inactivo' : 'activo',
     });
 
     if (result.error) throw new Error(result.error);

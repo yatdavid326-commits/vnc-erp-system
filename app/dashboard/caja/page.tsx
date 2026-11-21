@@ -32,6 +32,7 @@ export default function CajaPage() {
     try {
       const data = await fetchJson<Movimiento[]>('/api/caja', 'Error');
       setMovimientos(data);
+      setError('');
     } catch (err) {
       setError('Error: ' + (err instanceof Error ? err.message : ''));
     } finally {
@@ -66,7 +67,8 @@ export default function CajaPage() {
         body: JSON.stringify(formData),
       });
 
-      if (!response.ok) throw new Error('Error');
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'No se pudo registrar el movimiento.');
       await fetchMovimientos();
       setShowForm(false);
       setFormData({
@@ -77,7 +79,7 @@ export default function CajaPage() {
         fecha: new Date().toISOString().split('T')[0],
       });
     } catch (err) {
-      setError('Error: ' + (err instanceof Error ? err.message : ''));
+      setError(err instanceof Error ? err.message : 'No se pudo registrar el movimiento.');
     }
   };
 

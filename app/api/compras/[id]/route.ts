@@ -33,6 +33,7 @@ export async function PUT(
     const body = parsedBody.data;
     const result = await comprasService.update((await params).id, body);
     if (result.error) throw new Error(result.error);
+    if (!result.data) return NextResponse.json({ error: 'Orden no encontrada.' }, { status: 404 });
     return NextResponse.json(result.data);
   } catch (error) {
     console.error('PUT /api/compras/[id] error:', error);
@@ -50,6 +51,7 @@ export async function DELETE(
   try {
     const result = await comprasService.delete((await params).id);
     if (result.error) throw new Error(result.error);
+    if (!result.success) return NextResponse.json({ error: 'Orden no encontrada.' }, { status: 404 });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('DELETE /api/compras/[id] error:', error);

@@ -41,11 +41,8 @@ export async function POST(request: NextRequest) {
       descripcion: body.descripcion || '',
       categoria: body.categoria || '',
       costo_unitario: body.costo_unitario || 0,
-      precio_venta: body.precio_venta || 0,
-      cantidad_stock: body.cantidad_stock || 0,
+      precio_venta: body.precio_venta,
       stock_minimo: body.stock_minimo || 0,
-      proveedor_id: body.proveedor_id,
-      activo: true,
     });
 
     return NextResponse.json(product, { status: 201 });

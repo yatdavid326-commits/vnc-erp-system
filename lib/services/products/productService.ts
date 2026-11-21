@@ -1,4 +1,4 @@
-﻿import { supabaseAdmin } from '@/lib/db/supabase';
+import { supabaseAdmin } from '@/lib/db/supabase';
 
 export interface Producto {
   id: string;
@@ -9,27 +9,72 @@ export interface Producto {
   costo_unitario: number;
   precio_venta: number;
   cantidad_stock: number;
+  cantidad_reservada: number;
   stock_minimo: number;
-  proveedor_id?: string | null;
   activo: boolean;
   created_at: string;
   updated_at: string;
 }
 
-interface Product {
+interface ProductRow {
   id: string;
-  sku: string;
+  product_code: string;
   name: string;
-  description: string;
-  category: string;
-  cost_price: number;
-  sale_price: number;
-  stock_quantity: number;
-  minimum_stock: number;
-  supplier_id?: string | null;
-  active: boolean;
+  description: string | null;
+  cost_price: number | string | null;
+  selling_price: number | string;
+  reorder_level: number | null;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
+  categories: { name: string } | { name: string }[] | null;
+  inventory:
+    | { quantity_on_hand: number | null; quantity_reserved: number | null }
+    | { quantity_on_hand: number | null; quantity_reserved: number | null }[]
+    | null;
+}
+
+const productFields =
+  'id, product_code, name, description, cost_price, selling_price, reorder_level, is_active, created_at, updated_at, categories(name), inventory(quantity_on_hand, quantity_reserved)';
+
+function getSupabaseAdmin() {
+  if (!supabaseAdmin) throw new Error('Supabase admin client not available');
+  return supabaseAdmin;
+}
+
+function firstRelation<T>(relation: T | T[] | null): T | null {
+  return Array.isArray(relation) ? relation[0] ?? null : relation;
+}
+
+function productToProducto(row: ProductRow): Producto {
+  const category = firstRelation(row.categories);
+  const inventory = firstRelation(row.inventory);
+  return {
+    id: row.id,
+    sku: row.product_code,
+    nombre: row.name,
+    descripcion: row.description ?? '',
+    categoria: category?.name ?? '',
+    costo_unitario: Number(row.cost_price ?? 0),
+    precio_venta: Number(row.selling_price),
+    cantidad_stock: inventory?.quantity_on_hand ?? 0,
+    cantidad_reservada: inventory?.quantity_reserved ?? 0,
+    stock_minimo: row.reorder_level ?? 0,
+    activo: row.is_active,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+async function getCategoryId(categoryName: string) {
+  const name = categoryName.trim();
+  const { data, error } = await getSupabaseAdmin()
+    .from('categories')
+    .upsert({ name }, { onConflict: 'name' })
+    .select('id')
+    .single();
+  if (error) throw error;
+  return data.id;
 }
 
 class ProductService {
@@ -38,135 +83,80 @@ class ProductService {
   private constructor() {}
 
   static getInstance(): ProductService {
-    if (!ProductService.instance) {
-      ProductService.instance = new ProductService();
-    }
+    if (!ProductService.instance) ProductService.instance = new ProductService();
     return ProductService.instance;
   }
 
-  private productoToProduct(producto: Producto): Product {
-    return {
-      id: producto.id,
-      sku: producto.sku,
-      name: producto.nombre,
-      description: producto.descripcion,
-      category: producto.categoria,
-      cost_price: producto.costo_unitario,
-      sale_price: producto.precio_venta,
-      stock_quantity: producto.cantidad_stock,
-      minimum_stock: producto.stock_minimo,
-      supplier_id: producto.proveedor_id,
-      active: producto.activo,
-      created_at: producto.created_at,
-      updated_at: producto.updated_at,
-    };
-  }
-
-  private productToProducto(product: Product): Producto {
-    return {
-      id: product.id,
-      sku: product.sku,
-      nombre: product.name,
-      descripcion: product.description,
-      categoria: product.category,
-      costo_unitario: product.cost_price,
-      precio_venta: product.sale_price,
-      cantidad_stock: product.stock_quantity,
-      stock_minimo: product.minimum_stock,
-      proveedor_id: product.supplier_id,
-      activo: product.active,
-      created_at: product.created_at,
-      updated_at: product.updated_at,
-    };
-  }
-
   async getAll(page = 1, limit = 10, search = '', category = '') {
-    try {
-      const supabase = supabaseAdmin;
-      if (!supabase) throw new Error('Supabase admin client not available');
+    const supabase = getSupabaseAdmin();
+    const fields = category
+      ? 'id, product_code, name, description, cost_price, selling_price, reorder_level, is_active, created_at, updated_at, categories!inner(name), inventory(quantity_on_hand, quantity_reserved)'
+      : productFields;
+    let query = supabase.from('products').select(fields, { count: 'exact' });
 
-      let query = supabase.from('products').select('*', { count: 'exact' });
+    if (search.trim()) {
+      const safeSearch = search.replace(/[%,_*()\\"]/g, ' ').trim();
+      query = query.or(
+        `name.ilike.%${safeSearch}%,product_code.ilike.%${safeSearch}%,description.ilike.%${safeSearch}%`
+      );
+    }
 
-      if (search) {
-        query = query.or(
-          `name.ilike.%${search}%,sku.ilike.%${search}%,description.ilike.%${search}%`
-        );
-      }
+    if (category) query = query.eq('categories.name', category);
 
-      if (category) {
-        query = query.eq('category', category);
-      }
-
-      const offset = (page - 1) * limit;
-      const { data, count, error } = await query
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
-
-      if (error) throw error;
-
-      return {
-        data: data?.map(p => this.productToProducto(p)) || [],
-        total: count || 0,
-        page,
-        limit,
-      };
-    } catch (error) {
+    const start = (page - 1) * limit;
+    const { data, count, error } = await query
+      .order('created_at', { ascending: false })
+      .range(start, start + limit - 1);
+    if (error) {
       console.error('Error fetching products:', error);
       throw error;
     }
+
+    return {
+      data: (data ?? []).map((row) => productToProducto(row as ProductRow)),
+      total: count ?? 0,
+      page,
+      limit,
+    };
   }
 
   async getById(id: string): Promise<Producto | null> {
-    try {
-      const supabase = supabaseAdmin;
-      if (!supabase) throw new Error('Supabase admin client not available');
-
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error) throw error;
-      return data ? this.productToProducto(data) : null;
-    } catch (error) {
+    const { data, error } = await getSupabaseAdmin()
+      .from('products')
+      .select(productFields)
+      .eq('id', id)
+      .maybeSingle();
+    if (error) {
       console.error(`Error fetching product ${id}:`, error);
       throw error;
     }
+    return data ? productToProducto(data as ProductRow) : null;
   }
 
   async create(producto: Partial<Producto>): Promise<Producto> {
+    if (!producto.nombre?.trim() || !producto.sku?.trim() || !producto.categoria?.trim()) {
+      throw new Error('Name, SKU, and category are required');
+    }
+
     try {
-      if (!producto.nombre || !producto.sku) {
-        throw new Error('Name and SKU are required');
-      }
-
-      const supabase = supabaseAdmin;
-      if (!supabase) throw new Error('Supabase admin client not available');
-
-      const newProduct: Partial<Product> = {
-        sku: producto.sku,
-        name: producto.nombre,
-        description: producto.descripcion,
-        category: producto.categoria,
-        cost_price: producto.costo_unitario || 0,
-        sale_price: producto.precio_venta || 0,
-        stock_quantity: producto.cantidad_stock || 0,
-        minimum_stock: producto.stock_minimo || 0,
-        supplier_id: producto.proveedor_id,
-        active: true,
-      };
-
+      const supabase = getSupabaseAdmin();
+      const categoryId = await getCategoryId(producto.categoria);
       const { data, error } = await supabase
         .from('products')
-        .insert([newProduct])
-        .select()
+        .insert({
+          product_code: producto.sku.trim(),
+          name: producto.nombre.trim(),
+          description: producto.descripcion || null,
+          category_id: categoryId,
+          cost_price: producto.costo_unitario ?? 0,
+          selling_price: producto.precio_venta,
+          reorder_level: producto.stock_minimo ?? 0,
+          is_active: true,
+        })
+        .select(productFields)
         .single();
-
       if (error) throw error;
-      if (!data) throw new Error('Product creation returned no data');
-
-      return this.productToProducto(data);
+      return productToProducto(data as ProductRow);
     } catch (error) {
       console.error('Error creating product:', error);
       throw error;
@@ -175,32 +165,27 @@ class ProductService {
 
   async update(id: string, producto: Partial<Producto>): Promise<Producto> {
     try {
-      const supabase = supabaseAdmin;
-      if (!supabase) throw new Error('Supabase admin client not available');
-
-      const updateData: Partial<Product> = {};
-      if (producto.nombre !== undefined) updateData.name = producto.nombre;
-      if (producto.sku !== undefined) updateData.sku = producto.sku;
-      if (producto.descripcion !== undefined) updateData.description = producto.descripcion;
-      if (producto.categoria !== undefined) updateData.category = producto.categoria;
+      const updateData: Record<string, string | number | boolean | null> = {};
+      if (producto.nombre !== undefined) updateData.name = producto.nombre.trim();
+      if (producto.sku !== undefined) updateData.product_code = producto.sku.trim();
+      if (producto.descripcion !== undefined) updateData.description = producto.descripcion || null;
+      if (producto.categoria !== undefined) {
+        updateData.category_id = await getCategoryId(producto.categoria);
+      }
       if (producto.costo_unitario !== undefined) updateData.cost_price = producto.costo_unitario;
-      if (producto.precio_venta !== undefined) updateData.sale_price = producto.precio_venta;
-      if (producto.cantidad_stock !== undefined) updateData.stock_quantity = producto.cantidad_stock;
-      if (producto.stock_minimo !== undefined) updateData.minimum_stock = producto.stock_minimo;
-      if (producto.proveedor_id !== undefined) updateData.supplier_id = producto.proveedor_id;
-      if (producto.activo !== undefined) updateData.active = producto.activo;
+      if (producto.precio_venta !== undefined) updateData.selling_price = producto.precio_venta;
+      if (producto.stock_minimo !== undefined) updateData.reorder_level = producto.stock_minimo;
+      if (producto.activo !== undefined) updateData.is_active = producto.activo;
 
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseAdmin()
         .from('products')
         .update(updateData)
         .eq('id', id)
-        .select()
-        .single();
-
+        .select(productFields)
+        .maybeSingle();
       if (error) throw error;
-      if (!data) throw new Error('Product update returned no data');
-
-      return this.productToProducto(data);
+      if (!data) throw new Error('Product not found');
+      return productToProducto(data as ProductRow);
     } catch (error) {
       console.error(`Error updating product ${id}:`, error);
       throw error;
@@ -208,97 +193,27 @@ class ProductService {
   }
 
   async delete(id: string): Promise<void> {
-    try {
-      const supabase = supabaseAdmin;
-      if (!supabase) throw new Error('Supabase admin client not available');
-
-      const { error } = await supabase.from('products').delete().eq('id', id);
-
-      if (error) throw error;
-    } catch (error) {
+    const { error } = await getSupabaseAdmin().from('products').delete().eq('id', id);
+    if (error) {
       console.error(`Error deleting product ${id}:`, error);
       throw error;
     }
   }
 
   async search(query: string, limit = 10): Promise<Producto[]> {
-    try {
-      const supabase = supabaseAdmin;
-      if (!supabase) throw new Error('Supabase admin client not available');
-
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .or(
-          `name.ilike.%${query}%,sku.ilike.%${query}%,description.ilike.%${query}%`
-        )
-        .eq('active', true)
-        .limit(limit);
-
-      if (error) throw error;
-      return data?.map(p => this.productToProducto(p)) || [];
-    } catch (error) {
-      console.error('Error searching products:', error);
-      throw error;
-    }
-  }
-
-  async updateStock(id: string, quantity: number): Promise<void> {
-    try {
-      const supabase = supabaseAdmin;
-      if (!supabase) throw new Error('Supabase admin client not available');
-
-      const { error } = await supabase
-        .from('products')
-        .update({ stock_quantity: quantity })
-        .eq('id', id);
-
-      if (error) throw error;
-    } catch (error) {
-      console.error(`Error updating stock for product ${id}:`, error);
-      throw error;
-    }
+    const result = await this.getAll(1, limit, query);
+    return result.data.filter((product) => product.activo);
   }
 
   async getLowStockProducts(): Promise<Producto[]> {
-    try {
-      const supabase = supabaseAdmin;
-      if (!supabase) throw new Error('Supabase admin client not available');
-
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .filter('stock_quantity', 'lt', 'minimum_stock')
-        .eq('active', true);
-
-      if (error) throw error;
-      return data?.map(p => this.productToProducto(p)) || [];
-    } catch (error) {
-      console.error('Error fetching low stock products:', error);
-      throw error;
-    }
+    const result = await this.getAll(1, 1000);
+    return result.data.filter((product) => product.activo && product.cantidad_stock <= product.stock_minimo);
   }
 
   async getByCategory(category: string): Promise<Producto[]> {
-    try {
-      const supabase = supabaseAdmin;
-      if (!supabase) throw new Error('Supabase admin client not available');
-
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('category', category)
-        .eq('active', true)
-        .order('name');
-
-      if (error) throw error;
-      return data?.map(p => this.productToProducto(p)) || [];
-    } catch (error) {
-      console.error(`Error fetching products by category ${category}:`, error);
-      throw error;
-    }
+    const result = await this.getAll(1, 1000, '', category);
+    return result.data.filter((product) => product.activo);
   }
 }
 
 export const productService = ProductService.getInstance();
-

@@ -37,6 +37,12 @@ export default function InventarioPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [limit] = useState(10);
+  const [movementProduct, setMovementProduct] = useState<Producto | null>(null);
+  const [movementType, setMovementType] = useState<'entry' | 'exit' | 'adjustment'>('entry');
+  const [movementQuantity, setMovementQuantity] = useState('');
+  const [movementNotes, setMovementNotes] = useState('');
+  const [movementRequestId, setMovementRequestId] = useState(() => crypto.randomUUID());
+  const [savingMovement, setSavingMovement] = useState(false);
   const fetchProductos = useCallback(async () => {
     try {
       setError('');
@@ -86,13 +92,14 @@ export default function InventarioPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-
-      if (!res.ok) throw new Error('Failed to create product');
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to create product');
 
       setShowForm(false);
-      fetchProductos();
+      await fetchProductos();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+      throw err;
     }
   };
 
@@ -105,14 +112,15 @@ export default function InventarioPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-
-      if (!res.ok) throw new Error('Failed to update product');
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to update product');
 
       setShowForm(false);
       setEditingId(null);
-      fetchProductos();
+      await fetchProductos();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+      throw err;
     }
   };
 
@@ -123,13 +131,53 @@ export default function InventarioPage() {
       const res = await fetch(`/api/inventario/${id}`, {
         method: 'DELETE',
       });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to delete product');
 
-      if (!res.ok) throw new Error('Failed to delete product');
-
-      fetchProductos();
+      await fetchProductos();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     }
+  };
+
+  const handleMovement = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!movementProduct) return;
+
+    setSavingMovement(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/inventario/${movementProduct.id}/movimientos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: movementRequestId,
+          type: movementType,
+          quantity: Number(movementQuantity),
+          notes: movementNotes,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'No se pudo registrar el movimiento.');
+
+      setMovementProduct(null);
+      setMovementQuantity('');
+      setMovementNotes('');
+      setMovementRequestId(crypto.randomUUID());
+      await fetchProductos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo registrar el movimiento.');
+    } finally {
+      setSavingMovement(false);
+    }
+  };
+
+  const openMovementForm = (producto: Producto) => {
+    setMovementProduct(producto);
+    setMovementType('entry');
+    setMovementQuantity('');
+    setMovementNotes('');
+    setMovementRequestId(crypto.randomUUID());
   };
 
   const handleEdit = (producto: Producto) => {
@@ -183,6 +231,64 @@ export default function InventarioPage() {
           />
         )}
 
+        {movementProduct && (
+          <form onSubmit={handleMovement} className="mb-6 grid gap-4 rounded-lg border bg-white p-6 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <h2 className="text-xl font-semibold">Movimiento de stock: {movementProduct.nombre}</h2>
+              <p className="text-sm text-gray-600">
+                Existencia actual: {movementProduct.cantidad_stock} · Reservada: {movementProduct.cantidad_reservada}
+              </p>
+            </div>
+            <label className="text-sm font-medium">
+              Tipo
+              <select
+                value={movementType}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value === 'entry' || value === 'exit' || value === 'adjustment') setMovementType(value);
+                }}
+                className="mt-1 w-full rounded-md border px-3 py-2"
+              >
+                <option value="entry">Entrada</option>
+                <option value="exit">Salida</option>
+                <option value="adjustment">Ajuste (cantidad final)</option>
+              </select>
+            </label>
+            <label className="text-sm font-medium">
+              Cantidad
+              <input
+                type="number"
+                required
+                min={movementType === 'adjustment' ? 0 : 1}
+                max={2147483647}
+                step="1"
+                value={movementQuantity}
+                onChange={(event) => setMovementQuantity(event.target.value)}
+                className="mt-1 w-full rounded-md border px-3 py-2"
+              />
+            </label>
+            <label className="text-sm font-medium md:col-span-2">
+              Motivo
+              <input
+                type="text"
+                required
+                maxLength={500}
+                value={movementNotes}
+                onChange={(event) => setMovementNotes(event.target.value)}
+                className="mt-1 w-full rounded-md border px-3 py-2"
+              />
+            </label>
+            <div className="flex gap-2 md:col-span-2">
+              <button disabled={savingMovement} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50" type="submit">
+                {savingMovement ? 'Registrando...' : 'Registrar movimiento'}
+              </button>
+              <button disabled={savingMovement} className="rounded border px-4 py-2" type="button" onClick={() => setMovementProduct(null)}>
+                Cancelar
+              </button>
+            </div>
+          </form>
+        )}
+
         {/* Stock Alerts */}
         <StockAlerts productos={productos} />
 
@@ -205,6 +311,7 @@ export default function InventarioPage() {
           <InventarioTable
             productos={productos}
             onEdit={handleEdit}
+            onMovement={openMovementForm}
             onDelete={handleDelete}
             loading={loading}
           />

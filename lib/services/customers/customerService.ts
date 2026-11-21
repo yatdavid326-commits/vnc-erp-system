@@ -28,16 +28,20 @@ export interface Cliente {
 // Database model (from Supabase)
 export interface Customer {
   id?: string;
+  customer_number?: string;
   name: string;
   email: string;
   phone?: string;
   address?: string;
   city?: string;
+  state?: string;
+  postal_code?: string;
   country?: string;
   customer_type: 'retail' | 'wholesale' | 'business';
   credit_limit?: number;
   current_balance?: number;
-  active: boolean;
+  status: 'activo' | 'inactivo' | 'suspendido';
+  is_active: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -60,10 +64,14 @@ function clienteToCustomer(cliente: Cliente): Partial<Customer> {
     phone: cliente.telefono,
     address: cliente.direccion,
     city: cliente.ciudad,
+    state: cliente.estado,
+    postal_code: cliente.codigo_postal,
+    country: 'Guatemala',
     customer_type: cliente.tipo,
     credit_limit: cliente.limite_credito,
     current_balance: cliente.saldo_actual,
-    active: cliente.estado_cliente === 'activo',
+    status: cliente.estado_cliente,
+    is_active: cliente.estado_cliente === 'activo',
   };
 }
 
@@ -75,12 +83,12 @@ function customerToCliente(customer: Customer): Cliente {
     telefono: customer.phone,
     direccion: customer.address,
     ciudad: customer.city,
-    estado: customer.country,
-    codigo_postal: '',
+    estado: customer.state,
+    codigo_postal: customer.postal_code,
     tipo: customer.customer_type || 'retail',
     limite_credito: customer.credit_limit || 0,
     saldo_actual: customer.current_balance || 0,
-    estado_cliente: customer.active ? 'activo' : 'inactivo',
+    estado_cliente: customer.status || (customer.is_active ? 'activo' : 'inactivo'),
     created_at: customer.created_at,
     updated_at: customer.updated_at,
   };
@@ -113,6 +121,7 @@ class CustomerService {
         .eq('id', id)
         .single();
 
+      if (error?.code === 'PGRST116') return null;
       if (error) throw error;
       return data ? customerToCliente(data) : null;
     } catch (error) {
@@ -161,10 +170,15 @@ class CustomerService {
       if (cliente.telefono !== undefined) updateData.phone = cliente.telefono;
       if (cliente.direccion !== undefined) updateData.address = cliente.direccion;
       if (cliente.ciudad !== undefined) updateData.city = cliente.ciudad;
+      if (cliente.estado !== undefined) updateData.state = cliente.estado;
+      if (cliente.codigo_postal !== undefined) updateData.postal_code = cliente.codigo_postal;
       if (cliente.tipo) updateData.customer_type = cliente.tipo;
       if (cliente.limite_credito !== undefined) updateData.credit_limit = cliente.limite_credito;
       if (cliente.saldo_actual !== undefined) updateData.current_balance = cliente.saldo_actual;
-      if (cliente.estado_cliente) updateData.active = cliente.estado_cliente === 'activo';
+      if (cliente.estado_cliente) {
+        updateData.status = cliente.estado_cliente;
+        updateData.is_active = cliente.estado_cliente === 'activo';
+      }
 
       const { data, error } = await getSupabaseAdmin()
         .from('customers')

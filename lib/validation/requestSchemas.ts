@@ -104,7 +104,6 @@ const employeeFields = {
   fecha_ingreso: dateOnly,
   salario: nonNegativeNumber,
   estado: z.union([z.boolean(), z.enum(['activo', 'inactivo'])]),
-  modulos: z.array(requiredText(50)).max(20),
 };
 
 export const employeeCreateSchema = z
@@ -119,7 +118,6 @@ export const employeeCreateSchema = z
     fecha_ingreso: employeeFields.fecha_ingreso.optional(),
     salario: employeeFields.salario.optional(),
     estado: employeeFields.estado.optional(),
-    modulos: employeeFields.modulos.optional(),
   })
   .strict();
 
@@ -128,11 +126,13 @@ const employeeUpdateFields = {
   apellido: optionalText(150),
   email: z.string().trim().email().max(254),
   teléfono: optionalText(50),
+  telefono: optionalText(50),
   puesto: optionalText(120),
+  cargo: optionalText(120),
   departamento: optionalText(120),
   fecha_ingreso: dateOnly,
   salario: nonNegativeNumber,
-  estado: z.boolean(),
+  estado: z.enum(['activo', 'inactivo']),
 };
 
 export const employeeUpdateSchema = updateSchema(employeeUpdateFields);
@@ -189,37 +189,38 @@ const purchaseUpdateFields = {
 export const purchaseUpdateSchema = updateSchema(purchaseUpdateFields);
 
 const productFields = {
-  id: uuid,
   nombre: requiredText(200),
   sku: requiredText(80),
   descripcion: optionalText(2000),
   categoria: requiredText(120),
   costo_unitario: nonNegativeNumber,
   precio_venta: positiveNumber,
-  cantidad_stock: z.number().int().nonnegative(),
   stock_minimo: z.number().int().nonnegative(),
-  proveedor_id: uuid.nullable(),
-  activo: z.boolean(),
-  created_at: z.string().datetime({ offset: true }),
-  updated_at: z.string().datetime({ offset: true }),
 };
 
 export const productCreateSchema = z
   .object({
     ...productFields,
-    id: productFields.id.optional(),
     descripcion: productFields.descripcion.optional(),
     costo_unitario: productFields.costo_unitario.optional(),
-    cantidad_stock: productFields.cantidad_stock.optional(),
     stock_minimo: productFields.stock_minimo.optional(),
-    proveedor_id: productFields.proveedor_id.optional(),
-    activo: productFields.activo.optional(),
-    created_at: productFields.created_at.optional(),
-    updated_at: productFields.updated_at.optional(),
   })
   .strict();
 
 export const productUpdateSchema = updateSchema(productFields);
+
+export const inventoryMovementSchema = z
+  .object({
+    id: uuid,
+    type: z.enum(['entry', 'exit', 'adjustment']),
+    quantity: z.number().int().min(0).max(2147483647),
+    notes: requiredText(500),
+  })
+  .strict()
+  .refine((value) => value.type === 'adjustment' || value.quantity > 0, {
+    path: ['quantity'],
+    message: 'La cantidad debe ser mayor que cero para entradas y salidas.',
+  });
 
 const cashMovementFields = {
   cash_register_id: uuid,
@@ -234,6 +235,16 @@ export const cashMovementCreateSchema = z
     ...cashMovementFields,
     reference_id: cashMovementFields.reference_id.optional(),
     description: cashMovementFields.description.optional(),
+  })
+  .strict();
+
+export const cashMovementFormSchema = z
+  .object({
+    tipo: z.enum(['ingreso', 'egreso']),
+    concepto: requiredText(1000),
+    monto: positiveNumber,
+    referencia: optionalText(200),
+    fecha: dateOnly,
   })
   .strict();
 

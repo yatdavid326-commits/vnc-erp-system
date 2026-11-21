@@ -5,33 +5,46 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback } from 'react';
 import { fetchJson } from '@/lib/utils/fetchJson';
 
+interface Employee {
+  id: string;
+  nombre: string;
+  apellido: string;
+  estado: 'activo' | 'inactivo';
+}
 
 interface Asistencia {
   id: string;
   empleado_id: string;
   fecha: string;
   hora_entrada: string;
-  hora_salida: string;
-  latitud: number;
-  longitud: number;
-  estado: string;
+  hora_salida: string | null;
+  latitud_entrada: number | null;
+  longitud_entrada: number | null;
   created_at: string;
 }
 
 export default function AsistenciaPage() {
   const [asistencias, setAsistencias] = useState<Asistencia[]>([]);
+  const [empleados, setEmpleados] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showRegistro, setShowRegistro] = useState(false);
+  const [empleadoId, setEmpleadoId] = useState('');
   const [qrCode, setQrCode] = useState('');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [registrando, setRegistrando] = useState(false);
-  const fetchAsistencias = useCallback(async () => {
+
+  const fetchData = useCallback(async () => {
     try {
-      const data = await fetchJson<Asistencia[]>('/api/asistencia', 'Error');
-      setAsistencias(data);
+      const [attendance, employees] = await Promise.all([
+        fetchJson<Asistencia[]>('/api/asistencia', 'Error al cargar asistencia'),
+        fetchJson<Employee[]>('/api/asistencia/empleados', 'Error al cargar empleados'),
+      ]);
+      setAsistencias(attendance);
+      setEmpleados(employees);
+      setError('');
     } catch (err) {
-      setError('Error: ' + (err instanceof Error ? err.message : ''));
+      setError(err instanceof Error ? err.message : 'No se pudieron cargar los datos.');
     } finally {
       setLoading(false);
     }
@@ -39,12 +52,19 @@ export default function AsistenciaPage() {
 
   useEffect(() => {
     let active = true;
-    fetchJson<Asistencia[]>('/api/asistencia', 'Error')
-      .then((data) => {
-        if (active) setAsistencias(data);
+    Promise.all([
+      fetchJson<Asistencia[]>('/api/asistencia', 'Error al cargar asistencia'),
+      fetchJson<Employee[]>('/api/asistencia/empleados', 'Error al cargar empleados'),
+    ])
+      .then(([attendance, employees]) => {
+        if (active) {
+          setAsistencias(attendance);
+          setEmpleados(employees);
+          setError('');
+        }
       })
       .catch((err: unknown) => {
-        if (active) setError('Error: ' + (err instanceof Error ? err.message : ''));
+        if (active) setError(err instanceof Error ? err.message : 'No se pudieron cargar los datos.');
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -56,185 +76,204 @@ export default function AsistenciaPage() {
   }, []);
 
   const obtenerGPS = () => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setCoords({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-          setError('');
-        },
-        (err) => {
-          setError('Error al obtener GPS: ' + err.message);
-        }
-      );
-    } else {
-      setError('Geolocalización no disponible');
+    if (!('geolocation' in navigator)) {
+      setError('La geolocalización no está disponible en este dispositivo.');
+      return;
     }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCoords({ lat: position.coords.latitude, lng: position.coords.longitude });
+        setError('');
+      },
+      (geolocationError) => setError(`No se pudo obtener la ubicación: ${geolocationError.message}`)
+    );
   };
 
   const registrarAsistencia = async () => {
+    if (!empleadoId) {
+      setError('Selecciona un empleado.');
+      return;
+    }
     if (!coords) {
-      setError('Debe obtener la ubicación GPS');
+      setError('Obtén la ubicación GPS antes de registrar la asistencia.');
       return;
     }
 
     setRegistrando(true);
+    setError('');
     try {
       const ahora = new Date();
-      const formData = {
-        empleado_id: 'EMP-' + Math.random().toString(36).substr(2, 9),
-        fecha: ahora.toISOString().split('T')[0],
-        hora_entrada: ahora.toTimeString().split(' ')[0],
-        hora_salida: null,
-        latitud: coords.lat,
-        longitud: coords.lng,
-        qr_code: qrCode || 'MANUAL',
-        estado: 'entrada',
-      };
-
+      const fechaLocal = new Date(ahora.getTime() - ahora.getTimezoneOffset() * 60_000)
+        .toISOString()
+        .slice(0, 10);
       const response = await fetch('/api/asistencia', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          empleado_id: empleadoId,
+          fecha: fechaLocal,
+          hora_entrada: ahora.toTimeString().slice(0, 8),
+          hora_salida: null,
+          latitud_entrada: coords.lat,
+          longitud_entrada: coords.lng,
+          latitud_salida: null,
+          longitud_salida: null,
+          qr_code: qrCode || undefined,
+          observaciones: '',
+        }),
       });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'No se pudo registrar la asistencia.');
 
-      if (!response.ok) throw new Error('Error al registrar');
-
-      await fetchAsistencias();
+      await fetchData();
       setShowRegistro(false);
+      setEmpleadoId('');
       setQrCode('');
       setCoords(null);
-      setError('');
     } catch (err) {
-      setError('Error: ' + (err instanceof Error ? err.message : ''));
+      setError(err instanceof Error ? err.message : 'No se pudo registrar la asistencia.');
     } finally {
       setRegistrando(false);
     }
   };
 
+  const employeeName = (id: string) => {
+    const employee = empleados.find((item) => item.id === id);
+    return employee ? `${employee.nombre} ${employee.apellido}`.trim() : 'Empleado no disponible';
+  };
+
   return (
-      <div className="p-6">
-        <h1 className="text-3xl font-bold mb-6">Control de Asistencia</h1>
+    <div className="p-6">
+      <h1 className="mb-6 text-3xl font-bold">Control de Asistencia</h1>
 
-        {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">{error}</div>}
+      {error && <div role="alert" className="mb-6 rounded border border-red-200 bg-red-50 px-4 py-3 text-red-700">{error}</div>}
 
-        {showRegistro && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-bold mb-4">Registrar Asistencia</h2>
+      {showRegistro && (
+        <div className="mb-6 rounded-lg bg-white p-6 shadow-md">
+          <h2 className="mb-4 text-xl font-bold">Registrar entrada</h2>
+          <div className="space-y-4">
+            <label className="block text-sm font-medium">
+              Empleado
+              <select
+                required
+                value={empleadoId}
+                onChange={(event) => setEmpleadoId(event.target.value)}
+                className="mt-1 w-full rounded-md border px-3 py-2"
+              >
+                <option value="">Selecciona un empleado</option>
+                {empleados.filter((employee) => employee.estado === 'activo').map((employee) => (
+                  <option value={employee.id} key={employee.id}>
+                    {employee.nombre} {employee.apellido}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Código QR</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Escanear QR o ingresar código"
-                    value={qrCode}
-                    onChange={(e) => setQrCode(e.target.value)}
-                    className="flex-1 px-3 py-2 border rounded-md"
-                    autoFocus
-                  />
-                  <button
-                    onClick={() => setQrCode('QR-' + Math.random().toString(36).substr(2, 9))}
-                    className="bg-purple-600 text-white px-4 py-2 rounded-lg"
-                  >
-                    Simular QR
+            <label className="block text-sm font-medium">
+              Código QR (opcional)
+              <input
+                type="text"
+                maxLength={200}
+                value={qrCode}
+                onChange={(event) => setQrCode(event.target.value)}
+                className="mt-1 w-full rounded-md border px-3 py-2"
+              />
+            </label>
+
+            <div>
+              <p className="mb-2 text-sm font-medium">Ubicación GPS</p>
+              {coords ? (
+                <div className="rounded-md border border-green-200 bg-green-50 p-4">
+                  <p className="text-sm">Latitud: {coords.lat.toFixed(6)}</p>
+                  <p className="text-sm">Longitud: {coords.lng.toFixed(6)}</p>
+                  <button type="button" onClick={obtenerGPS} className="mt-2 rounded bg-green-600 px-3 py-1 text-sm text-white">
+                    Actualizar ubicación
                   </button>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Ubicación GPS</label>
-                {coords ? (
-                  <div className="bg-green-50 border border-green-200 p-4 rounded-md">
-                    <p className="text-sm">Latitud: {coords.lat.toFixed(6)}</p>
-                    <p className="text-sm">Longitud: {coords.lng.toFixed(6)}</p>
-                    <button
-                      onClick={obtenerGPS}
-                      className="mt-2 bg-green-600 text-white px-3 py-1 rounded text-sm"
-                    >
-                      Actualizar ubicación
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={obtenerGPS}
-                    className="w-full bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg"
-                  >
-                    📍 Obtener Ubicación GPS
-                  </button>
-                )}
-              </div>
-
-              <div className="flex gap-2 pt-4">
-                <button
-                  onClick={registrarAsistencia}
-                  disabled={registrando || !coords}
-                  className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg"
-                >
-                  {registrando ? 'Registrando...' : 'Registrar Entrada'}
+              ) : (
+                <button type="button" onClick={obtenerGPS} className="w-full rounded-lg bg-orange-600 px-4 py-2 text-white">
+                  Obtener ubicación GPS
                 </button>
-                <button
-                  onClick={() => setShowRegistro(false)}
-                  className="px-4 py-2 border rounded-lg"
-                >
-                  Cancelar
-                </button>
-              </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={registrarAsistencia}
+                disabled={registrando || !coords || !empleadoId}
+                className="flex-1 rounded-lg bg-green-600 px-4 py-2 text-white disabled:bg-gray-400"
+              >
+                {registrando ? 'Registrando...' : 'Registrar entrada'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowRegistro(false)}
+                className="rounded-lg border px-4 py-2"
+              >
+                Cancelar
+              </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {!showRegistro && (
-          <button
-            onClick={() => setShowRegistro(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg mb-6"
-          >
-            Registrar Asistencia
-          </button>
-        )}
+      {!showRegistro && (
+        <button
+          onClick={() => setShowRegistro(true)}
+          disabled={!empleados.some((employee) => employee.estado === 'activo')}
+          className="mb-6 rounded-lg bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
+        >
+          Registrar asistencia
+        </button>
+      )}
+      {!loading && empleados.every((employee) => employee.estado !== 'activo') && (
+        <p className="mb-6 text-sm text-gray-600">Crea un empleado activo antes de registrar asistencia.</p>
+      )}
 
-        {loading ? (
-          <div className="text-center py-12">Cargando...</div>
-        ) : (
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-100"><tr><th className="px-6 py-3 text-left">Empleado</th><th className="px-6 py-3 text-left">Fecha</th><th className="px-6 py-3 text-left">Entrada</th><th className="px-6 py-3 text-left">Salida</th><th className="px-6 py-3 text-left">Ubicación</th><th className="px-6 py-3 text-left">Estado</th></tr></thead>
-              <tbody>
-                {asistencias.length === 0 ? (
-                  <tr><td colSpan={6} className="px-6 py-4 text-center text-gray-500">No hay registros</td></tr>
-                ) : (
-                  asistencias.map((a) => (
-                    <tr key={a.id} className="border-b">
-                      <td className="px-6 py-4 text-sm">{a.empleado_id}</td>
-                      <td className="px-6 py-4 text-sm">{a.fecha}</td>
-                      <td className="px-6 py-4 text-sm">{a.hora_entrada}</td>
-                      <td className="px-6 py-4 text-sm">{a.hora_salida || '-'}</td>
-                      <td className="px-6 py-4 text-sm text-xs">
-                        <a
-                          href={`https://maps.google.com/?q=${a.latitud},${a.longitud}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          📍 Ver en mapa
-                        </a>
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <span className="bg-green-100 px-2 py-1 rounded text-xs">{a.estado}</span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    );
+      {loading ? (
+        <div className="py-12 text-center">Cargando...</div>
+      ) : (
+        <div className="overflow-hidden rounded-lg bg-white shadow-md">
+          <table className="w-full">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="px-6 py-3 text-left">Empleado</th>
+                <th className="px-6 py-3 text-left">Fecha</th>
+                <th className="px-6 py-3 text-left">Entrada</th>
+                <th className="px-6 py-3 text-left">Salida</th>
+                <th className="px-6 py-3 text-left">Ubicación</th>
+                <th className="px-6 py-3 text-left">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {asistencias.length === 0 ? (
+                <tr><td colSpan={6} className="px-6 py-4 text-center text-gray-500">No hay registros</td></tr>
+              ) : asistencias.map((asistencia) => (
+                <tr key={asistencia.id} className="border-b">
+                  <td className="px-6 py-4 text-sm">{employeeName(asistencia.empleado_id)}</td>
+                  <td className="px-6 py-4 text-sm">{asistencia.fecha}</td>
+                  <td className="px-6 py-4 text-sm">{asistencia.hora_entrada}</td>
+                  <td className="px-6 py-4 text-sm">{asistencia.hora_salida || '-'}</td>
+                  <td className="px-6 py-4 text-sm">
+                    {asistencia.latitud_entrada != null && asistencia.longitud_entrada != null ? (
+                      <a
+                        href={`https://maps.google.com/?q=${asistencia.latitud_entrada},${asistencia.longitud_entrada}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        Ver en mapa
+                      </a>
+                    ) : '—'}
+                  </td>
+                  <td className="px-6 py-4 text-sm">{asistencia.hora_salida ? 'Completa' : 'Entrada registrada'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }
-
-
-
