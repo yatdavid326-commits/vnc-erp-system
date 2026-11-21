@@ -1,13 +1,13 @@
 'use client';
 
 import { create } from 'zustand';
-import type { Module } from '@/lib/types';
+import type { Module, UserModuleWithDetails } from '@/lib/types';
 
 interface ModuleStore {
   modules: Module[];
-  userModules: any[];
+  userModules: UserModuleWithDetails[];
   setModules: (modules: Module[]) => void;
-  setUserModules: (modules: any[]) => void;
+  setUserModules: (modules: UserModuleWithDetails[]) => void;
   hasAccess: (moduleName: string) => boolean;
 }
 

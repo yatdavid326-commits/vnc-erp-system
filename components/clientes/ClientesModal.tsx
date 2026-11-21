@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import type { CreditTransaction } from '@/lib/services/customers/customerService';
+import { fetchJson } from '@/lib/utils/fetchJson';
 
 interface Cliente {
   id: string;
@@ -25,30 +27,33 @@ interface ClientesModalProps {
 }
 
 export default function ClientesModal({ cliente, isOpen, onClose }: ClientesModalProps) {
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
+  const [loadedClienteId, setLoadedClienteId] = useState<string | null>(null);
+  const loading = isOpen && cliente !== null && loadedClienteId !== cliente.id;
+  const clienteId = cliente?.id;
 
   useEffect(() => {
-    if (isOpen && cliente) {
-      loadTransactions();
-    }
-  }, [isOpen, cliente]);
+    if (!isOpen || !clienteId) return;
 
-  const loadTransactions = async () => {
-    if (!cliente) return;
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/clientes/${cliente.id}/transactions?limit=20`);
-      if (response.ok) {
-        const data = await response.json();
-        setTransactions(data);
-      }
-    } catch (error) {
-      console.error('Error loading transactions:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    let active = true;
+    fetchJson<CreditTransaction[]>(
+      `/api/clientes/${clienteId}/transactions?limit=20`,
+      'Error loading transactions'
+    )
+      .then((data) => {
+        if (active) setTransactions(data);
+      })
+      .catch((error: unknown) => {
+        if (active) console.error('Error loading transactions:', error);
+      })
+      .finally(() => {
+        if (active) setLoadedClienteId(clienteId);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isOpen, clienteId]);
 
   if (!isOpen || !cliente) return null;
 

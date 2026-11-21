@@ -2,11 +2,30 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import InventarioForm from '@/components/inventario/InventarioForm';
 import InventarioTable from '@/components/inventario/InventarioTable';
 import StockAlerts from '@/components/inventario/StockAlerts';
 import { Producto } from '@/lib/services/products/productService';
+
+async function loadProductos(page: number, limit: number, search: string) {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    limit: limit.toString(),
+    ...(search && { search }),
+  });
+  const response = await fetch(`/api/inventario?${params}`, {
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!response.ok) throw new Error('Failed to fetch products');
+
+  const productos: Producto[] = await response.json();
+  return {
+    productos,
+    total: Number.parseInt(response.headers.get('X-Total-Count') || '0'),
+  };
+}
 
 export default function InventarioPage() {
   const [productos, setProductos] = useState<Producto[]>([]);
@@ -18,41 +37,47 @@ export default function InventarioPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [limit] = useState(10);
-  const initialized = useRef(false);
-
-  useEffect(() => {
-    if (!initialized.current) {
-      initialized.current = true;
-      fetchProductos();
-    }
-  }, [page, search]);
-
-  const fetchProductos = async () => {
+  const fetchProductos = useCallback(async () => {
     try {
-      setLoading(true);
       setError('');
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString(),
-        ...(search && { search }),
-      });
-
-      const res = await fetch(`/api/inventario?${params}`, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (!res.ok) throw new Error('Failed to fetch products');
-
-      const data = await res.json();
+      const { productos: data, total: productCount } = await loadProductos(
+        page,
+        limit,
+        search
+      );
       setProductos(data);
-      setTotal(parseInt(res.headers.get('X-Total-Count') || '0'));
+      setTotal(productCount);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       console.error('Fetch error:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [limit, page, search]);
+
+  useEffect(() => {
+    let active = true;
+    loadProductos(page, limit, search)
+      .then(({ productos: data, total: productCount }) => {
+        if (active) {
+          setProductos(data);
+          setTotal(productCount);
+          setError('');
+        }
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          setError(err instanceof Error ? err.message : 'An error occurred');
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [page, limit, search]);
 
   const handleCreate = async (formData: Partial<Producto>) => {
     try {
@@ -150,6 +175,7 @@ export default function InventarioPage() {
         {/* Form */}
         {showForm && (
           <InventarioForm
+            key={editingId ?? 'new'}
             producto={editingProducto}
             onSubmit={editingId ? handleUpdate : handleCreate}
             onCancel={handleFormCancel}

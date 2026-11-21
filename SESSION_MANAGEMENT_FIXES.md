@@ -21,7 +21,7 @@
 **Testing Results:**
 
 ✅ **Dashboard:** Fully functional, displays statistics, recent sales, low stock alerts
-✅ **Login:** Working with username-based authentication (demo: admin/Admin@12345678)
+✅ **Login:** Working with username-based authentication (use private credentials).
 ✅ **Navigation:** Sidebar shows all 9 modules (Clientes, Inventario, Proveedores, Compras, POS, Caja, Reportes, Asistencia, Empleados)
 ✅ **Session Persistence:** Sessions saved to localStorage for page navigation
 ✅ **API Endpoints:** All 33+ endpoints functional and responding with 200 status codes
@@ -67,7 +67,7 @@
 **Production (Vercel):**
 - URL: https://vnc-erp-system-qnng0wu5b-yatdavid326-commits-projects.vercel.app
 - Status: Online (auto-deploying latest changes)
-- Demo: admin / Admin@12345678
+- Use private credentials.
 
 **Development (Localhost):**
 - URL: http://localhost:3000
@@ -127,7 +127,7 @@
 cd vnc-erp
 npm run dev
 # Visit: http://localhost:3000
-# Login: admin / Admin@12345678
+# Log in with private credentials.
 ```
 
 **Git Operations:**

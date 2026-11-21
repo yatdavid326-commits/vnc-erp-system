@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asistenciaService } from '@/lib/services/asistencia/asistenciaService';
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const body = await request.json();
-    const result = await asistenciaService.update(params.id, body);
+    const result = await asistenciaService.update((await params).id, body);
 
     if (result.error) throw new Error(result.error);
 
@@ -18,9 +18,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const result = await asistenciaService.delete(params.id);
+    const result = await asistenciaService.delete((await params).id);
 
     if (result.error) throw new Error(result.error);
 

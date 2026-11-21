@@ -2,7 +2,8 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { fetchJson } from '@/lib/utils/fetchJson';
 
 
 interface Movimiento {
@@ -27,28 +28,34 @@ export default function CajaPage() {
     referencia: '',
     fecha: new Date().toISOString().split('T')[0],
   });
-  const initialized = useRef(false);
-
-  useEffect(() => {
-    if (!initialized.current) {
-      initialized.current = true;
-      fetchMovimientos();
-    }
-  }, []);
-
-  const fetchMovimientos = async () => {
+  const fetchMovimientos = useCallback(async () => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/caja');
-      if (!response.ok) throw new Error('Error');
-      const data = await response.json();
+      const data = await fetchJson<Movimiento[]>('/api/caja', 'Error');
       setMovimientos(data);
     } catch (err) {
       setError('Error: ' + (err instanceof Error ? err.message : ''));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetchJson<Movimiento[]>('/api/caja', 'Error')
+      .then((data) => {
+        if (active) setMovimientos(data);
+      })
+      .catch((err: unknown) => {
+        if (active) setError('Error: ' + (err instanceof Error ? err.message : ''));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

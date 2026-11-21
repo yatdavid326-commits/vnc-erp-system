@@ -63,7 +63,7 @@ Una vez ejecutados los comandos, puedes verificar que RLS fue deshabilitado:
 ## Acceso al Sistema
 Una vez que RLS esté deshabilitado:
 1. El sistema ERP debería cargar correctamente en https://vnc-erp-system-qnng0wu5b-yatdavid326-commits-projects.vercel.app
-2. Puedes usar las credenciales: **admin** / **Admin@12345678**
+2. Usa una credencial privada para iniciar sesión.
 
 ## Solución de Problemas
 

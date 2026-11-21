@@ -3,10 +3,10 @@ import { comprasService } from '@/lib/services/compras/comprasService';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const result = await comprasService.getById(params.id);
+    const result = await comprasService.getById((await params).id);
     if (result.error) throw new Error(result.error);
     if (!result.data) {
       return NextResponse.json({ error: 'Purchase order not found' }, { status: 404 });
@@ -23,11 +23,11 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await request.json();
-    const result = await comprasService.update(params.id, body);
+    const result = await comprasService.update((await params).id, body);
     if (result.error) throw new Error(result.error);
     return NextResponse.json(result.data);
   } catch (error) {
@@ -41,10 +41,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const result = await comprasService.delete(params.id);
+    const result = await comprasService.delete((await params).id);
     if (result.error) throw new Error(result.error);
     return NextResponse.json({ success: true });
   } catch (error) {

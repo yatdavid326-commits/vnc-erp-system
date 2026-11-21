@@ -2,8 +2,9 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useRef } from 'react';
-import ClientesForm from '@/components/clientes/ClientesForm';
+import { useState, useEffect, useCallback } from 'react';
+import { fetchJson } from '@/lib/utils/fetchJson';
+import ClientesForm, { type ClienteFormData } from '@/components/clientes/ClientesForm';
 import ClientesTable from '@/components/clientes/ClientesTable';
 
 interface Cliente {
@@ -26,7 +27,7 @@ export default function ClientesPage() {
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ClienteFormData>({
     nombre: '',
     email: '',
     telefono: '',
@@ -37,21 +38,9 @@ export default function ClientesPage() {
     tipo: 'persona',
     estado_cliente: 'activo',
   });
-  const initialized = useRef(false);
-
-  useEffect(() => {
-    if (!initialized.current) {
-      initialized.current = true;
-      fetchClientes();
-    }
-  }, []);
-
-  const fetchClientes = async () => {
+  const fetchClientes = useCallback(async () => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/clientes');
-      if (!response.ok) throw new Error('Error al cargar clientes');
-      const data = await response.json();
+      const data = await fetchJson<Cliente[]>('/api/clientes', 'Error al cargar clientes');
       setClientes(data);
       setError('');
     } catch (err) {
@@ -59,7 +48,28 @@ export default function ClientesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetchJson<Cliente[]>('/api/clientes', 'Error al cargar clientes')
+      .then((data) => {
+        if (active) {
+          setClientes(data);
+          setError('');
+        }
+      })
+      .catch((err: unknown) => {
+        if (active) setError('Error al cargar clientes: ' + (err instanceof Error ? err.message : ''));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

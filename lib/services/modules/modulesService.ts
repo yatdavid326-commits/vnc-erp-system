@@ -1,5 +1,5 @@
 import { supabaseClient } from '@/lib/db/supabase';
-import type { Module, UserModule } from '@/lib/types';
+import type { Module, UserModule, UserModuleWithDetails } from '@/lib/types';
 
 export const modulesService = {
   async getAllModules(): Promise<Module[]> {
@@ -12,11 +12,13 @@ export const modulesService = {
         },
       });
 
-      if (!response.ok) return [];
+      if (!response.ok) {
+        throw new Error(`Error fetching modules: HTTP ${response.status}`);
+      }
       const modules = await response.json();
       
       // Filter to active modules only
-      return modules.filter((m: Module) => m.active) || [];
+      return modules.filter((m: Module) => m.is_active);
     } catch (error) {
       console.error('Error fetching modules:', error);
       return [];
@@ -32,7 +34,7 @@ export const modulesService = {
     return data || [];
   },
 
-  async getUserModulesWithDetails(userId: string) {
+  async getUserModulesWithDetails(): Promise<UserModuleWithDetails[]> {
     try {
       // Get the session to get the access token
       const {
@@ -51,7 +53,8 @@ export const modulesService = {
       });
 
       if (!response.ok) return [];
-      return await response.json();
+      const userModules: UserModuleWithDetails[] = await response.json();
+      return userModules;
     } catch (error) {
       console.error('Error fetching user modules:', error);
       return [];

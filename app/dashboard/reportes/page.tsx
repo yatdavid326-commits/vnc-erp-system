@@ -2,7 +2,8 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { fetchJson } from '@/lib/utils/fetchJson';
 
 
 interface Reporte {
@@ -29,23 +30,12 @@ export default function ReportesPage() {
       .split('T')[0],
     fechaFin: new Date().toISOString().split('T')[0],
   });
-  const initialized = useRef(false);
-
-  useEffect(() => {
-    if (!initialized.current) {
-      initialized.current = true;
-      generarReporte();
-    }
-  }, [filtros]);
-
-  const generarReporte = async () => {
+  const generarReporte = useCallback(async () => {
     try {
-      setLoading(true);
-      const response = await fetch(
-        `/api/reportes?tipo=${filtros.tipo}&inicio=${filtros.fechaInicio}&fin=${filtros.fechaFin}`
+      const data = await fetchJson<Reporte | Reporte[]>(
+        `/api/reportes?tipo=${filtros.tipo}&inicio=${filtros.fechaInicio}&fin=${filtros.fechaFin}`,
+        'Error'
       );
-      if (!response.ok) throw new Error('Error');
-      const data = await response.json();
       setReportes(Array.isArray(data) ? data : [data]);
       setError('');
     } catch (err) {
@@ -53,7 +43,29 @@ export default function ReportesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filtros]);
+
+  useEffect(() => {
+    let active = true;
+    const url = `/api/reportes?tipo=${filtros.tipo}&inicio=${filtros.fechaInicio}&fin=${filtros.fechaFin}`;
+    fetchJson<Reporte | Reporte[]>(url, 'Error')
+      .then((data) => {
+        if (active) {
+          setReportes(Array.isArray(data) ? data : [data]);
+          setError('');
+        }
+      })
+      .catch((err: unknown) => {
+        if (active) setError('Error: ' + (err instanceof Error ? err.message : ''));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [filtros]);
 
   const exportarPDF = () => {
     const contenido = reportes

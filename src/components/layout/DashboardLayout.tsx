@@ -37,9 +37,7 @@ export default function DashboardLayout({
         const modules = await modulesService.getAllModules();
         setModules(modules);
 
-        const userModules = await modulesService.getUserModulesWithDetails(
-          currentUser.id
-        );
+        const userModules = await modulesService.getUserModulesWithDetails();
         setUserModules(userModules);
       } catch (error) {
         console.error('Error loading user:', error);

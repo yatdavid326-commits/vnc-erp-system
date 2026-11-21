@@ -11,7 +11,7 @@ Sistema de Gestión Empresarial (ERP) completo para VNC Systems con soporte para
 
 **Credenciales de Demo:**
 - Usuario: `admin`
-- Contraseña: `Admin@12345678`
+- Contraseña: usa una credencial privada; no la publiques.
 
 ### 💻 Desarrollo Local
 ```bash

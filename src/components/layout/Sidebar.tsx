@@ -8,7 +8,6 @@ import {
   ShoppingCart,
   Package,
   Truck,
-  Receipt,
   CreditCard,
   BarChart3,
   Clock,
@@ -50,6 +49,17 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
     setExpandedSections(newExpanded);
   };
 
+  const getVisibleModules = (moduleNames: string[]) =>
+    userModules.flatMap(({ module, can_view }) =>
+      module && can_view && moduleNames.includes(module.name)
+        ? [{
+            name: module.name,
+            display_name: module.display_name,
+            route: `/${module.name}`,
+          }]
+        : []
+    );
+
   const sections = {
     main: {
       label: 'Principal',
@@ -63,33 +73,15 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
     },
     operations: {
       label: 'Operaciones',
-      items: userModules
-        .filter((um) =>
-          ['pos', 'inventory', 'cash'].some(
-            (m) => um.module?.name === m && um.can_view
-          )
-        )
-        .map((um) => ({ ...um.module, route: `/${um.module.name}` })),
+      items: getVisibleModules(['pos', 'inventory', 'cash']),
     },
     business: {
       label: 'Negocio',
-      items: userModules
-        .filter((um) =>
-          ['clients', 'suppliers', 'purchases'].some(
-            (m) => um.module?.name === m && um.can_view
-          )
-        )
-        .map((um) => ({ ...um.module, route: `/${um.module.name}` })),
+      items: getVisibleModules(['clients', 'suppliers', 'purchases']),
     },
     admin: {
       label: 'Administración',
-      items: userModules
-        .filter((um) =>
-          ['employees', 'attendance', 'reports'].some(
-            (m) => um.module?.name === m && um.can_view
-          )
-        )
-        .map((um) => ({ ...um.module, route: `/${um.module.name}` })),
+      items: getVisibleModules(['employees', 'attendance', 'reports']),
     },
   };
 
@@ -131,7 +123,7 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
                 <div className="space-y-1">
                   {section.items.map((item) => (
                     <Link
-                      key={item.name || item.id}
+                      key={item.name}
                       href={item.route || '#'}
                       className="flex items-center gap-3 px-3 py-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
                       title={collapsed ? item.display_name : ''}

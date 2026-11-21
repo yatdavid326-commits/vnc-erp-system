@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Producto } from '@/lib/services/products/productService';
 
 interface InventarioFormProps {
@@ -16,7 +16,7 @@ export default function InventarioForm({
   onCancel,
   loading = false,
 }: InventarioFormProps) {
-  const [formData, setFormData] = useState<Partial<Producto>>({
+  const [formData, setFormData] = useState<Partial<Producto>>(producto ?? {
     nombre: '',
     sku: '',
     descripcion: '',
@@ -28,12 +28,6 @@ export default function InventarioForm({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    if (producto) {
-      setFormData(producto);
-    }
-  }, [producto]);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};

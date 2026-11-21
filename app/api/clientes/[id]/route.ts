@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/db/supabase';
+import type { Customer } from '@/lib/types';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     if (!supabaseAdmin) {
       return NextResponse.json(
         { error: 'Server configuration error' },
@@ -57,10 +58,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
 
     if (!supabaseAdmin) {
@@ -70,7 +71,7 @@ export async function PUT(
       );
     }
 
-    const updateData: any = {};
+    const updateData: Partial<Customer> = {};
     if (body.nombre) updateData.name = body.nombre;
     if (body.email) updateData.email = body.email;
     if (body.telefono !== undefined) updateData.phone = body.telefono;
@@ -125,10 +126,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     if (!supabaseAdmin) {
       return NextResponse.json(

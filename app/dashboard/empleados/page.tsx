@@ -2,7 +2,8 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { fetchJson } from '@/lib/utils/fetchJson';
 
 
 interface Empleado {
@@ -49,28 +50,34 @@ export default function EmpleadosPage() {
     'asistencia',
     'empleados',
   ];
-  const initialized = useRef(false);
-
-  useEffect(() => {
-    if (!initialized.current) {
-      initialized.current = true;
-      fetchEmpleados();
-    }
-  }, []);
-
-  const fetchEmpleados = async () => {
+  const fetchEmpleados = useCallback(async () => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/empleados');
-      if (!response.ok) throw new Error('Error');
-      const data = await response.json();
+      const data = await fetchJson<Empleado[]>('/api/empleados', 'Error');
       setEmpleados(data);
     } catch (err) {
       setError('Error: ' + (err instanceof Error ? err.message : ''));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetchJson<Empleado[]>('/api/empleados', 'Error')
+      .then((data) => {
+        if (active) setEmpleados(data);
+      })
+      .catch((err: unknown) => {
+        if (active) setError('Error: ' + (err instanceof Error ? err.message : ''));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,10 +130,11 @@ export default function EmpleadosPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('¿Está seguro?')) return;
     try {
-      await fetch(`/api/empleados/${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/empleados/${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Error al eliminar empleado');
       await fetchEmpleados();
     } catch (err) {
-      setError('Error');
+      setError('Error: ' + (err instanceof Error ? err.message : ''));
     }
   };
 

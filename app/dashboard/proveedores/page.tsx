@@ -2,8 +2,9 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useRef } from 'react';
-import ProveedoresForm from '@/components/proveedores/ProveedoresForm';
+import { useState, useEffect, useCallback } from 'react';
+import { fetchJson } from '@/lib/utils/fetchJson';
+import ProveedoresForm, { type ProveedorFormData } from '@/components/proveedores/ProveedoresForm';
 import ProveedoresTable from '@/components/proveedores/ProveedoresTable';
 
 
@@ -28,7 +29,7 @@ export default function ProveedoresPage() {
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ProveedorFormData>({
     nombre: '',
     email: '',
     teléfono: '',
@@ -40,21 +41,9 @@ export default function ProveedoresPage() {
     términos_pago: '',
     activo: true,
   });
-  const initialized = useRef(false);
-
-  useEffect(() => {
-    if (!initialized.current) {
-      initialized.current = true;
-      fetchProveedores();
-    }
-  }, []);
-
-  const fetchProveedores = async () => {
+  const fetchProveedores = useCallback(async () => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/proveedores');
-      if (!response.ok) throw new Error('Error al cargar proveedores');
-      const data = await response.json();
+      const data = await fetchJson<Proveedor[]>('/api/proveedores', 'Error al cargar proveedores');
       setProveedores(data);
       setError('');
     } catch (err) {
@@ -62,7 +51,28 @@ export default function ProveedoresPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetchJson<Proveedor[]>('/api/proveedores', 'Error al cargar proveedores')
+      .then((data) => {
+        if (active) {
+          setProveedores(data);
+          setError('');
+        }
+      })
+      .catch((err: unknown) => {
+        if (active) setError('Error al cargar proveedores: ' + (err instanceof Error ? err.message : ''));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

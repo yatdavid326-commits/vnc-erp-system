@@ -24,7 +24,7 @@ DESARROLLO LOCAL:
 ───────────────────────────────────────────────────────────────────────────────
 
 Usuario:     admin
-Contraseña:  Admin@12345678
+Contraseña:  No publicar contraseñas; utiliza una credencial privada.
 
 (Acceso válido tanto en producción como en desarrollo)
 

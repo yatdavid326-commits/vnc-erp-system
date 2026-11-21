@@ -3,6 +3,9 @@ import { supabaseAdmin } from '@/lib/db/supabase';
 
 export async function GET(request: NextRequest) {
   try {
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
     // Intentar obtener la sesión actual de Supabase
     const { data: { session }, error } = await supabaseAdmin.auth.getSession();
 

@@ -37,6 +37,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 // Set user immediately from stored data
                 setUser({
                   id: user.id,
+                  auth_id: user.id,
                   email: user.email || '',
                   username: user.username || 'user',
                   full_name: user.full_name || 'Usuario',
@@ -77,6 +78,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (session?.user) {
           setUser({
             id: session.user.id,
+            auth_id: session.user.id,
             email: session.user.email || '',
             username: session.user.user_metadata?.username || 'user',
             full_name: session.user.user_metadata?.full_name || 'Usuario',

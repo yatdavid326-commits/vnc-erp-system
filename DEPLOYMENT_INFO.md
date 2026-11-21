@@ -22,7 +22,7 @@
 
 ```
 Usuario:     admin
-Contraseña:  Admin@12345678
+Contraseña:  No publicar contraseñas; utiliza una credencial privada.
 ```
 
 **Nota:** Este es el usuario administrador con acceso a todos los módulos.

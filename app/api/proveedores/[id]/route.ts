@@ -3,10 +3,10 @@ import { proveedoresService } from '@/lib/services/proveedores/proveedoresServic
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const result = await proveedoresService.getById(params.id);
+    const result = await proveedoresService.getById((await params).id);
     if (result.error) throw new Error(result.error);
     if (!result.data) {
       return NextResponse.json({ error: 'Supplier not found' }, { status: 404 });
@@ -23,11 +23,11 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await request.json();
-    const result = await proveedoresService.update(params.id, body);
+    const result = await proveedoresService.update((await params).id, body);
     if (result.error) throw new Error(result.error);
     return NextResponse.json(result.data);
   } catch (error) {
@@ -41,10 +41,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const result = await proveedoresService.delete(params.id);
+    const result = await proveedoresService.delete((await params).id);
     if (result.error) throw new Error(result.error);
     return NextResponse.json({ success: true });
   } catch (error) {

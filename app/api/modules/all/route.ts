@@ -13,11 +13,12 @@ export async function GET(request: NextRequest) {
     // Get all modules using the admin client (bypasses RLS)
     const { data: modules, error } = await supabaseAdmin
       .from('modules')
-      .select('*');
+      .select('*')
+      .order('order_index', { ascending: true });
 
     if (error) {
       console.error('Error fetching modules:', error);
-      return NextResponse.json({ error: 'Modules not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Error fetching modules' }, { status: 500 });
     }
 
     return NextResponse.json(modules);

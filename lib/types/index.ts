@@ -21,7 +21,8 @@ export interface Module {
   description?: string;
   icon?: string;
   route?: string;
-  active: boolean;
+  is_active: boolean;
+  order_index: number;
   created_at: string;
 }
 
@@ -34,6 +35,10 @@ export interface UserModule {
   can_edit: boolean;
   can_delete: boolean;
   assigned_at: string;
+}
+
+export interface UserModuleWithDetails extends UserModule {
+  module: Module | null;
 }
 
 export interface Employee {
@@ -177,8 +182,8 @@ export interface AuditLog {
   action: string;
   table_name?: string;
   record_id?: string;
-  old_values?: Record<string, any>;
-  new_values?: Record<string, any>;
+  old_values?: Record<string, unknown>;
+  new_values?: Record<string, unknown>;
   ip_address?: string;
   created_at: string;
 }

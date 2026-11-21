@@ -2,7 +2,8 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { fetchJson } from '@/lib/utils/fetchJson';
 
 
 interface Compra {
@@ -28,21 +29,9 @@ export default function ComprasPage() {
     total: 0,
     estado: 'pendiente',
   });
-  const initialized = useRef(false);
-
-  useEffect(() => {
-    if (!initialized.current) {
-      initialized.current = true;
-      fetchCompras();
-    }
-  }, []);
-
-  const fetchCompras = async () => {
+  const fetchCompras = useCallback(async () => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/compras');
-      if (!response.ok) throw new Error('Error');
-      const data = await response.json();
+      const data = await fetchJson<Compra[]>('/api/compras', 'Error');
       setCompras(data);
       setError('');
     } catch (err) {
@@ -50,7 +39,28 @@ export default function ComprasPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetchJson<Compra[]>('/api/compras', 'Error')
+      .then((data) => {
+        if (active) {
+          setCompras(data);
+          setError('');
+        }
+      })
+      .catch((err: unknown) => {
+        if (active) setError('Error: ' + (err instanceof Error ? err.message : ''));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,10 +93,11 @@ export default function ComprasPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('¿Está seguro?')) return;
     try {
-      await fetch(`/api/compras/${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/compras/${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Error al eliminar recibo');
       await fetchCompras();
     } catch (err) {
-      setError('Error');
+      setError('Error: ' + (err instanceof Error ? err.message : ''));
     }
   };
 

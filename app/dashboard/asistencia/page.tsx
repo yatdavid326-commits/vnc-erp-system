@@ -2,7 +2,8 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { fetchJson } from '@/lib/utils/fetchJson';
 
 
 interface Asistencia {
@@ -25,28 +26,34 @@ export default function AsistenciaPage() {
   const [qrCode, setQrCode] = useState('');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [registrando, setRegistrando] = useState(false);
-  const initialized = useRef(false);
-
-  useEffect(() => {
-    if (!initialized.current) {
-      initialized.current = true;
-      fetchAsistencias();
-    }
-  }, []);
-
-  const fetchAsistencias = async () => {
+  const fetchAsistencias = useCallback(async () => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/asistencia');
-      if (!response.ok) throw new Error('Error');
-      const data = await response.json();
+      const data = await fetchJson<Asistencia[]>('/api/asistencia', 'Error');
       setAsistencias(data);
     } catch (err) {
       setError('Error: ' + (err instanceof Error ? err.message : ''));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetchJson<Asistencia[]>('/api/asistencia', 'Error')
+      .then((data) => {
+        if (active) setAsistencias(data);
+      })
+      .catch((err: unknown) => {
+        if (active) setError('Error: ' + (err instanceof Error ? err.message : ''));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const obtenerGPS = () => {
     if ('geolocation' in navigator) {

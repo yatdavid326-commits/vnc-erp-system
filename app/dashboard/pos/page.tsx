@@ -2,7 +2,8 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { fetchJson } from '@/lib/utils/fetchJson';
 
 
 interface Venta {
@@ -17,39 +18,52 @@ interface Venta {
   created_at: string;
 }
 
+interface CarritoItem {
+  id: number;
+  nombre: string;
+  cantidad: number;
+  precio: number;
+}
+
 export default function POSPage() {
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [carrito, setCarrito] = useState<any[]>([]);
+  const [carrito, setCarrito] = useState<CarritoItem[]>([]);
   const [formData, setFormData] = useState({
     numero_venta: '',
     cliente_id: '',
     metodo_pago: 'efectivo',
   });
-  const initialized = useRef(false);
-
-  useEffect(() => {
-    if (!initialized.current) {
-      initialized.current = true;
-      fetchVentas();
-    }
-  }, []);
-
-  const fetchVentas = async () => {
+  const fetchVentas = useCallback(async () => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/pos');
-      if (!response.ok) throw new Error('Error');
-      const data = await response.json();
+      const data = await fetchJson<Venta[]>('/api/pos', 'Error');
       setVentas(data);
     } catch (err) {
       setError('Error: ' + (err instanceof Error ? err.message : ''));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetchJson<Venta[]>('/api/pos', 'Error')
+      .then((data) => {
+        if (active) setVentas(data);
+      })
+      .catch((err: unknown) => {
+        if (active) setError('Error: ' + (err instanceof Error ? err.message : ''));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

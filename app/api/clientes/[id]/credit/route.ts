@@ -3,10 +3,10 @@ import { customerService } from '@/lib/services/customers/customerService';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const balance = await customerService.getCreditBalance(id);
 
     return NextResponse.json({ cliente_id: id, balance });
@@ -21,10 +21,10 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
 
     // Check if credit is available

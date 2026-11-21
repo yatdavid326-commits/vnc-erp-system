@@ -31,8 +31,8 @@ export default function LoginPage() {
       // Save session and tokens to localStorage for persistence
       if (data?.session) {
         localStorage.setItem('supabase-session', JSON.stringify(data.session));
-        localStorage.setItem('supabase-access-token', data.accessToken || data.session.access_token);
-        localStorage.setItem('supabase-refresh-token', data.refreshToken || data.session.refresh_token);
+        localStorage.setItem('supabase-access-token', data.session.access_token);
+        localStorage.setItem('supabase-refresh-token', data.session.refresh_token);
         localStorage.setItem('supabase-user', JSON.stringify(data.user));
       }
 
@@ -125,10 +125,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Demo Info */}
-        <div className="mt-6 text-center text-white text-sm">
-          <p>📌 Demo: usuario <strong>admin</strong> | contraseña <strong>Admin@12345678</strong></p>
-        </div>
       </div>
     </div>
   );

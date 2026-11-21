@@ -1,8 +1,21 @@
 'use client';
 
+export interface ClienteFormData {
+  nombre: string;
+  email: string;
+  telefono: string;
+  direccion: string;
+  ciudad: string;
+  estado: string;
+  codigo_postal: string;
+  tipo: string;
+  estado_cliente: string;
+  limite_credito?: number;
+}
+
 interface ClientesFormProps {
-  formData: any;
-  setFormData: (data: any) => void;
+  formData: ClienteFormData;
+  setFormData: (data: ClienteFormData) => void;
   onSubmit: (e: React.FormEvent) => void;
   editingId: string | null;
 }

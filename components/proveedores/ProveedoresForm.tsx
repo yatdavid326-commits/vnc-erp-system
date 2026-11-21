@@ -1,8 +1,21 @@
 'use client';
 
+export interface ProveedorFormData {
+  nombre: string;
+  email: string;
+  teléfono: string;
+  persona_contacto: string;
+  dirección: string;
+  ciudad: string;
+  estado: string;
+  país: string;
+  términos_pago: string;
+  activo: boolean;
+}
+
 interface ProveedoresFormProps {
-  formData: any;
-  setFormData: (data: any) => void;
+  formData: ProveedorFormData;
+  setFormData: (data: ProveedorFormData) => void;
   onSubmit: (e: React.FormEvent) => void;
   editingId: string | null;
 }

@@ -33,6 +33,10 @@ export interface UserModule {
   assigned_at: string;
 }
 
+export interface UserModuleWithDetails extends UserModule {
+  module: Module | null;
+}
+
 export interface Employee {
   id: string;
   user_id?: string;
@@ -174,8 +178,8 @@ export interface AuditLog {
   action: string;
   table_name?: string;
   record_id?: string;
-  old_values?: Record<string, any>;
-  new_values?: Record<string, any>;
+  old_values?: Record<string, unknown>;
+  new_values?: Record<string, unknown>;
   ip_address?: string;
   created_at: string;
 }
