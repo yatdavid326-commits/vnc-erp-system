@@ -1,5 +1,7 @@
 import { productService } from '@/lib/services/products/productService';
 import { NextRequest, NextResponse } from 'next/server';
+import { validateRequestBody } from '@/lib/validation/requestBody';
+import { productUpdateSchema } from '@/lib/validation/requestSchemas';
 
 export async function GET(
   request: NextRequest,
@@ -30,7 +32,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const body = await request.json();
+    const parsedBody = await validateRequestBody(request, productUpdateSchema);
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
 
     const product = await productService.update((await params).id, body);
 

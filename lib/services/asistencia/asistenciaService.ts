@@ -5,13 +5,13 @@ export interface Asistencia {
   empleado_id: string;
   fecha: string;
   hora_entrada: string;
-  hora_salida?: string;
-  latitud_entrada: number;
-  longitud_entrada: number;
-  latitud_salida?: number;
-  longitud_salida?: number;
-  qr_code?: string;
-  observaciones?: string;
+  hora_salida?: string | null;
+  latitud_entrada?: number | null;
+  longitud_entrada?: number | null;
+  latitud_salida?: number | null;
+  longitud_salida?: number | null;
+  qr_code?: string | null;
+  observaciones?: string | null;
   created_at: string;
   updated_at?: string;
 }

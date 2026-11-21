@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { customerService } from '@/lib/services/customers/customerService';
 import { supabaseAdmin } from '@/lib/db/supabase';
+import { validateRequestBody } from '@/lib/validation/requestBody';
+import { customerCreateSchema } from '@/lib/validation/requestSchemas';
 
 export async function GET(request: NextRequest) {
   try {
@@ -46,15 +48,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-
-    // Validation
-    if (!body.nombre || !body.email) {
-      return NextResponse.json(
-        { error: 'nombre and email are required' },
-        { status: 400 }
-      );
-    }
+    const parsedBody = await validateRequestBody(request, customerCreateSchema);
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
 
     // Use admin client to bypass RLS
     if (!supabaseAdmin) {

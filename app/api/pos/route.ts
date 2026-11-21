@@ -2,6 +2,7 @@ import { getAuthenticatedProfileId, AuthenticatedProfileError } from '@/lib/auth
 import { posService, PosServiceError } from '@/lib/services/pos/posService';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { validateRequestBody } from '@/lib/validation/requestBody';
 
 const checkoutSchema = z
   .object({
@@ -65,24 +66,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'El cuerpo JSON no es válido.' }, { status: 400 });
-  }
-
-  const parsed = checkoutSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: 'Los datos de la venta no son válidos.', details: parsed.error.flatten() },
-      { status: 400 }
-    );
-  }
+  const parsedBody = await validateRequestBody(request, checkoutSchema);
+  if (!parsedBody.success) return parsedBody.response;
 
   try {
     const userId = await getAuthenticatedProfileId(request);
-    const sale = await posService.createSale(userId, parsed.data);
+    const sale = await posService.createSale(userId, parsedBody.data);
     return NextResponse.json(sale, { status: 201 });
   } catch (error) {
     return errorResponse(error, 'POST /api/pos');

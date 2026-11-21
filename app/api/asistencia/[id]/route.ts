@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asistenciaService } from '@/lib/services/asistencia/asistenciaService';
+import { validateRequestBody } from '@/lib/validation/requestBody';
+import { attendanceUpdateSchema } from '@/lib/validation/requestSchemas';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const body = await request.json();
-    const result = await asistenciaService.update((await params).id, body);
+    const parsedBody = await validateRequestBody(
+      request,
+      attendanceUpdateSchema
+    );
+    if (!parsedBody.success) return parsedBody.response;
+
+    const result = await asistenciaService.update(
+      (await params).id,
+      parsedBody.data
+    );
 
     if (result.error) throw new Error(result.error);
 

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proveedoresService } from '@/lib/services/proveedores/proveedoresService';
+import { validateRequestBody } from '@/lib/validation/requestBody';
+import { supplierCreateSchema } from '@/lib/validation/requestSchemas';
 
 export async function GET(request: NextRequest) {
   try {
@@ -48,14 +50,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-
-    if (!body.nombre || !body.email) {
-      return NextResponse.json(
-        { error: 'nombre and email are required' },
-        { status: 400 }
-      );
-    }
+    const parsedBody = await validateRequestBody(request, supplierCreateSchema);
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
 
     const result = await proveedoresService.create({
       nombre: body.nombre,

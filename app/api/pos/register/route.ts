@@ -5,6 +5,7 @@ import {
 import { posService, PosServiceError } from '@/lib/services/pos/posService';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { validateRequestBody } from '@/lib/validation/requestBody';
 
 const openingSchema = z
   .object({
@@ -33,14 +34,6 @@ function errorResponse(error: unknown, route: string) {
   );
 }
 
-async function parseBody(request: NextRequest) {
-  try {
-    return await request.json();
-  } catch {
-    return null;
-  }
-}
-
 export async function GET(request: NextRequest) {
   try {
     const cashierId = await getAuthenticatedProfileId(request);
@@ -52,19 +45,14 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const parsed = openingSchema.safeParse(await parseBody(request));
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: 'El saldo inicial debe ser un número no negativo.' },
-      { status: 400 }
-    );
-  }
+  const parsedBody = await validateRequestBody(request, openingSchema);
+  if (!parsedBody.success) return parsedBody.response;
 
   try {
     const cashierId = await getAuthenticatedProfileId(request);
     const register = await posService.openRegister(
       cashierId,
-      parsed.data.opening_balance
+      parsedBody.data.opening_balance
     );
     return NextResponse.json(register, { status: 201 });
   } catch (error) {
@@ -73,19 +61,14 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const parsed = closingSchema.safeParse(await parseBody(request));
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: 'El saldo final debe ser un número no negativo.' },
-      { status: 400 }
-    );
-  }
+  const parsedBody = await validateRequestBody(request, closingSchema);
+  if (!parsedBody.success) return parsedBody.response;
 
   try {
     const cashierId = await getAuthenticatedProfileId(request);
     const register = await posService.closeRegister(
       cashierId,
-      parsed.data.closing_balance
+      parsedBody.data.closing_balance
     );
     return NextResponse.json(register);
   } catch (error) {

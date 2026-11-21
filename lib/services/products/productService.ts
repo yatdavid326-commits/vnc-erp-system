@@ -10,7 +10,7 @@ export interface Producto {
   precio_venta: number;
   cantidad_stock: number;
   stock_minimo: number;
-  proveedor_id?: string;
+  proveedor_id?: string | null;
   activo: boolean;
   created_at: string;
   updated_at: string;
@@ -26,7 +26,7 @@ interface Product {
   sale_price: number;
   stock_quantity: number;
   minimum_stock: number;
-  supplier_id?: string;
+  supplier_id?: string | null;
   active: boolean;
   created_at: string;
   updated_at: string;

@@ -35,7 +35,7 @@ export default function ClientesPage() {
     ciudad: '',
     estado: '',
     codigo_postal: '',
-    tipo: 'persona',
+    tipo: 'retail',
     estado_cliente: 'activo',
   });
   const fetchClientes = useCallback(async () => {
@@ -96,7 +96,7 @@ export default function ClientesPage() {
         ciudad: '',
         estado: '',
         codigo_postal: '',
-        tipo: 'persona',
+        tipo: 'retail',
         estado_cliente: 'activo',
       });
     } catch (err) {
@@ -148,7 +148,7 @@ export default function ClientesPage() {
                 ciudad: '',
                 estado: '',
                 codigo_postal: '',
-                tipo: 'persona',
+                tipo: 'retail',
                 estado_cliente: 'activo',
               });
             }}

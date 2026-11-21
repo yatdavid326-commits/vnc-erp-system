@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asistenciaService } from '@/lib/services/asistencia/asistenciaService';
+import { validateRequestBody } from '@/lib/validation/requestBody';
+import { attendanceCreateSchema } from '@/lib/validation/requestSchemas';
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,14 +37,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-
-    if (!body.empleado_id || !body.fecha || !body.hora_entrada) {
-      return NextResponse.json(
-        { error: 'empleado_id, fecha, and hora_entrada are required' },
-        { status: 400 }
-      );
-    }
+    const parsedBody = await validateRequestBody(
+      request,
+      attendanceCreateSchema
+    );
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
 
     const result = await asistenciaService.create({
       empleado_id: body.empleado_id,

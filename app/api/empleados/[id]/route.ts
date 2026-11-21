@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { empleadosService } from '@/lib/services/empleados/empleadosService';
+import { validateRequestBody } from '@/lib/validation/requestBody';
+import { employeeUpdateSchema } from '@/lib/validation/requestSchemas';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const body = await request.json();
+    const parsedBody = await validateRequestBody(request, employeeUpdateSchema);
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
     const result = await empleadosService.update((await params).id, body);
 
     if (result.error) throw new Error(result.error);

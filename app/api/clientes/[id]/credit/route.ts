@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { customerService } from '@/lib/services/customers/customerService';
+import { validateRequestBody } from '@/lib/validation/requestBody';
+import { creditCheckSchema } from '@/lib/validation/requestSchemas';
 
 export async function GET(
   request: NextRequest,
@@ -25,15 +27,19 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const body = await request.json();
+    const parsedBody = await validateRequestBody(request, creditCheckSchema);
+    if (!parsedBody.success) return parsedBody.response;
 
     // Check if credit is available
-    const isAvailable = await customerService.isCreditAvailable(id, body.amount || 0);
+    const isAvailable = await customerService.isCreditAvailable(
+      id,
+      parsedBody.data.amount
+    );
 
     return NextResponse.json({
       cliente_id: id,
       available: isAvailable,
-      requested: body.amount || 0,
+      requested: parsedBody.data.amount,
     });
   } catch (error) {
     console.error('POST /api/clientes/[id]/credit error:', error);

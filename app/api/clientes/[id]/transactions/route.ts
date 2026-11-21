@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { customerService } from '@/lib/services/customers/customerService';
+import { validateRequestBody } from '@/lib/validation/requestBody';
+import { creditTransactionSchema } from '@/lib/validation/requestSchemas';
 
 export async function GET(
   request: NextRequest,
@@ -28,15 +30,12 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const body = await request.json();
-
-    // Validation
-    if (!body.monto || !body.tipo) {
-      return NextResponse.json(
-        { error: 'monto and tipo are required' },
-        { status: 400 }
-      );
-    }
+    const parsedBody = await validateRequestBody(
+      request,
+      creditTransactionSchema
+    );
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
 
     const transaction = await customerService.addCreditTransaction({
       cliente_id: id,

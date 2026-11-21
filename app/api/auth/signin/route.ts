@@ -2,22 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/db/supabase';
 import { ACCESS_TOKEN_COOKIE } from '@/lib/auth/constants';
+import { validateRequestBody } from '@/lib/validation/requestBody';
+import { signInSchema } from '@/lib/validation/requestSchemas';
 
 export async function POST(request: NextRequest) {
   try {
-    const { username, password } = await request.json();
-
-    if (
-      typeof username !== 'string' ||
-      !username.trim() ||
-      typeof password !== 'string' ||
-      !password
-    ) {
-      return NextResponse.json(
-        { error: 'Username and password required' },
-        { status: 400 }
-      );
-    }
+    const parsedBody = await validateRequestBody(request, signInSchema);
+    if (!parsedBody.success) return parsedBody.response;
+    const { username, password } = parsedBody.data;
 
     // Step 1: Find the email by username using admin client (bypasses RLS)
     if (!supabaseAdmin) {

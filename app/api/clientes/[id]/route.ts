@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/db/supabase';
 import type { Customer } from '@/lib/types';
+import { validateRequestBody } from '@/lib/validation/requestBody';
+import { customerUpdateSchema } from '@/lib/validation/requestSchemas';
 
 export async function GET(
   request: NextRequest,
@@ -62,7 +64,9 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const body = await request.json();
+    const parsedBody = await validateRequestBody(request, customerUpdateSchema);
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
 
     if (!supabaseAdmin) {
       return NextResponse.json(

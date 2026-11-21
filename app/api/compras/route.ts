@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { comprasService } from '@/lib/services/compras/comprasService';
+import { validateRequestBody } from '@/lib/validation/requestBody';
+import { purchaseCreateSchema } from '@/lib/validation/requestSchemas';
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,14 +37,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-
-    if (!body.numero_po || !body.proveedor_id || !body.fecha_orden) {
-      return NextResponse.json(
-        { error: 'numero_po, proveedor_id, and fecha_orden are required' },
-        { status: 400 }
-      );
-    }
+    const parsedBody = await validateRequestBody(request, purchaseCreateSchema);
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
 
     const result = await comprasService.create({
       numero_po: body.numero_po,

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { comprasService } from '@/lib/services/compras/comprasService';
+import { validateRequestBody } from '@/lib/validation/requestBody';
+import { purchaseUpdateSchema } from '@/lib/validation/requestSchemas';
 
 export async function GET(
   request: NextRequest,
@@ -26,7 +28,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const body = await request.json();
+    const parsedBody = await validateRequestBody(request, purchaseUpdateSchema);
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
     const result = await comprasService.update((await params).id, body);
     if (result.error) throw new Error(result.error);
     return NextResponse.json(result.data);

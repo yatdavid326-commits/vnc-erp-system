@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { productService } from '@/lib/services/products/productService';
+import { validateRequestBody } from '@/lib/validation/requestBody';
+import { productCreateSchema } from '@/lib/validation/requestSchemas';
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,14 +31,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-
-    if (!body.nombre || !body.sku) {
-      return NextResponse.json(
-        { error: 'nombre and sku are required' },
-        { status: 400 }
-      );
-    }
+    const parsedBody = await validateRequestBody(request, productCreateSchema);
+    if (!parsedBody.success) return parsedBody.response;
+    const body = parsedBody.data;
 
     const product = await productService.create({
       nombre: body.nombre,
