@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/db/supabase';
 import { ACCESS_TOKEN_COOKIE } from '@/lib/auth/constants';
 
@@ -26,6 +27,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('Supabase authentication is not configured.');
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+
     let email = username.trim();
     if (!email.includes('@')) {
       const { data: profiles, error: lookupError } = await supabaseAdmin
@@ -43,8 +54,15 @@ export async function POST(request: NextRequest) {
       email = profiles[0].email;
     }
 
-    // Step 2: Sign in with email and password
-    const { data, error } = await supabaseAdmin.auth.signInWithPassword({
+    // Keep password sign-in from mutating the shared admin client's session.
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+        persistSession: false,
+      },
+    });
+    const { data, error } = await authClient.auth.signInWithPassword({
       email,
       password,
     });
