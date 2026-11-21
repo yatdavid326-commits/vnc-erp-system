@@ -5,6 +5,19 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/hooks';
 import { supabaseClient } from '@/lib/db/supabase';
 
+async function syncServerSession(accessToken: string) {
+  const response = await fetch('/api/auth/session', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Session sync failed: HTTP ${response.status}`);
+  }
+}
+
 interface AuthProviderProps {
   children: ReactNode;
 }
@@ -29,7 +42,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
           if (storedSession && storedAccessToken) {
             try {
               const session = JSON.parse(storedSession);
-              await supabaseClient.auth.setSession(session);
+              const { data, error } = await supabaseClient.auth.setSession(session);
+              if (error || !data.session) {
+                throw error ?? new Error('No active Supabase session');
+              }
+              await syncServerSession(data.session.access_token);
 
               if (storedUser && isMounted) {
                 const user = JSON.parse(storedUser);
@@ -76,6 +93,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (!isMounted) return;
 
         if (session?.user) {
+          if (event === 'TOKEN_REFRESHED') {
+            void syncServerSession(session.access_token).catch((error) => {
+              console.error('Error syncing refreshed session:', error);
+            });
+          }
+
           setUser({
             id: session.user.id,
             auth_id: session.user.id,

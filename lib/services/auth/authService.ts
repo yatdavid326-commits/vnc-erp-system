@@ -1,4 +1,5 @@
 import { supabaseClient } from '@/lib/db/supabase';
+import { clientSignIn } from '@/lib/services/auth/serverSignIn';
 import type { User } from '@/lib/types';
 
 export const authService = {
@@ -46,37 +47,16 @@ export const authService = {
   },
 
   async signIn(emailOrUsername: string, password: string) {
-    let email = emailOrUsername;
-    
-    // Check if input is a username (not an email)
-    if (!emailOrUsername.includes('@')) {
-      // Use server-side API to find the email by username
-      try {
-        const response = await fetch('/api/auth/login-lookup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: emailOrUsername }),
-        });
-        
-        if (!response.ok) {
-          return { error: { message: 'Usuario no encontrado' } };
-        }
-        
-        const { email: foundEmail } = await response.json();
-        email = foundEmail;
-      } catch (error) {
-        return { error: { message: 'Error al buscar usuario' } };
-      }
-    }
-    
-    return await supabaseClient.auth.signInWithPassword({
-      email,
-      password,
-    });
+    return await clientSignIn(emailOrUsername, password);
   },
 
   async signOut() {
-    return await supabaseClient.auth.signOut();
+    const result = await supabaseClient.auth.signOut();
+    const response = await fetch('/api/auth/signout', { method: 'POST' });
+    if (!response.ok) {
+      throw new Error(`Server signout failed: HTTP ${response.status}`);
+    }
+    return result;
   },
 
   async updatePassword(newPassword: string) {

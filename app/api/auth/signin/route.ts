@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/db/supabase';
+import { ACCESS_TOKEN_COOKIE } from '@/lib/auth/constants';
 
 export async function POST(request: NextRequest) {
   try {
     const { username, password } = await request.json();
 
-    if (!username || !password) {
+    if (
+      typeof username !== 'string' ||
+      !username.trim() ||
+      typeof password !== 'string' ||
+      !password
+    ) {
       return NextResponse.json(
         { error: 'Username and password required' },
         { status: 400 }
@@ -20,19 +26,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: profiles, error: lookupError } = await supabaseAdmin
-      .from('user_profiles')
-      .select('email')
-      .eq('username', username);
+    let email = username.trim();
+    if (!email.includes('@')) {
+      const { data: profiles, error: lookupError } = await supabaseAdmin
+        .from('user_profiles')
+        .select('email')
+        .eq('username', email);
 
-    if (lookupError || !profiles || profiles.length === 0) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      );
+      if (lookupError || !profiles || profiles.length === 0) {
+        return NextResponse.json(
+          { error: 'Invalid credentials' },
+          { status: 401 }
+        );
+      }
+
+      email = profiles[0].email;
     }
-
-    const email = profiles[0].email;
 
     // Step 2: Sign in with email and password
     const { data, error } = await supabaseAdmin.auth.signInWithPassword({
@@ -47,29 +56,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create response with session data and tokens
+    // Keep the access token in an HttpOnly cookie for authenticated API requests.
     const response = NextResponse.json({
       user: data.user,
       session: data.session,
-      accessToken: data.session?.access_token,
-      refreshToken: data.session?.refresh_token,
     });
 
-    // Set auth cookies for server-side access
     if (data.session) {
-      response.cookies.set('sb-session', JSON.stringify(data.session), {
-        httpOnly: false, // Allow client to read for localStorage
+      response.cookies.set(ACCESS_TOKEN_COOKIE, data.session.access_token, {
+        httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-      });
-
-      // Also set individual token cookies
-      response.cookies.set('sb-access-token', data.session.access_token, {
-        httpOnly: false,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7,
+        path: '/',
+        maxAge: data.session.expires_in,
       });
     }
 

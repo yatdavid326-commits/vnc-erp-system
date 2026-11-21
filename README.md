@@ -48,11 +48,15 @@ Visitar `http://localhost:3000`
 ## 🔐 Seguridad
 
 - Autenticación con Supabase Auth
+- Las API de datos validan una sesión Supabase; el servidor usa una cookie HttpOnly y el cliente conserva su sesión local.
 - Control de acceso por módulo (RBAC)
 - Row Level Security (RLS) en PostgreSQL
 - Auditoría de acciones en base de datos
 - Variables de entorno protegidas
 - Permisos granulares por usuario
+
+La autenticación no reemplaza la autorización por rol o permiso en cada ruta API. No se debe
+confiar en la visibilidad del menú como control de acceso a operaciones.
 
 ## 📱 Características Principales
 
