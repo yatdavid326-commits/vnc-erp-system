@@ -58,6 +58,25 @@ test('customers API rejects invalid bearer tokens', async () => {
   assert.equal(response.status, 401);
 });
 
+test('authenticated module API returns assignments for the linked profile', async (t) => {
+  const baseUrl = process.env.VNC_BASE_URL;
+  assert.ok(baseUrl, 'Set VNC_BASE_URL to the server under test');
+
+  const accessToken = process.env.VNC_TEST_AUTH_TOKEN;
+  if (!accessToken) {
+    t.skip('Set VNC_TEST_AUTH_TOKEN to an account with assigned modules');
+    return;
+  }
+
+  const response = await fetch(new URL('/api/modules/user', baseUrl), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  assert.equal(response.status, 200);
+  const modules = await response.json();
+  assert.ok(Array.isArray(modules));
+  assert.ok(modules.length > 0);
+});
+
 test('session sync rejects requests without a bearer token', async () => {
   const baseUrl = process.env.VNC_BASE_URL;
   assert.ok(baseUrl, 'Set VNC_BASE_URL to the server under test');

@@ -50,6 +50,7 @@ Visitar `http://localhost:3000`
 - Autenticación con Supabase Auth
 - Las API de datos validan una sesión Supabase; el servidor usa una cookie HttpOnly y el cliente conserva su sesión local.
 - Las API aplican permisos por módulo y operación; el rol `admin` tiene acceso completo.
+- Las asignaciones de permisos usan `user_profiles.id`, resuelto desde el usuario autenticado mediante `auth_id`.
 - Row Level Security (RLS) en PostgreSQL
 - Auditoría de acciones en base de datos
 - Variables de entorno protegidas

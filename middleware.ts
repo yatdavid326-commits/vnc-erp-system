@@ -74,7 +74,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: profile, error: profileError } = await supabaseAdmin
     .from('user_profiles')
-    .select('role')
+    .select('id, role')
     .eq('auth_id', user.id)
     .maybeSingle();
 
@@ -99,9 +99,9 @@ export async function middleware(request: NextRequest) {
     .select(
       'can_view, can_create, can_edit, can_delete, module:modules!inner(name, is_active)'
     )
-    .eq('user_id', user.id)
     .eq('module.name', requirement.moduleName)
     .eq('module.is_active', true)
+    .eq('user_id', profile.id)
     .maybeSingle();
 
   if (accessError) {

@@ -28,6 +28,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('user_profiles')
+      .select('id')
+      .eq('auth_id', user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error('Error fetching user profile:', profileError);
+      return NextResponse.json(
+        { error: 'Unable to load user profile' },
+        { status: 500 }
+      );
+    }
+
+    if (!profile) {
+      return NextResponse.json(
+        { error: 'User profile not found' },
+        { status: 404 }
+      );
+    }
+
     // Get user modules with details using the admin client (bypasses RLS)
     const { data: userModules, error } = await supabaseAdmin
       .from('user_modules')
@@ -37,7 +58,7 @@ export async function GET(request: NextRequest) {
         module:modules (*)
       `
       )
-      .eq('user_id', user.id);
+      .eq('user_id', profile.id);
 
     if (error) {
       console.error('Error fetching user modules:', error);
