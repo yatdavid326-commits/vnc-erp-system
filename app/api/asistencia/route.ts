@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { asistenciaService } from '@/lib/services/asistencia/asistenciaService';
 import { validateRequestBody } from '@/lib/validation/requestBody';
 import { attendanceCreateSchema } from '@/lib/validation/requestSchemas';
+import { parsePaginationParams } from '@/lib/utils/pagination';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const pagination = parsePaginationParams(searchParams);
+    if ('error' in pagination) {
+      return NextResponse.json({ error: pagination.error }, { status: 400 });
+    }
+    const { page, limit } = pagination;
     const empleadoId = searchParams.get('empleado_id') || undefined;
     const desde = searchParams.get('desde') || undefined;
     const hasta = searchParams.get('hasta') || undefined;
@@ -35,6 +39,7 @@ export async function GET(request: NextRequest) {
       empleadoId,
       desde,
       hasta,
+      employeeSearch: searchParams.get('search') ?? undefined,
       estado: estado === 'completa' || estado === 'pendiente' ? estado : undefined,
     });
     if (result.error) throw new Error(result.error);

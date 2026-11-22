@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/db/supabase';
+import { sanitizePostgrestSearch } from '@/lib/utils/search';
 
 export interface Asistencia {
   id: string;
@@ -24,6 +25,7 @@ export const asistenciaService = {
       empleadoId?: string;
       desde?: string;
       hasta?: string;
+      employeeSearch?: string;
       estado?: 'completa' | 'pendiente';
     } = {}
   ) {
@@ -35,13 +37,27 @@ export const asistenciaService = {
         .from('asistencia')
         .select('*', { count: 'exact' })
         .order('fecha', { ascending: false })
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false });
 
       if (filters.empleadoId) query = query.eq('empleado_id', filters.empleadoId);
       if (filters.desde) query = query.gte('fecha', filters.desde);
       if (filters.hasta) query = query.lte('fecha', filters.hasta);
       if (filters.estado === 'completa') query = query.not('hora_salida', 'is', null);
       if (filters.estado === 'pendiente') query = query.is('hora_salida', null);
+
+      const employeeSearch = sanitizePostgrestSearch(filters.employeeSearch ?? '');
+      if (employeeSearch) {
+        const { data: employees, error: employeeError } = await supabaseAdmin
+          .from('empleados')
+          .select('id')
+          .or(`nombre.ilike.%${employeeSearch}%,apellido.ilike.%${employeeSearch}%`);
+        if (employeeError) throw employeeError;
+
+        const employeeIds = (employees ?? []).map((employee) => employee.id);
+        if (employeeIds.length === 0) return { data: [], count: 0 };
+        query = query.in('empleado_id', employeeIds);
+      }
 
       const { data, error, count } = await query.range(start, start + limit - 1);
 

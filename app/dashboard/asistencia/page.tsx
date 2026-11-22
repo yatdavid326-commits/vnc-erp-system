@@ -3,7 +3,11 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
-import { fetchJson } from '@/lib/utils/fetchJson';
+import { fetchJson, fetchPaginatedJson } from '@/lib/utils/fetchJson';
+import PaginationControls from '@/components/common/PaginationControls';
+import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
+
+const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 interface Employee {
   id: string;
@@ -33,6 +37,8 @@ export default function AsistenciaPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [showRegistro, setShowRegistro] = useState(false);
   const [empleadoId, setEmpleadoId] = useState('');
   const [qrCode, setQrCode] = useState('');
@@ -41,17 +47,24 @@ export default function AsistenciaPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({ page: '1', limit: '50' });
+    const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
     if (employeeFilter) params.set('empleado_id', employeeFilter);
     if (dateFrom) params.set('desde', dateFrom);
     if (dateTo) params.set('hasta', dateTo);
     if (statusFilter) params.set('estado', statusFilter);
+    if (employeeSearch.trim()) params.set('search', employeeSearch.trim());
     try {
       const [attendance, employees] = await Promise.all([
-        fetchJson<Asistencia[]>(`/api/asistencia?${params}`, 'Error al cargar asistencia'),
+        fetchPaginatedJson<Asistencia>(`/api/asistencia?${params}`, 'Error al cargar asistencia'),
         fetchJson<Employee[]>('/api/asistencia/empleados', 'Error al cargar empleados'),
       ]);
-      setAsistencias(attendance);
+      setTotal(attendance.total);
+      const lastPage = Math.max(1, Math.ceil(attendance.total / PAGE_SIZE));
+      if (page > lastPage) {
+        setPage(lastPage);
+        return;
+      }
+      setAsistencias(attendance.data);
       setEmpleados(employees);
       setError('');
     } catch (err) {
@@ -59,7 +72,7 @@ export default function AsistenciaPage() {
     } finally {
       setLoading(false);
     }
-  }, [dateFrom, dateTo, employeeFilter, statusFilter]);
+  }, [dateFrom, dateTo, employeeFilter, employeeSearch, page, statusFilter]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => void fetchData(), 250);
@@ -116,7 +129,8 @@ export default function AsistenciaPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'No se pudo registrar la asistencia.');
 
-      await fetchData();
+      if (page === 1) await fetchData();
+      else setPage(1);
       setShowRegistro(false);
       setEmpleadoId('');
       setQrCode('');
@@ -132,10 +146,6 @@ export default function AsistenciaPage() {
     const employee = empleados.find((item) => item.id === id);
     return employee ? `${employee.nombre} ${employee.apellido}`.trim() : 'Empleado no disponible';
   };
-  const filteredAsistencias = asistencias.filter((asistencia) =>
-    employeeName(asistencia.empleado_id).toLocaleLowerCase().includes(employeeSearch.trim().toLocaleLowerCase())
-  );
-
   return (
     <div className="p-6">
       <h1 className="mb-6 text-3xl font-bold">Control de Asistencia</h1>
@@ -231,7 +241,10 @@ export default function AsistenciaPage() {
           <input
             type="search"
             value={employeeSearch}
-            onChange={(event) => setEmployeeSearch(event.target.value)}
+            onChange={(event) => {
+              setEmployeeSearch(event.target.value);
+              setPage(1);
+            }}
             placeholder="Nombre o apellido"
             className="mt-1 w-full rounded-md border px-3 py-2"
           />
@@ -240,7 +253,10 @@ export default function AsistenciaPage() {
           Empleado
           <select
             value={employeeFilter}
-            onChange={(event) => setEmployeeFilter(event.target.value)}
+            onChange={(event) => {
+              setEmployeeFilter(event.target.value);
+              setPage(1);
+            }}
             className="mt-1 w-full rounded-md border px-3 py-2"
           >
             <option value="">Todos los empleados</option>
@@ -255,7 +271,10 @@ export default function AsistenciaPage() {
           Estado
           <select
             value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
+            onChange={(event) => {
+              setStatusFilter(event.target.value);
+              setPage(1);
+            }}
             className="mt-1 w-full rounded-md border px-3 py-2"
           >
             <option value="">Todos los estados</option>
@@ -268,7 +287,10 @@ export default function AsistenciaPage() {
           <input
             type="date"
             value={dateFrom}
-            onChange={(event) => setDateFrom(event.target.value)}
+            onChange={(event) => {
+              setDateFrom(event.target.value);
+              setPage(1);
+            }}
             className="mt-1 w-full rounded-md border px-3 py-2"
           />
         </label>
@@ -277,7 +299,10 @@ export default function AsistenciaPage() {
           <input
             type="date"
             value={dateTo}
-            onChange={(event) => setDateTo(event.target.value)}
+            onChange={(event) => {
+              setDateTo(event.target.value);
+              setPage(1);
+            }}
             className="mt-1 w-full rounded-md border px-3 py-2"
           />
         </label>
@@ -299,9 +324,9 @@ export default function AsistenciaPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredAsistencias.length === 0 ? (
+              {asistencias.length === 0 ? (
                 <tr><td colSpan={6} className="px-6 py-4 text-center text-gray-500">No hay registros con esos filtros</td></tr>
-              ) : filteredAsistencias.map((asistencia) => (
+              ) : asistencias.map((asistencia) => (
                 <tr key={asistencia.id} className="border-b">
                   <td className="px-6 py-4 text-sm">{employeeName(asistencia.empleado_id)}</td>
                   <td className="px-6 py-4 text-sm">{asistencia.fecha}</td>
@@ -324,6 +349,18 @@ export default function AsistenciaPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+      {!loading && (
+        <div className="mt-4">
+          <PaginationControls
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            itemLabel="registros"
+            disabled={loading}
+            onPageChange={setPage}
+          />
         </div>
       )}
     </div>

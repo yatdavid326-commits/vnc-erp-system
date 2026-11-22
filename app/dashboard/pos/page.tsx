@@ -1,6 +1,10 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
+import PaginationControls from '@/components/common/PaginationControls';
+import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
+
+const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 interface Venta {
   id: string;
@@ -64,6 +68,8 @@ export default function POSPage() {
   const [busqueda, setBusqueda] = useState('');
   const [salesSearch, setSalesSearch] = useState('');
   const [salesStatus, setSalesStatus] = useState('');
+  const [salesPage, setSalesPage] = useState(1);
+  const [salesTotal, setSalesTotal] = useState(0);
   const [clienteId, setClienteId] = useState('');
   const [metodoPago, setMetodoPago] = useState<'efectivo' | 'tarjeta' | 'cheque'>(
     'efectivo'
@@ -80,22 +86,34 @@ export default function POSPage() {
   const [success, setSuccess] = useState('');
 
   const cargarVentas = useCallback(async (signal?: AbortSignal) => {
-    const params = new URLSearchParams({ page: '1', limit: '10' });
+    const params = new URLSearchParams({ page: String(salesPage), limit: String(PAGE_SIZE) });
     if (salesSearch.trim()) params.set('search', salesSearch.trim());
     if (salesStatus) params.set('status', salesStatus);
     const response = await fetch(`/api/pos?${params}`, signal ? { signal } : undefined);
-    setVentas(await readJson<Venta[]>(response));
-  }, [salesSearch, salesStatus]);
+    const data = await readJson<Venta[]>(response);
+    const totalHeader = response.headers.get('X-Total-Count');
+    if (totalHeader === null) {
+      throw new Error('La respuesta de ventas no incluye el total de registros.');
+    }
+    const total = Number(totalHeader);
+    if (!Number.isSafeInteger(total) || total < data.length) {
+      throw new Error('La respuesta de ventas contiene un total no válido.');
+    }
+
+    setSalesTotal(total);
+    const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (salesPage > lastPage) {
+      setSalesPage(lastPage);
+      return;
+    }
+    setVentas(data);
+  }, [salesPage, salesSearch, salesStatus]);
 
   const cargarCaja = useCallback(async () => {
     const register = await requestJson<CajaAbierta | null>('/api/pos/register');
     setCaja(register);
     if (register) setSaldoFinal(String(register.opening_balance));
   }, []);
-
-  const cargarResumen = useCallback(async () => {
-    await Promise.all([cargarVentas(), cargarCaja()]);
-  }, [cargarCaja, cargarVentas]);
 
   const cargarCatalogo = useCallback(
     async (page: number, search: string, append: boolean) => {
@@ -304,12 +322,14 @@ export default function POSPage() {
     setCarrito([]);
     setClienteId('');
     setEfectivoRecibido('0');
+    setSalesPage(1);
     setSuccess(`Venta ${sale.numero_transaccion} registrada correctamente.`);
     try {
       await Promise.all([
-        cargarResumen(),
+        cargarCaja(),
         cargarCatalogo(1, busqueda, false),
       ]);
+      if (salesPage === 1) await cargarVentas();
     } catch (refreshError) {
       setError(
         `La venta se registró, pero no se pudo actualizar la pantalla: ${
@@ -599,7 +619,10 @@ export default function POSPage() {
               <input
                 type="search"
                 value={salesSearch}
-                onChange={(event) => setSalesSearch(event.target.value)}
+                onChange={(event) => {
+                  setSalesSearch(event.target.value);
+                  setSalesPage(1);
+                }}
                 placeholder="Número o método de pago"
                 className="mt-1 w-full rounded-md border px-3 py-2"
               />
@@ -608,7 +631,10 @@ export default function POSPage() {
               Estado
               <select
                 value={salesStatus}
-                onChange={(event) => setSalesStatus(event.target.value)}
+                onChange={(event) => {
+                  setSalesStatus(event.target.value);
+                  setSalesPage(1);
+                }}
                 className="mt-1 w-full rounded-md border px-3 py-2"
               >
                 <option value="">Todos los estados</option>
@@ -657,6 +683,18 @@ export default function POSPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+        {!loading && (
+          <div className="mt-4">
+            <PaginationControls
+              page={salesPage}
+              pageSize={PAGE_SIZE}
+              total={salesTotal}
+              itemLabel="ventas"
+              disabled={loading}
+              onPageChange={setSalesPage}
+            />
           </div>
         )}
       </section>

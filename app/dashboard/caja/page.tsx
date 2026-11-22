@@ -4,7 +4,10 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
 import { fetchJson } from '@/lib/utils/fetchJson';
+import PaginationControls from '@/components/common/PaginationControls';
+import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
 
+const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 interface Movimiento {
   id: string;
@@ -16,8 +19,19 @@ interface Movimiento {
   created_at: string;
 }
 
+interface CashMovementPage {
+  data: Movimiento[];
+  total: number;
+  incomeTotal: number;
+  expenseTotal: number;
+}
+
 export default function CajaPage() {
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
+  const [incomeTotal, setIncomeTotal] = useState(0);
+  const [expenseTotal, setExpenseTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
@@ -33,34 +47,30 @@ export default function CajaPage() {
     fecha: new Date().toISOString().split('T')[0],
   });
   const fetchMovimientos = useCallback(async () => {
+    setLoading(true);
     try {
-      const data = await fetchJson<Movimiento[]>('/api/caja', 'Error');
-      setMovimientos(data);
+      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
+      if (search.trim()) params.set('search', search.trim());
+      if (typeFilter) params.set('tipo', typeFilter);
+      if (dateFrom) params.set('desde', dateFrom);
+      if (dateTo) params.set('hasta', dateTo);
+      const result = await fetchJson<CashMovementPage>(`/api/caja?${params}`, 'Error');
+      setMovimientos(result.data);
+      setTotal(result.total);
+      setIncomeTotal(result.incomeTotal);
+      setExpenseTotal(result.expenseTotal);
       setError('');
     } catch (err) {
       setError('Error: ' + (err instanceof Error ? err.message : ''));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dateFrom, dateTo, page, search, typeFilter]);
 
   useEffect(() => {
-    let active = true;
-    fetchJson<Movimiento[]>('/api/caja', 'Error')
-      .then((data) => {
-        if (active) setMovimientos(data);
-      })
-      .catch((err: unknown) => {
-        if (active) setError('Error: ' + (err instanceof Error ? err.message : ''));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
+    const timeout = window.setTimeout(() => void fetchMovimientos(), 250);
+    return () => window.clearTimeout(timeout);
+  }, [fetchMovimientos]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,7 +83,8 @@ export default function CajaPage() {
 
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'No se pudo registrar el movimiento.');
-      await fetchMovimientos();
+      if (page === 1) await fetchMovimientos();
+      else setPage(1);
       setShowForm(false);
       setFormData({
         tipo: 'ingreso',
@@ -87,26 +98,7 @@ export default function CajaPage() {
     }
   };
 
-  const totalIngresos = movimientos
-    .filter((m) => m.tipo === 'ingreso')
-    .reduce((sum, m) => sum + m.monto, 0);
-
-  const totalEgresos = movimientos
-    .filter((m) => m.tipo === 'egreso')
-    .reduce((sum, m) => sum + m.monto, 0);
-
-  const saldo = totalIngresos - totalEgresos;
-  const normalizedSearch = search.trim().toLocaleLowerCase();
-  const visibleMovimientos = movimientos.filter((movement) => {
-    const matchesSearch =
-      !normalizedSearch ||
-      movement.concepto.toLocaleLowerCase().includes(normalizedSearch) ||
-      movement.referencia.toLocaleLowerCase().includes(normalizedSearch);
-    const matchesType = !typeFilter || movement.tipo === typeFilter;
-    const matchesFrom = !dateFrom || movement.fecha >= dateFrom;
-    const matchesTo = !dateTo || movement.fecha <= dateTo;
-    return matchesSearch && matchesType && matchesFrom && matchesTo;
-  });
+  const saldo = incomeTotal - expenseTotal;
 
   return (
       <div className="p-6">
@@ -115,11 +107,11 @@ export default function CajaPage() {
         <div className="grid grid-cols-3 gap-6 mb-6">
           <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6">
             <p className="text-sm text-green-600 font-semibold">Ingresos</p>
-            <p className="text-2xl font-bold text-green-700">${totalIngresos.toFixed(2)}</p>
+            <p className="text-2xl font-bold text-green-700">${incomeTotal.toFixed(2)}</p>
           </div>
           <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6">
             <p className="text-sm text-red-600 font-semibold">Egresos</p>
-            <p className="text-2xl font-bold text-red-700">${totalEgresos.toFixed(2)}</p>
+            <p className="text-2xl font-bold text-red-700">${expenseTotal.toFixed(2)}</p>
           </div>
           <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
             <p className="text-sm text-blue-600 font-semibold">Saldo</p>
@@ -181,7 +173,10 @@ export default function CajaPage() {
             <input
               type="search"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
               placeholder="Concepto o referencia"
               className="mt-1 w-full rounded-md border px-3 py-2"
             />
@@ -190,7 +185,10 @@ export default function CajaPage() {
             Tipo
             <select
               value={typeFilter}
-              onChange={(event) => setTypeFilter(event.target.value)}
+              onChange={(event) => {
+                setTypeFilter(event.target.value);
+                setPage(1);
+              }}
               className="mt-1 w-full rounded-md border px-3 py-2"
             >
               <option value="">Todos los tipos</option>
@@ -203,7 +201,10 @@ export default function CajaPage() {
             <input
               type="date"
               value={dateFrom}
-              onChange={(event) => setDateFrom(event.target.value)}
+              onChange={(event) => {
+                setDateFrom(event.target.value);
+                setPage(1);
+              }}
               className="mt-1 w-full rounded-md border px-3 py-2"
             />
           </label>
@@ -212,7 +213,10 @@ export default function CajaPage() {
             <input
               type="date"
               value={dateTo}
-              onChange={(event) => setDateTo(event.target.value)}
+              onChange={(event) => {
+                setDateTo(event.target.value);
+                setPage(1);
+              }}
               className="mt-1 w-full rounded-md border px-3 py-2"
             />
           </label>
@@ -225,10 +229,10 @@ export default function CajaPage() {
             <table className="w-full">
               <thead className="bg-gray-100"><tr><th className="px-6 py-3 text-left">Tipo</th><th className="px-6 py-3 text-left">Concepto</th><th className="px-6 py-3 text-left">Monto</th><th className="px-6 py-3 text-left">Referencia</th><th className="px-6 py-3 text-left">Fecha</th></tr></thead>
               <tbody>
-                {visibleMovimientos.length === 0 ? (
+                {movimientos.length === 0 ? (
                   <tr><td colSpan={5} className="px-6 py-4 text-center text-gray-500">No hay movimientos con esos filtros</td></tr>
                 ) : (
-                  visibleMovimientos.map((m) => (
+                  movimientos.map((m) => (
                     <tr key={m.id} className="border-b">
                       <td className="px-6 py-4 text-sm">
                         <span className={`px-2 py-1 rounded text-xs ${m.tipo === 'ingreso' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
@@ -244,6 +248,18 @@ export default function CajaPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+        {!loading && (
+          <div className="mt-4">
+            <PaginationControls
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={total}
+              itemLabel="movimientos"
+              disabled={loading}
+              onPageChange={setPage}
+            />
           </div>
         )}
       </div>

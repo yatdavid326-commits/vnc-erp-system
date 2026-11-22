@@ -3,9 +3,13 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
-import { fetchJson } from '@/lib/utils/fetchJson';
+import { fetchPaginatedJson } from '@/lib/utils/fetchJson';
 import ClientesForm, { type ClienteFormData } from '@/components/clientes/ClientesForm';
 import ClientesTable from '@/components/clientes/ClientesTable';
+import PaginationControls from '@/components/common/PaginationControls';
+import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
+
+const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 interface Cliente {
   id: string;
@@ -27,6 +31,8 @@ export default function ClientesPage() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<ClienteFormData>({
@@ -41,22 +47,29 @@ export default function ClientesPage() {
     estado_cliente: 'activo',
   });
   const fetchClientes = useCallback(async () => {
+    setLoading(true);
     try {
-      const params = new URLSearchParams({ page: '1', limit: '50' });
+      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
       if (search.trim()) params.set('search', search.trim());
       if (status) params.set('status', status);
-      const data = await fetchJson<Cliente[]>(
+      const result = await fetchPaginatedJson<Cliente>(
         `/api/clientes?${params}`,
         'Error al cargar clientes'
       );
-      setClientes(data);
+      setTotal(result.total);
+      const lastPage = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
+      if (page > lastPage) {
+        setPage(lastPage);
+        return;
+      }
+      setClientes(result.data);
       setError('');
     } catch (err) {
       setError('Error al cargar clientes: ' + (err instanceof Error ? err.message : ''));
     } finally {
       setLoading(false);
     }
-  }, [search, status]);
+  }, [page, search, status]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => void fetchClientes(), 250);
@@ -77,7 +90,8 @@ export default function ClientesPage() {
 
       if (!response.ok) throw new Error('Error al guardar cliente');
 
-      await fetchClientes();
+      if (page === 1) await fetchClientes();
+      else setPage(1);
       setShowForm(false);
       setEditingId(null);
       setFormData({
@@ -171,7 +185,10 @@ export default function ClientesPage() {
             <input
               type="search"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
               placeholder="Nombre, correo o teléfono"
               className="mt-1 w-full rounded-md border px-3 py-2"
             />
@@ -180,7 +197,10 @@ export default function ClientesPage() {
             Estado
             <select
               value={status}
-              onChange={(event) => setStatus(event.target.value)}
+              onChange={(event) => {
+                setStatus(event.target.value);
+                setPage(1);
+              }}
               className="mt-1 w-full rounded-md border px-3 py-2"
             >
               <option value="">Todos los estados</option>
@@ -197,11 +217,21 @@ export default function ClientesPage() {
             <p className="mt-2 text-gray-500">Cargando clientes...</p>
           </div>
         ) : (
-          <ClientesTable
-            clientes={clientes}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
+          <div className="space-y-4">
+            <ClientesTable
+              clientes={clientes}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+            <PaginationControls
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={total}
+              itemLabel="clientes"
+              disabled={loading}
+              onPageChange={setPage}
+            />
+          </div>
         )}
       </div>
   );

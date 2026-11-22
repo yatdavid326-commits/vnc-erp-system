@@ -1,22 +1,9 @@
 import { posService } from '@/lib/services/pos/posService';
 import { NextRequest, NextResponse } from 'next/server';
-
-function getPagination(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const page = Number(searchParams.get('page') ?? 1);
-  const limit = Number(searchParams.get('limit') ?? 50);
-
-  if (!Number.isInteger(page) || page < 1) {
-    return { error: 'page must be a positive integer' } as const;
-  }
-  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
-    return { error: 'limit must be an integer between 1 and 100' } as const;
-  }
-  return { page, limit } as const;
-}
+import { parsePaginationParams } from '@/lib/utils/pagination';
 
 export async function GET(request: NextRequest) {
-  const pagination = getPagination(request);
+  const pagination = parsePaginationParams(request.nextUrl.searchParams, 100);
   if ('error' in pagination) {
     return NextResponse.json({ error: pagination.error }, { status: 400 });
   }

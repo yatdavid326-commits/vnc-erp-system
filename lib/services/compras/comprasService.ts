@@ -34,7 +34,8 @@ export const comprasService = {
       let query = supabaseAdmin
         .from('compras')
         .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false });
 
       const safeSearch = sanitizePostgrestSearch(filters.search ?? '');
       if (safeSearch) query = query.ilike('numero_po', `%${safeSearch}%`);

@@ -112,7 +112,8 @@ class CustomerService {
       let query = getSupabaseAdmin()
         .from('customers')
         .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false });
 
       const safeSearch = sanitizePostgrestSearch(filters.search ?? '');
       if (safeSearch) {

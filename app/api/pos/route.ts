@@ -3,6 +3,7 @@ import { posService, PosServiceError } from '@/lib/services/pos/posService';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { validateRequestBody } from '@/lib/validation/requestBody';
+import { parsePaginationParams } from '@/lib/utils/pagination';
 
 const checkoutSchema = z
   .object({
@@ -21,17 +22,7 @@ const checkoutSchema = z
   .strict();
 
 function getPagination(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const page = Number(searchParams.get('page') ?? 1);
-  const limit = Number(searchParams.get('limit') ?? 10);
-
-  if (!Number.isInteger(page) || page < 1) {
-    return { error: 'page must be a positive integer' } as const;
-  }
-  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
-    return { error: 'limit must be an integer between 1 and 100' } as const;
-  }
-  return { page, limit } as const;
+  return parsePaginationParams(request.nextUrl.searchParams);
 }
 
 function errorResponse(error: unknown, route: string) {

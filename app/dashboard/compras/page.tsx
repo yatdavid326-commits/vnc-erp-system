@@ -3,7 +3,11 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
-import { fetchJson } from '@/lib/utils/fetchJson';
+import { fetchJson, fetchPaginatedJson } from '@/lib/utils/fetchJson';
+import PaginationControls from '@/components/common/PaginationControls';
+import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
+
+const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 interface Compra {
   id: string;
@@ -49,18 +53,27 @@ export default function ComprasPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [supplierId, setSupplierId] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const fetchCompras = useCallback(async () => {
+    setLoading(true);
     try {
-      const params = new URLSearchParams({ page: '1', limit: '50' });
+      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
       if (search.trim()) params.set('search', search.trim());
       if (status) params.set('status', status);
       if (supplierId) params.set('proveedor_id', supplierId);
       const [purchaseData, supplierData] = await Promise.all([
-        fetchJson<Compra[]>(`/api/compras?${params}`, 'Error al cargar compras'),
+        fetchPaginatedJson<Compra>(`/api/compras?${params}`, 'Error al cargar compras'),
         fetchJson<Proveedor[]>('/api/proveedores?page=1&limit=100', 'Error al cargar proveedores'),
       ]);
-      setCompras(purchaseData);
+      setTotal(purchaseData.total);
+      const lastPage = Math.max(1, Math.ceil(purchaseData.total / PAGE_SIZE));
+      if (page > lastPage) {
+        setPage(lastPage);
+        return;
+      }
+      setCompras(purchaseData.data);
       setProveedores(supplierData);
       setError('');
     } catch (err) {
@@ -68,7 +81,7 @@ export default function ComprasPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, status, supplierId]);
+  }, [page, search, status, supplierId]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => void fetchCompras(), 250);
@@ -90,7 +103,8 @@ export default function ComprasPage() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'No se pudo guardar la compra.');
-      await fetchCompras();
+      if (page === 1) await fetchCompras();
+      else setPage(1);
       setShowForm(false);
       resetForm();
     } catch (err) {
@@ -224,7 +238,10 @@ export default function ComprasPage() {
           <input
             type="search"
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
             placeholder="Número de orden"
             className="mt-1 w-full rounded-md border px-3 py-2"
           />
@@ -233,7 +250,10 @@ export default function ComprasPage() {
           Estado
           <select
             value={status}
-            onChange={(event) => setStatus(event.target.value)}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setPage(1);
+            }}
             className="mt-1 w-full rounded-md border px-3 py-2"
           >
             <option value="">Todos los estados</option>
@@ -247,7 +267,10 @@ export default function ComprasPage() {
           Proveedor
           <select
             value={supplierId}
-            onChange={(event) => setSupplierId(event.target.value)}
+            onChange={(event) => {
+              setSupplierId(event.target.value);
+              setPage(1);
+            }}
             className="mt-1 w-full rounded-md border px-3 py-2"
           >
             <option value="">Todos los proveedores</option>
@@ -291,6 +314,18 @@ export default function ComprasPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+      {!loading && (
+        <div className="mt-4">
+          <PaginationControls
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            itemLabel="órdenes"
+            disabled={loading}
+            onPageChange={setPage}
+          />
         </div>
       )}
     </div>

@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { productService } from '@/lib/services/products/productService';
 import { validateRequestBody } from '@/lib/validation/requestBody';
 import { productCreateSchema } from '@/lib/validation/requestSchemas';
+import { parsePaginationParams } from '@/lib/utils/pagination';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const pagination = parsePaginationParams(searchParams, 10);
+    if ('error' in pagination) {
+      return NextResponse.json({ error: pagination.error }, { status: 400 });
+    }
+    const { page, limit } = pagination;
     const search = searchParams.get('search') || '';
     const category = searchParams.get('category') || '';
     const status = searchParams.get('status') || '';

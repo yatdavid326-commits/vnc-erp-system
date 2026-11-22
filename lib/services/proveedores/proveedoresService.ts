@@ -90,7 +90,8 @@ export const proveedoresService = {
       let query = requireSupabaseAdmin()
         .from('suppliers')
         .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false });
 
       const safeSearch = sanitizePostgrestSearch(filters.search ?? '');
       if (safeSearch) {

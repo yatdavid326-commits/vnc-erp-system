@@ -3,8 +3,11 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
-import { fetchJson } from '@/lib/utils/fetchJson';
+import { fetchPaginatedJson } from '@/lib/utils/fetchJson';
+import PaginationControls from '@/components/common/PaginationControls';
+import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
 
+const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 interface Empleado {
   id: string;
@@ -24,6 +27,8 @@ export default function EmpleadosPage() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -36,19 +41,26 @@ export default function EmpleadosPage() {
     estado: 'activo',
   });
   const fetchEmpleados = useCallback(async () => {
+    setLoading(true);
     try {
-      const params = new URLSearchParams({ page: '1', limit: '50' });
+      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
       if (search.trim()) params.set('search', search.trim());
       if (status) params.set('status', status);
-      const data = await fetchJson<Empleado[]>(`/api/empleados?${params}`, 'Error');
-      setEmpleados(data);
+      const result = await fetchPaginatedJson<Empleado>(`/api/empleados?${params}`, 'Error');
+      setTotal(result.total);
+      const lastPage = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
+      if (page > lastPage) {
+        setPage(lastPage);
+        return;
+      }
+      setEmpleados(result.data);
       setError('');
     } catch (err) {
       setError('Error: ' + (err instanceof Error ? err.message : ''));
     } finally {
       setLoading(false);
     }
-  }, [search, status]);
+  }, [page, search, status]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => void fetchEmpleados(), 250);
@@ -68,7 +80,8 @@ export default function EmpleadosPage() {
       });
 
       if (!response.ok) throw new Error('Error');
-      await fetchEmpleados();
+      if (page === 1) await fetchEmpleados();
+      else setPage(1);
       setShowForm(false);
       setEditingId(null);
       setFormData({
@@ -210,7 +223,10 @@ export default function EmpleadosPage() {
             <input
               type="search"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
               placeholder="Nombre, correo o cargo"
               className="mt-1 w-full rounded-md border px-3 py-2"
             />
@@ -219,7 +235,10 @@ export default function EmpleadosPage() {
             Estado
             <select
               value={status}
-              onChange={(event) => setStatus(event.target.value)}
+              onChange={(event) => {
+                setStatus(event.target.value);
+                setPage(1);
+              }}
               className="mt-1 w-full rounded-md border px-3 py-2"
             >
               <option value="">Todos los estados</option>
@@ -286,6 +305,18 @@ export default function EmpleadosPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+        {!loading && (
+          <div className="mt-4">
+            <PaginationControls
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={total}
+              itemLabel="empleados"
+              disabled={loading}
+              onPageChange={setPage}
+            />
           </div>
         )}
       </div>
