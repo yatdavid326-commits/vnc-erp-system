@@ -7,6 +7,7 @@ import { authService } from '@/lib/services/auth/authService';
 import { modulesService } from '@/lib/services/modules/modulesService';
 import { useAuthStore, useModuleStore } from '@/hooks';
 import CsvExportButton from '@/components/reports/CsvExportButton';
+import NotificationCenter from '@/components/notifications/NotificationCenter';
 import Sidebar from './Sidebar';
 import Link from 'next/link';
 
@@ -96,6 +97,10 @@ export default function DashboardLayout({
 
           <div className="flex items-center gap-3">
             <CsvExportButton />
+            <NotificationCenter
+              key={user.auth_id}
+              authUserId={user.auth_id}
+            />
             {/* User Menu */}
             <div className="relative">
               <button
