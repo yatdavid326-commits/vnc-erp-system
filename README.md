@@ -20,6 +20,24 @@ npm run dev
 ```
 Visitar `http://localhost:3000`
 
+### 🧪 Pruebas
+
+Se requiere Node.js 22.6 o superior para ejecutar las pruebas TypeScript sin compilación adicional.
+
+```bash
+npm test
+npm run test:unit:coverage
+```
+
+Las pruebas de integración requieren que el ERP esté activo y que se configure `VNC_BASE_URL`:
+
+```powershell
+$env:VNC_BASE_URL = 'http://localhost:3000'
+npm run test:integration
+```
+
+`VNC_TEST_AUTH_TOKEN` es opcional; habilita el caso de integración con una sesión autenticada.
+
 ## 🏗️ Stack Tecnológico
 
 - **Frontend:** Next.js 16.4 + React 19 + TypeScript
