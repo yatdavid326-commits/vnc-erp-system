@@ -27,6 +27,10 @@ Use the same origin as the ERP. For local development, start the app with
   `POST /api/clientes/{id}/credit` and
   `POST /api/inventario/{id}/movimientos` require `can_edit`.
 - `/api/admin/permissions` additionally requires the active `admin` role.
+- `GET` and `PUT /api/notifications/preferences` accept an authenticated user
+  and manage only that user's external notification consent.
+- `GET /api/cron/notifications` requires `Authorization: Bearer <CRON_SECRET>`;
+  it is intended for the configured Vercel Cron job, not browser use.
 - A missing/invalid session returns `401`; an inactive profile or insufficient
   permission returns `403`.
 
@@ -49,3 +53,15 @@ OpenAPI schemas where the implementation returns database records.
 Import `docs/openapi.json` into Swagger UI or another OpenAPI 3.1 viewer. For
 cookie-authenticated requests, use the same origin as the ERP. Do not paste
 production access tokens or credentials into public documentation tools.
+
+## External inventory notifications
+
+The preference route stores a phone in E.164 format and separate SMS and
+WhatsApp opt-ins. A phone is required when either channel is enabled; disabling
+both clears the stored number. The response includes the recorded consent
+timestamps. Delivery is limited to active users who can view Inventory (or
+active administrators).
+
+The cron route processes queued low-stock notifications in batches. Deployment
+configuration and Twilio setup are described in
+[`LOW_STOCK_NOTIFICATIONS.md`](./LOW_STOCK_NOTIFICATIONS.md).

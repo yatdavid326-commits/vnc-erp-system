@@ -3,7 +3,15 @@ import test from 'node:test';
 import {
   canAccessAdminApi,
   getRequiredApiPermission,
+  selfServiceApiPaths,
 } from '../lib/auth/apiPermissions.ts';
+
+test('notification preferences are authenticated self-service API routes', () => {
+  assert.equal(
+    selfServiceApiPaths.has('/api/notifications/preferences'),
+    true
+  );
+});
 
 test('manual inventory movements require edit permission', () => {
   assert.deepEqual(

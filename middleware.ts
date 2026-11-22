@@ -13,6 +13,7 @@ const publicApiPaths = new Set([
   '/api/auth/signin',
   '/api/auth/session',
   '/api/auth/signout',
+  '/api/cron/notifications',
   '/api/modules/all',
 ]);
 

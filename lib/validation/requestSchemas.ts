@@ -358,3 +358,26 @@ export const modulePermissionSchema = z
       message: 'Los permisos de escritura requieren permiso de lectura.',
     }
   );
+
+export const notificationPreferencesSchema = z
+  .object({
+    phone_e164: z
+      .string()
+      .regex(/^\+[1-9]\d{7,14}$/, 'Usa un número internacional en formato E.164.')
+      .nullable(),
+    sms_opt_in: z.boolean(),
+    whatsapp_opt_in: z.boolean(),
+  })
+  .strict()
+  .superRefine((preferences, context) => {
+    if (
+      (preferences.sms_opt_in || preferences.whatsapp_opt_in) &&
+      !preferences.phone_e164
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['phone_e164'],
+        message: 'Agrega un teléfono para activar las alertas.',
+      });
+    }
+  });

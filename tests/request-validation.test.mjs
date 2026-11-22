@@ -10,6 +10,7 @@ import {
   employeeCreateSchema,
   employeeUpdateSchema,
   inventoryMovementSchema,
+  notificationPreferencesSchema,
   purchaseCreateSchema,
   productCreateSchema,
   signInSchema,
@@ -188,6 +189,41 @@ test('write schemas reject malformed business values and accept employee form da
   );
   assert.equal(
     signInSchema.safeParse({ username: 'ana', password: '' }).success,
+    false
+  );
+});
+
+test('notification preferences require an E.164 number for each explicit opt-in', () => {
+  assert.equal(
+    notificationPreferencesSchema.safeParse({
+      phone_e164: '+50255550123',
+      sms_opt_in: true,
+      whatsapp_opt_in: false,
+    }).success,
+    true
+  );
+  assert.equal(
+    notificationPreferencesSchema.safeParse({
+      phone_e164: null,
+      sms_opt_in: false,
+      whatsapp_opt_in: false,
+    }).success,
+    true
+  );
+  assert.equal(
+    notificationPreferencesSchema.safeParse({
+      phone_e164: null,
+      sms_opt_in: false,
+      whatsapp_opt_in: true,
+    }).success,
+    false
+  );
+  assert.equal(
+    notificationPreferencesSchema.safeParse({
+      phone_e164: '555-0123',
+      sms_opt_in: true,
+      whatsapp_opt_in: false,
+    }).success,
     false
   );
 });

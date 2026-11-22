@@ -30,6 +30,7 @@ const adminApiPaths = new Set(['/api/admin/permissions']);
 export const selfServiceApiPaths = new Set([
   '/api/auth/restore',
   '/api/modules/user',
+  '/api/notifications/preferences',
   '/api/user/profile',
 ]);
 

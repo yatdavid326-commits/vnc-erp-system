@@ -43,6 +43,8 @@ npm run test:integration
 La referencia de endpoints y autenticación está en [docs/API.md](./docs/API.md).
 El contrato OpenAPI 3.1 se encuentra en [docs/openapi.json](./docs/openapi.json)
 y se puede importar en Swagger UI u otro visor compatible.
+La configuración de alertas de inventario por SMS y WhatsApp está en
+[docs/LOW_STOCK_NOTIFICATIONS.md](./docs/LOW_STOCK_NOTIFICATIONS.md).
 
 ## 🏗️ Stack Tecnológico
 

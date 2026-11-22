@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Bell, CheckCheck } from 'lucide-react';
+import { Bell, CheckCheck, Settings } from 'lucide-react';
 import { supabaseClient } from '@/lib/db/supabase';
 import {
   isRealtimeNotification,
@@ -230,18 +230,30 @@ export default function NotificationCenter({
           <header className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
             <div>
               <h2 className="font-semibold text-gray-900">Notificaciones</h2>
-              <p className="text-xs text-gray-500">Actividad reciente de POS</p>
+              <p className="text-xs text-gray-500">
+                Actividad reciente de POS e inventario
+              </p>
             </div>
-            {unreadCount > 0 && (
-              <button
-                type="button"
-                onClick={() => void markAllAsRead()}
-                className="flex items-center gap-1 rounded px-2 py-1 text-xs text-blue-700 hover:bg-blue-50"
+            <div className="flex items-center gap-1">
+              <Link
+                href="/dashboard/notificaciones"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-1 rounded px-2 py-1 text-xs text-gray-700 hover:bg-gray-100"
               >
-                <CheckCheck size={14} aria-hidden="true" />
-                Marcar leídas
-              </button>
-            )}
+                <Settings size={14} aria-hidden="true" />
+                Alertas
+              </Link>
+              {unreadCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => void markAllAsRead()}
+                  className="flex items-center gap-1 rounded px-2 py-1 text-xs text-blue-700 hover:bg-blue-50"
+                >
+                  <CheckCheck size={14} aria-hidden="true" />
+                  Marcar leídas
+                </button>
+              )}
+            </div>
           </header>
 
           {(loadError || realtimeError || actionError) && (

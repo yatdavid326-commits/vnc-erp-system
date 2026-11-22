@@ -31,7 +31,8 @@
     { "name": "Attendance", "description": "Attendance records and employee lookup." },
     { "name": "Cash", "description": "Cash movements." },
     { "name": "POS", "description": "Sales, POS catalog, and cash register." },
-    { "name": "Reports", "description": "Business summary report." }
+    { "name": "Reports", "description": "Business summary report." },
+    { "name": "Notifications", "description": "Notification preferences and scheduled delivery." }
   ],
   "paths": {
     "/api/auth/signin": {
@@ -864,6 +865,72 @@
         }
       }
     },
+    "/api/notifications/preferences": {
+      "get": {
+        "tags": ["Notifications"],
+        "summary": "Get the current user's external notification preferences",
+        "operationId": "getNotificationPreferences",
+        "responses": {
+          "200": {
+            "description": "Current preferences, or disabled defaults when none are saved.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/NotificationPreferences" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "put": {
+        "tags": ["Notifications"],
+        "summary": "Save explicit SMS and WhatsApp consent",
+        "operationId": "updateNotificationPreferences",
+        "requestBody": { "$ref": "#/components/requestBodies/NotificationPreferences" },
+        "responses": {
+          "200": {
+            "description": "Saved preferences and consent timestamps.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/NotificationPreferences" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/cron/notifications": {
+      "get": {
+        "tags": ["Notifications"],
+        "summary": "Process a batch of queued external notifications",
+        "operationId": "dispatchExternalNotifications",
+        "security": [{ "cronAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Delivery results for the claimed batch.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/NotificationDispatchResult" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" },
+          "503": {
+            "description": "Twilio delivery is not configured.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/reportes": {
       "get": {
         "tags": ["Reports"],
@@ -894,6 +961,11 @@
         "type": "apiKey",
         "in": "cookie",
         "name": "sb-access-token"
+      },
+      "cronAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "CRON_SECRET configured for the Vercel Cron job."
       }
     },
     "parameters": {
@@ -1098,6 +1170,40 @@
           "user": { "type": "object", "additionalProperties": true },
           "session": { "type": "object", "additionalProperties": true }
         }
+      },
+      "NotificationPreferences": {
+        "type": "object",
+        "required": ["phone_e164", "sms_opt_in", "sms_consented_at", "whatsapp_opt_in", "whatsapp_consented_at"],
+        "properties": {
+          "phone_e164": { "type": ["string", "null"], "pattern": "^\\+[1-9][0-9]{7,14}$" },
+          "sms_opt_in": { "type": "boolean" },
+          "sms_consented_at": { "type": ["string", "null"], "format": "date-time" },
+          "whatsapp_opt_in": { "type": "boolean" },
+          "whatsapp_consented_at": { "type": ["string", "null"], "format": "date-time" }
+        },
+        "additionalProperties": false
+      },
+      "NotificationPreferencesUpdate": {
+        "type": "object",
+        "required": ["phone_e164", "sms_opt_in", "whatsapp_opt_in"],
+        "properties": {
+          "phone_e164": { "type": ["string", "null"], "pattern": "^\\+[1-9][0-9]{7,14}$" },
+          "sms_opt_in": { "type": "boolean" },
+          "whatsapp_opt_in": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      },
+      "NotificationDispatchResult": {
+        "type": "object",
+        "required": ["claimed", "sent", "skipped", "retried", "failed"],
+        "properties": {
+          "claimed": { "type": "integer", "minimum": 0 },
+          "sent": { "type": "integer", "minimum": 0 },
+          "skipped": { "type": "integer", "minimum": 0 },
+          "retried": { "type": "integer", "minimum": 0 },
+          "failed": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": false
       },
       "ClientCreate": {
         "type": "object",
@@ -1430,6 +1536,7 @@
           }
         }
       },
+      "NotificationPreferences": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NotificationPreferencesUpdate" } } } },
       "ClientCreate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ClientCreate" } } } },
       "ClientUpdate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ClientUpdate" } } } },
       "SupplierCreate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SupplierCreate" } } } },
