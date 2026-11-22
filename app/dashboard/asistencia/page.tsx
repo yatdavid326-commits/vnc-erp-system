@@ -8,6 +8,7 @@ import PaginationControls from '@/components/common/PaginationControls';
 import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
 import QRScanner from '@/components/asistencia/QRScanner';
 import { MAX_ATTENDANCE_QR_LENGTH } from '@/lib/utils/qrCode';
+import { getGeolocationErrorMessage } from '@/lib/utils/geolocation';
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
@@ -45,7 +46,13 @@ export default function AsistenciaPage() {
   const [showQrScanner, setShowQrScanner] = useState(false);
   const [empleadoId, setEmpleadoId] = useState('');
   const [qrCode, setQrCode] = useState('');
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [coords, setCoords] = useState<{
+    lat: number;
+    lng: number;
+    accuracy: number;
+    timestamp: number;
+  } | null>(null);
+  const [obteniendoGps, setObteniendoGps] = useState(false);
   const [registrando, setRegistrando] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -87,12 +94,24 @@ export default function AsistenciaPage() {
       setError('La geolocalización no está disponible en este dispositivo.');
       return;
     }
+    setObteniendoGps(true);
+    setError('');
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setCoords({ lat: position.coords.latitude, lng: position.coords.longitude });
+        setCoords({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          timestamp: position.timestamp,
+        });
         setError('');
+        setObteniendoGps(false);
       },
-      (geolocationError) => setError(`No se pudo obtener la ubicación: ${geolocationError.message}`)
+      (geolocationError) => {
+        setError(getGeolocationErrorMessage(geolocationError.code, geolocationError.message));
+        setObteniendoGps(false);
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20_000 }
     );
   };
 
@@ -211,13 +230,27 @@ export default function AsistenciaPage() {
                 <div className="rounded-md border border-green-200 bg-green-50 p-4">
                   <p className="text-sm">Latitud: {coords.lat.toFixed(6)}</p>
                   <p className="text-sm">Longitud: {coords.lng.toFixed(6)}</p>
-                  <button type="button" onClick={obtenerGPS} className="mt-2 rounded bg-green-600 px-3 py-1 text-sm text-white">
-                    Actualizar ubicación
+                  <p className="mt-1 text-sm">Precisión estimada: ±{coords.accuracy.toFixed(1)} m</p>
+                  <p className="text-xs text-gray-600">
+                    Obtenida a las {new Date(coords.timestamp).toLocaleTimeString()}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={obtenerGPS}
+                    disabled={obteniendoGps}
+                    className="mt-2 rounded bg-green-600 px-3 py-1 text-sm text-white disabled:opacity-50"
+                  >
+                    {obteniendoGps ? 'Actualizando ubicación...' : 'Actualizar ubicación'}
                   </button>
                 </div>
               ) : (
-                <button type="button" onClick={obtenerGPS} className="w-full rounded-lg bg-orange-600 px-4 py-2 text-white">
-                  Obtener ubicación GPS
+                <button
+                  type="button"
+                  onClick={obtenerGPS}
+                  disabled={obteniendoGps}
+                  className="w-full rounded-lg bg-orange-600 px-4 py-2 text-white disabled:opacity-50"
+                >
+                  {obteniendoGps ? 'Obteniendo ubicación GPS...' : 'Obtener ubicación GPS'}
                 </button>
               )}
             </div>
@@ -226,7 +259,7 @@ export default function AsistenciaPage() {
               <button
                 type="button"
                 onClick={registrarAsistencia}
-                disabled={registrando || !coords || !empleadoId}
+                disabled={registrando || obteniendoGps || !coords || !empleadoId}
                 className="flex-1 rounded-lg bg-green-600 px-4 py-2 text-white disabled:bg-gray-400"
               >
                 {registrando ? 'Registrando...' : 'Registrar entrada'}
