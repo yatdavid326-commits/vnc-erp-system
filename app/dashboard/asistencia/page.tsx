@@ -6,6 +6,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { fetchJson, fetchPaginatedJson } from '@/lib/utils/fetchJson';
 import PaginationControls from '@/components/common/PaginationControls';
 import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
+import QRScanner from '@/components/asistencia/QRScanner';
+import { MAX_ATTENDANCE_QR_LENGTH } from '@/lib/utils/qrCode';
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
@@ -40,6 +42,7 @@ export default function AsistenciaPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [showRegistro, setShowRegistro] = useState(false);
+  const [showQrScanner, setShowQrScanner] = useState(false);
   const [empleadoId, setEmpleadoId] = useState('');
   const [qrCode, setQrCode] = useState('');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -132,6 +135,7 @@ export default function AsistenciaPage() {
       if (page === 1) await fetchData();
       else setPage(1);
       setShowRegistro(false);
+      setShowQrScanner(false);
       setEmpleadoId('');
       setQrCode('');
       setCoords(null);
@@ -146,6 +150,12 @@ export default function AsistenciaPage() {
     const employee = empleados.find((item) => item.id === id);
     return employee ? `${employee.nombre} ${employee.apellido}`.trim() : 'Empleado no disponible';
   };
+  const handleQrScan = useCallback((value: string) => {
+    setQrCode(value);
+    setShowQrScanner(false);
+    setError('');
+  }, []);
+
   return (
     <div className="p-6">
       <h1 className="mb-6 text-3xl font-bold">Control de Asistencia</h1>
@@ -173,16 +183,27 @@ export default function AsistenciaPage() {
               </select>
             </label>
 
-            <label className="block text-sm font-medium">
-              Código QR (opcional)
-              <input
-                type="text"
-                maxLength={200}
-                value={qrCode}
-                onChange={(event) => setQrCode(event.target.value)}
-                className="mt-1 w-full rounded-md border px-3 py-2"
-              />
-            </label>
+            <div className="text-sm font-medium">
+              <label htmlFor="attendance-qr-code">Código QR (opcional)</label>
+              <div className="mt-1 flex flex-col gap-2 sm:flex-row">
+                <input
+                  id="attendance-qr-code"
+                  type="text"
+                  maxLength={MAX_ATTENDANCE_QR_LENGTH}
+                  value={qrCode}
+                  onChange={(event) => setQrCode(event.target.value)}
+                  className="min-w-0 flex-1 rounded-md border px-3 py-2"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowQrScanner((visible) => !visible)}
+                  className="rounded-md border px-3 py-2"
+                >
+                  {showQrScanner ? 'Cerrar lector' : 'Escanear QR'}
+                </button>
+              </div>
+              {showQrScanner && <QRScanner onScan={handleQrScan} />}
+            </div>
 
             <div>
               <p className="mb-2 text-sm font-medium">Ubicación GPS</p>
@@ -212,7 +233,10 @@ export default function AsistenciaPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setShowRegistro(false)}
+                onClick={() => {
+                  setShowRegistro(false);
+                  setShowQrScanner(false);
+                }}
                 className="rounded-lg border px-4 py-2"
               >
                 Cancelar
@@ -224,7 +248,10 @@ export default function AsistenciaPage() {
 
       {!showRegistro && (
         <button
-          onClick={() => setShowRegistro(true)}
+          onClick={() => {
+            setShowRegistro(true);
+            setShowQrScanner(false);
+          }}
           disabled={!empleados.some((employee) => employee.estado === 'activo')}
           className="mb-6 rounded-lg bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
         >

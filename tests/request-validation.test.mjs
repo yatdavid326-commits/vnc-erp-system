@@ -15,6 +15,7 @@ import {
   signInSchema,
   supplierCreateSchema,
 } from '../lib/validation/requestSchemas.ts';
+import { MAX_ATTENDANCE_QR_LENGTH } from '../lib/utils/qrCode.ts';
 
 test('customer validation trims fields and rejects invalid email and unknown keys', () => {
   const valid = customerCreateSchema.safeParse({
@@ -74,6 +75,11 @@ test('update validation rejects empty objects and product validation enforces nu
 });
 
 test('attendance validation rejects invalid employee IDs and out-of-range coordinates', () => {
+  const validAttendance = {
+    empleado_id: 'ed8c4009-88bf-4aeb-a0a8-6e63841f3d09',
+    fecha: '2026-11-21',
+    hora_entrada: '08:00:00',
+  };
   const parsed = attendanceCreateSchema.safeParse({
     empleado_id: 'EMP-123',
     fecha: '2026-11-21',
@@ -82,6 +88,20 @@ test('attendance validation rejects invalid employee IDs and out-of-range coordi
     longitud_entrada: 0,
   });
   assert.equal(parsed.success, false);
+  assert.equal(
+    attendanceCreateSchema.safeParse({
+      ...validAttendance,
+      qr_code: 'x'.repeat(MAX_ATTENDANCE_QR_LENGTH),
+    }).success,
+    true
+  );
+  assert.equal(
+    attendanceCreateSchema.safeParse({
+      ...validAttendance,
+      qr_code: 'x'.repeat(MAX_ATTENDANCE_QR_LENGTH + 1),
+    }).success,
+    false
+  );
 });
 
 test('write schemas reject malformed business values and accept employee form data', () => {
