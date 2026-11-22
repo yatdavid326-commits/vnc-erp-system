@@ -38,6 +38,7 @@ test('all data APIs reject requests without an authenticated session', async () 
     '/api/proveedores',
     '/api/reportes',
     '/api/modules/user',
+    '/api/admin/permissions',
     '/api/user/profile',
     '/api/auth/restore',
   ];
@@ -82,6 +83,16 @@ test('customers API rejects invalid bearer tokens', async () => {
   assert.ok(baseUrl, 'Set VNC_BASE_URL to the server under test');
 
   const response = await fetch(new URL('/api/clientes?limit=1', baseUrl), {
+    headers: { Authorization: 'Bearer invalid-token' },
+  });
+  assert.equal(response.status, 401);
+});
+
+test('admin permissions API rejects invalid bearer tokens', async () => {
+  const baseUrl = process.env.VNC_BASE_URL;
+  assert.ok(baseUrl, 'Set VNC_BASE_URL to the server under test');
+
+  const response = await fetch(new URL('/api/admin/permissions', baseUrl), {
     headers: { Authorization: 'Bearer invalid-token' },
   });
   assert.equal(response.status, 401);

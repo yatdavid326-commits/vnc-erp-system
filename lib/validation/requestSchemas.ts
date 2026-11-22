@@ -336,3 +336,25 @@ export const signInSchema = z
     password: z.string().min(1).max(1024),
   })
   .strict();
+
+export const modulePermissionSchema = z
+  .object({
+    user_id: uuid,
+    module_id: uuid,
+    can_view: z.boolean(),
+    can_create: z.boolean(),
+    can_edit: z.boolean(),
+    can_delete: z.boolean(),
+  })
+  .strict()
+  .refine(
+    (permissions) =>
+      permissions.can_view ||
+      (!permissions.can_create &&
+        !permissions.can_edit &&
+        !permissions.can_delete),
+    {
+      path: ['can_view'],
+      message: 'Los permisos de escritura requieren permiso de lectura.',
+    }
+  );

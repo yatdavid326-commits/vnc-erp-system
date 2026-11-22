@@ -12,9 +12,10 @@ import {
   Clock,
   Settings,
   ChevronDown,
+  ShieldCheck,
 } from 'lucide-react';
 import { useState } from 'react';
-import { useModuleStore } from '@/hooks';
+import { useAuthStore, useModuleStore } from '@/hooks';
 
 interface SidebarProps {
   collapsed?: boolean;
@@ -31,10 +32,12 @@ const moduleIcons: Record<string, React.ReactNode> = {
   reportes: <BarChart3 size={20} />,
   asistencia: <Clock size={20} />,
   empleados: <Users size={20} />,
+  permisos: <ShieldCheck size={20} />,
 };
 
 export default function Sidebar({ collapsed = false }: SidebarProps) {
   const { userModules } = useModuleStore();
+  const { user } = useAuthStore();
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(['main', 'operations', 'business', 'admin'])
   );
@@ -89,6 +92,7 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
         { name: 'empleados', moduleName: 'employees', display_name: 'Empleados', route: '/dashboard/empleados' },
         { name: 'asistencia', moduleName: 'attendance', display_name: 'Asistencia (QR+GPS)', route: '/dashboard/asistencia' },
         { name: 'reportes', moduleName: 'reports', display_name: 'Reportes', route: '/dashboard/reportes' },
+        { name: 'permisos', moduleName: 'permissions', display_name: 'Roles y Permisos', route: '/dashboard/permisos' },
       ],
     },
   };
@@ -108,9 +112,10 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 space-y-2 px-2">
         {Object.entries(sections).map(([key, section]) => {
-          const items = section.items.filter((item) =>
-            visibleModules.has(item.moduleName)
-          );
+          const items = section.items.filter((item) => {
+            if (item.name === 'permisos') return user?.role === 'admin';
+            return visibleModules.has(item.moduleName);
+          });
           if (items.length === 0) return null;
 
           return (

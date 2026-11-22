@@ -25,11 +25,28 @@ const permissionByMethod: Record<string, ApiPermission | undefined> = {
   DELETE: 'can_delete',
 };
 
+const adminApiPaths = new Set(['/api/admin/permissions']);
+
 export const selfServiceApiPaths = new Set([
   '/api/auth/restore',
   '/api/modules/user',
   '/api/user/profile',
 ]);
+
+export function isAdminApiPath(pathname: string): boolean {
+  return adminApiPaths.has(pathname);
+}
+
+export function canAccessAdminApi(
+  pathname: string,
+  profile: { role: string | null; is_active: boolean | null } | null
+): boolean {
+  return (
+    isAdminApiPath(pathname) &&
+    profile?.role === 'admin' &&
+    profile.is_active === true
+  );
+}
 
 export function getRequiredApiPermission(
   pathname: string,

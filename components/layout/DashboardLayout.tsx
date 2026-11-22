@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, Settings, User as UserIcon, Menu, X } from 'lucide-react';
 import { authService } from '@/lib/services/auth/authService';
@@ -21,31 +21,50 @@ export default function DashboardLayout({
   const { setModules, setUserModules } = useModuleStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const loadedUserId = useRef<string | null>(null);
 
   useEffect(() => {
     // Solo cargar datos del módulo, NO hacer check de sesión
     // (AuthProvider ya lo hace)
     if (!user || !user.id) {
+      loadedUserId.current = null;
       return;
     }
 
-    const loadModules = async () => {
-      try {
-        setLoading(true);
-        const modules = await modulesService.getAllModules();
-        setModules(modules);
+    let active = true;
+    const shouldShowLoading = loadedUserId.current !== user.id;
 
-        const userModules = await modulesService.getUserModulesWithDetails();
+    const loadModules = async () => {
+      let loaded = false;
+      try {
+        if (shouldShowLoading) setLoading(true);
+        const [modules, userModules, profile] = await Promise.all([
+          modulesService.getAllModules(),
+          modulesService.getUserModulesWithDetails(),
+          authService.getUserProfile(),
+        ]);
+        if (!active) return;
+        setModules(modules);
         setUserModules(userModules);
+        if (profile?.role && profile.role !== user.role) {
+          setUser({ ...user, role: profile.role });
+        }
+        loaded = true;
       } catch (error) {
-        console.error('Error loading modules:', error);
+        if (active) console.error('Error loading modules:', error);
       } finally {
-        setLoading(false);
+        if (active) {
+          if (loaded) loadedUserId.current = user.id;
+          setLoading(false);
+        }
       }
     };
 
-    loadModules();
-  }, [user, setModules, setUserModules, setLoading]);
+    void loadModules();
+    return () => {
+      active = false;
+    };
+  }, [user, setUser, setModules, setUserModules, setLoading]);
 
   const handleLogout = async () => {
     await authService.signOut();

@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { ACCESS_TOKEN_COOKIE } from '@/lib/auth/constants';
 import {
+  canAccessAdminApi,
   getRequiredApiPermission,
+  isAdminApiPath,
   selfServiceApiPaths,
 } from '@/lib/auth/apiPermissions';
 import { supabaseAdmin } from '@/lib/db/supabase';
@@ -60,7 +62,8 @@ export async function middleware(request: NextRequest) {
   }
 
   const requirement = getRequiredApiPermission(pathname, request.method);
-  if (!requirement) {
+  const isAdminApi = isAdminApiPath(pathname);
+  if (!requirement && !isAdminApi) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -74,7 +77,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: profile, error: profileError } = await supabaseAdmin
     .from('user_profiles')
-    .select('id, role')
+    .select('id, role, is_active')
     .eq('auth_id', user.id)
     .maybeSingle();
 
@@ -90,8 +93,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  if (profile.is_active !== true) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  if (isAdminApi && !canAccessAdminApi(pathname, profile)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   if (profile.role === 'admin') {
     return NextResponse.next();
+  }
+
+  if (isAdminApi || !requirement) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const { data: moduleAccess, error: accessError } = await supabaseAdmin
