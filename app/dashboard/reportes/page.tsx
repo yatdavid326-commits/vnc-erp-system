@@ -75,23 +75,6 @@ export default function ReportesPage() {
     }
   };
 
-  const exportarCSV = () => {
-    let csv = 'Tipo,Periodo,Ventas,Compras,Ingresos,Egresos,Clientes,Proveedores,Productos,Asistencias\n';
-    csv += reportes
-      .map(
-        (r) =>
-          `${r.tipo},${r.periodo},${r.total_ventas},${r.total_compras},${r.total_ingresos_caja},${r.total_egresos_caja},${r.total_clientes},${r.total_proveedores},${r.total_productos},${r.total_asistencias}`
-      )
-      .join('\n');
-
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `reporte-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-  };
-
   return (
       <div className="p-6">
         <h1 className="text-3xl font-bold mb-6">Reportes</h1>
@@ -195,12 +178,6 @@ export default function ReportesPage() {
                 className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg disabled:opacity-50"
               >
                 {exportandoPDF ? 'Generando PDF...' : '📄 Exportar PDF'}
-              </button>
-              <button
-                onClick={exportarCSV}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
-              >
-                📊 Exportar CSV
               </button>
             </div>
           </>
