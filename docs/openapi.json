@@ -1,0 +1,1542 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "VNC Systems ERP API",
+    "version": "1.0.0",
+    "description": "OpenAPI contract for the currently implemented ERP API routes. Request and response behavior is defined by the running application; database-record response fields may evolve with the schema."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Use the same origin as the ERP deployment."
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    },
+    {
+      "cookieAuth": []
+    }
+  ],
+  "tags": [
+    { "name": "Auth", "description": "Sign-in and browser session endpoints." },
+    { "name": "Modules", "description": "Module catalog and current-user assignments." },
+    { "name": "Admin", "description": "Administrative permission management." },
+    { "name": "Clients", "description": "Customers, credit, and credit transactions." },
+    { "name": "Inventory", "description": "Product catalog and manual stock movements." },
+    { "name": "Suppliers", "description": "Supplier records." },
+    { "name": "Purchases", "description": "Purchase orders." },
+    { "name": "Employees", "description": "Employee records." },
+    { "name": "Attendance", "description": "Attendance records and employee lookup." },
+    { "name": "Cash", "description": "Cash movements." },
+    { "name": "POS", "description": "Sales, POS catalog, and cash register." },
+    { "name": "Reports", "description": "Business summary report." }
+  ],
+  "paths": {
+    "/api/auth/signin": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Sign in with username or email",
+        "operationId": "signIn",
+        "security": [],
+        "requestBody": { "$ref": "#/components/requestBodies/SignIn" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/AuthSession" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/auth/session": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Set the browser access-token cookie",
+        "operationId": "setSessionCookie",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/auth/restore": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Restore the current session and profile",
+        "operationId": "restoreSession",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/auth/signout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Clear the browser access-token cookie",
+        "operationId": "signOut",
+        "security": [],
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkSuccess" }
+        }
+      }
+    },
+    "/api/modules/all": {
+      "get": {
+        "tags": ["Modules"],
+        "summary": "List modules",
+        "operationId": "listModules",
+        "security": [],
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkArray" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/modules/user": {
+      "get": {
+        "tags": ["Modules"],
+        "summary": "List modules assigned to the current user",
+        "operationId": "listCurrentUserModules",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkArray" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/user/profile": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get the current user's profile",
+        "operationId": "getCurrentUserProfile",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/admin/permissions": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "List active users, modules, and assignments",
+        "operationId": "listAdminPermissions",
+        "description": "Requires the active admin role.",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "put": {
+        "tags": ["Admin"],
+        "summary": "Set or remove a user's module permissions",
+        "operationId": "setAdminPermission",
+        "description": "Requires the active admin role. Setting all permissions to false removes the assignment.",
+        "requestBody": { "$ref": "#/components/requestBodies/ModulePermission" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/clientes": {
+      "get": {
+        "tags": ["Clients"],
+        "summary": "List and filter clients",
+        "operationId": "listClients",
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/Limit25" },
+          { "$ref": "#/components/parameters/Search" },
+          { "$ref": "#/components/parameters/ClientType" },
+          { "$ref": "#/components/parameters/ClientStatus" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/PaginatedArray" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "post": {
+        "tags": ["Clients"],
+        "summary": "Create a client",
+        "operationId": "createClient",
+        "requestBody": { "$ref": "#/components/requestBodies/ClientCreate" },
+        "responses": {
+          "201": { "$ref": "#/components/responses/CreatedObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/clientes/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "get": {
+        "tags": ["Clients"],
+        "summary": "Get a client",
+        "operationId": "getClient",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "put": {
+        "tags": ["Clients"],
+        "summary": "Update a client",
+        "operationId": "updateClient",
+        "requestBody": { "$ref": "#/components/requestBodies/ClientUpdate" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "delete": {
+        "tags": ["Clients"],
+        "summary": "Delete a client",
+        "operationId": "deleteClient",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkSuccess" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/clientes/{id}/credit": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "get": {
+        "tags": ["Clients"],
+        "summary": "Get a client's credit balance",
+        "operationId": "getClientCredit",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "post": {
+        "tags": ["Clients"],
+        "summary": "Check credit availability",
+        "operationId": "checkClientCredit",
+        "description": "Requires can_edit on the clients module.",
+        "requestBody": { "$ref": "#/components/requestBodies/CreditCheck" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/clientes/{id}/transactions": {
+      "parameters": [
+        { "$ref": "#/components/parameters/Id" },
+        { "$ref": "#/components/parameters/TransactionLimit" }
+      ],
+      "get": {
+        "tags": ["Clients"],
+        "summary": "List credit transactions",
+        "operationId": "listCreditTransactions",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkArray" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "post": {
+        "tags": ["Clients"],
+        "summary": "Add a credit transaction",
+        "operationId": "createCreditTransaction",
+        "requestBody": { "$ref": "#/components/requestBodies/CreditTransaction" },
+        "responses": {
+          "201": { "$ref": "#/components/responses/CreatedObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/inventario": {
+      "get": {
+        "tags": ["Inventory"],
+        "summary": "List and filter products",
+        "operationId": "listInventory",
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/Limit10" },
+          { "$ref": "#/components/parameters/Search" },
+          { "$ref": "#/components/parameters/Category" },
+          { "$ref": "#/components/parameters/ProductStatus" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/PaginatedArray" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "post": {
+        "tags": ["Inventory"],
+        "summary": "Create a product",
+        "operationId": "createProduct",
+        "requestBody": { "$ref": "#/components/requestBodies/ProductCreate" },
+        "responses": {
+          "201": { "$ref": "#/components/responses/CreatedObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/inventario/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "get": {
+        "tags": ["Inventory"],
+        "summary": "Get a product",
+        "operationId": "getProduct",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "put": {
+        "tags": ["Inventory"],
+        "summary": "Update a product",
+        "operationId": "updateProduct",
+        "requestBody": { "$ref": "#/components/requestBodies/ProductUpdate" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "delete": {
+        "tags": ["Inventory"],
+        "summary": "Delete a product",
+        "operationId": "deleteProduct",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkSuccess" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/inventario/{id}/movimientos": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "post": {
+        "tags": ["Inventory"],
+        "summary": "Record a manual stock movement",
+        "operationId": "createInventoryMovement",
+        "description": "Requires can_edit on the inventory module. A quantity greater than zero is required for entry and exit movements; adjustment may use zero.",
+        "requestBody": { "$ref": "#/components/requestBodies/InventoryMovement" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/proveedores": {
+      "get": {
+        "tags": ["Suppliers"],
+        "summary": "List and filter suppliers",
+        "operationId": "listSuppliers",
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/Limit25" },
+          { "$ref": "#/components/parameters/Search" },
+          { "$ref": "#/components/parameters/Country" },
+          { "$ref": "#/components/parameters/SupplierStatus" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/PaginatedArray" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "post": {
+        "tags": ["Suppliers"],
+        "summary": "Create a supplier",
+        "operationId": "createSupplier",
+        "requestBody": { "$ref": "#/components/requestBodies/SupplierCreate" },
+        "responses": {
+          "201": { "$ref": "#/components/responses/CreatedObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/proveedores/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "get": {
+        "tags": ["Suppliers"],
+        "summary": "Get a supplier",
+        "operationId": "getSupplier",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "put": {
+        "tags": ["Suppliers"],
+        "summary": "Update a supplier",
+        "operationId": "updateSupplier",
+        "requestBody": { "$ref": "#/components/requestBodies/SupplierUpdate" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "delete": {
+        "tags": ["Suppliers"],
+        "summary": "Delete a supplier",
+        "operationId": "deleteSupplier",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkSuccess" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/compras": {
+      "get": {
+        "tags": ["Purchases"],
+        "summary": "List and filter purchase orders",
+        "operationId": "listPurchaseOrders",
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/Limit25" },
+          { "$ref": "#/components/parameters/Search" },
+          { "$ref": "#/components/parameters/PurchaseStatus" },
+          { "$ref": "#/components/parameters/SupplierId" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/PaginatedArray" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "post": {
+        "tags": ["Purchases"],
+        "summary": "Create a purchase order",
+        "operationId": "createPurchaseOrder",
+        "requestBody": { "$ref": "#/components/requestBodies/PurchaseCreate" },
+        "responses": {
+          "201": { "$ref": "#/components/responses/CreatedObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/compras/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "get": {
+        "tags": ["Purchases"],
+        "summary": "Get a purchase order",
+        "operationId": "getPurchaseOrder",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "put": {
+        "tags": ["Purchases"],
+        "summary": "Update a purchase order",
+        "operationId": "updatePurchaseOrder",
+        "requestBody": { "$ref": "#/components/requestBodies/PurchaseUpdate" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "delete": {
+        "tags": ["Purchases"],
+        "summary": "Delete a purchase order",
+        "operationId": "deletePurchaseOrder",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkSuccess" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/empleados": {
+      "get": {
+        "tags": ["Employees"],
+        "summary": "List and filter employees",
+        "operationId": "listEmployees",
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/Limit25" },
+          { "$ref": "#/components/parameters/Search" },
+          { "$ref": "#/components/parameters/EmployeeStatus" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/PaginatedArray" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "post": {
+        "tags": ["Employees"],
+        "summary": "Create an employee",
+        "operationId": "createEmployee",
+        "requestBody": { "$ref": "#/components/requestBodies/EmployeeCreate" },
+        "responses": {
+          "201": { "$ref": "#/components/responses/CreatedObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/empleados/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "get": {
+        "tags": ["Employees"],
+        "summary": "Get an employee",
+        "operationId": "getEmployee",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "put": {
+        "tags": ["Employees"],
+        "summary": "Update an employee",
+        "operationId": "updateEmployee",
+        "requestBody": { "$ref": "#/components/requestBodies/EmployeeUpdate" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "delete": {
+        "tags": ["Employees"],
+        "summary": "Delete an employee",
+        "operationId": "deleteEmployee",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkSuccess" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/asistencia": {
+      "get": {
+        "tags": ["Attendance"],
+        "summary": "List and filter attendance",
+        "operationId": "listAttendance",
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/Limit25" },
+          { "$ref": "#/components/parameters/Search" },
+          { "$ref": "#/components/parameters/EmployeeId" },
+          { "$ref": "#/components/parameters/DateFrom" },
+          { "$ref": "#/components/parameters/DateTo" },
+          { "$ref": "#/components/parameters/AttendanceStatus" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/PaginatedArray" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "post": {
+        "tags": ["Attendance"],
+        "summary": "Create an attendance record",
+        "operationId": "createAttendance",
+        "requestBody": { "$ref": "#/components/requestBodies/AttendanceCreate" },
+        "responses": {
+          "201": { "$ref": "#/components/responses/CreatedObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/asistencia/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "put": {
+        "tags": ["Attendance"],
+        "summary": "Update an attendance record",
+        "operationId": "updateAttendance",
+        "requestBody": { "$ref": "#/components/requestBodies/AttendanceUpdate" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "delete": {
+        "tags": ["Attendance"],
+        "summary": "Delete an attendance record",
+        "operationId": "deleteAttendance",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkSuccess" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/asistencia/empleados": {
+      "get": {
+        "tags": ["Attendance"],
+        "summary": "List employees for attendance workflows",
+        "operationId": "listAttendanceEmployees",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkArray" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/caja": {
+      "get": {
+        "tags": ["Cash"],
+        "summary": "List current register movements and totals",
+        "operationId": "listCashMovements",
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/Limit25" },
+          { "$ref": "#/components/parameters/Search" },
+          { "$ref": "#/components/parameters/CashMovementType" },
+          { "$ref": "#/components/parameters/DateFrom" },
+          { "$ref": "#/components/parameters/DateTo" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/CashMovements" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "post": {
+        "tags": ["Cash"],
+        "summary": "Create a movement in the current register",
+        "operationId": "createCashMovement",
+        "requestBody": { "$ref": "#/components/requestBodies/CashMovementCreate" },
+        "responses": {
+          "201": { "$ref": "#/components/responses/CreatedObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/caja/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "put": {
+        "tags": ["Cash"],
+        "summary": "Update a cash movement",
+        "operationId": "updateCashMovement",
+        "requestBody": { "$ref": "#/components/requestBodies/CashMovementUpdate" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "delete": {
+        "tags": ["Cash"],
+        "summary": "Delete a cash movement",
+        "operationId": "deleteCashMovement",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkSuccess" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/pos": {
+      "get": {
+        "tags": ["POS"],
+        "summary": "List sales",
+        "operationId": "listSales",
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/Limit25" },
+          { "$ref": "#/components/parameters/Search" },
+          { "$ref": "#/components/parameters/SaleStatus" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/CountedArray" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "post": {
+        "tags": ["POS"],
+        "summary": "Create a sale",
+        "operationId": "createSale",
+        "requestBody": { "$ref": "#/components/requestBodies/Checkout" },
+        "responses": {
+          "201": { "$ref": "#/components/responses/CreatedObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/pos/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "put": {
+        "tags": ["POS"],
+        "summary": "Update a sale",
+        "operationId": "updateSale",
+        "requestBody": { "$ref": "#/components/requestBodies/PosOrderUpdate" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "delete": {
+        "tags": ["POS"],
+        "summary": "Delete a sale",
+        "operationId": "deleteSale",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkSuccess" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/pos/catalog": {
+      "get": {
+        "tags": ["POS"],
+        "summary": "Search the active POS product catalog",
+        "operationId": "getPosCatalog",
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/Limit100" },
+          { "$ref": "#/components/parameters/Search" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/CountedArray" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/pos/register": {
+      "get": {
+        "tags": ["POS"],
+        "summary": "Get the current user's open register",
+        "operationId": "getOpenRegister",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "post": {
+        "tags": ["POS"],
+        "summary": "Open a register",
+        "operationId": "openRegister",
+        "requestBody": { "$ref": "#/components/requestBodies/RegisterOpening" },
+        "responses": {
+          "201": { "$ref": "#/components/responses/CreatedObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "patch": {
+        "tags": ["POS"],
+        "summary": "Close the current register",
+        "operationId": "closeRegister",
+        "requestBody": { "$ref": "#/components/requestBodies/RegisterClosing" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/reportes": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Get the business summary report",
+        "operationId": "getReport",
+        "parameters": [
+          { "$ref": "#/components/parameters/ReportType" },
+          { "$ref": "#/components/parameters/ReportStart" },
+          { "$ref": "#/components/parameters/ReportEnd" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Supabase access token"
+      },
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "sb-access-token"
+      }
+    },
+    "parameters": {
+      "Id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" },
+        "description": "Identifier of the target record."
+      },
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "integer", "minimum": 1, "default": 1 }
+      },
+      "Limit25": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 25 }
+      },
+      "Limit10": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 10 }
+      },
+      "Limit100": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 100 }
+      },
+      "Search": {
+        "name": "search",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      "ClientType": {
+        "name": "type",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "string", "enum": ["retail", "wholesale", "business"] }
+      },
+      "ClientStatus": {
+        "name": "status",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "string", "enum": ["activo", "inactivo", "suspendido"] }
+      },
+      "ProductStatus": {
+        "name": "status",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "string", "enum": ["activo", "inactivo"] }
+      },
+      "Category": {
+        "name": "category",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      "Country": {
+        "name": "country",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      "SupplierStatus": {
+        "name": "status",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "string", "enum": ["activo", "inactivo"] }
+      },
+      "PurchaseStatus": {
+        "name": "status",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "string", "enum": ["pending", "partial", "received", "cancelled"] }
+      },
+      "SupplierId": {
+        "name": "proveedor_id",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "string", "format": "uuid" }
+      },
+      "EmployeeStatus": {
+        "name": "status",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "string", "enum": ["activo", "inactivo"] }
+      },
+      "EmployeeId": {
+        "name": "empleado_id",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "string", "format": "uuid" }
+      },
+      "DateFrom": {
+        "name": "desde",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "string", "format": "date" }
+      },
+      "DateTo": {
+        "name": "hasta",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "string", "format": "date" }
+      },
+      "AttendanceStatus": {
+        "name": "estado",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "string", "enum": ["completa", "pendiente"] }
+      },
+      "CashMovementType": {
+        "name": "tipo",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "string", "enum": ["ingreso", "egreso"] }
+      },
+      "SaleStatus": {
+        "name": "status",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      "TransactionLimit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "integer", "default": 100 }
+      },
+      "ReportType": {
+        "name": "tipo",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "string", "default": "resumen" }
+      },
+      "ReportStart": {
+        "name": "inicio",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      "ReportEnd": {
+        "name": "fin",
+        "in": "query",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    },
+    "headers": {
+      "TotalCount": {
+        "description": "Total number of matching records.",
+        "schema": { "type": "string" }
+      },
+      "Page": {
+        "description": "Current 1-based page.",
+        "schema": { "type": "string" }
+      },
+      "Limit": {
+        "description": "Maximum records requested for the page.",
+        "schema": { "type": "string" }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": { "type": "string" },
+          "details": { "type": "string" }
+        },
+        "additionalProperties": true
+      },
+      "Record": {
+        "type": "object",
+        "description": "A database record returned by the route. Its fields depend on the underlying table and may evolve with the schema.",
+        "additionalProperties": true
+      },
+      "RecordArray": {
+        "type": "array",
+        "items": { "$ref": "#/components/schemas/Record" }
+      },
+      "Success": {
+        "type": "object",
+        "required": ["success"],
+        "properties": {
+          "success": { "type": "boolean" },
+          "id": { "type": "string" }
+        },
+        "additionalProperties": true
+      },
+      "AuthSession": {
+        "type": "object",
+        "required": ["user", "session"],
+        "properties": {
+          "user": { "type": "object", "additionalProperties": true },
+          "session": { "type": "object", "additionalProperties": true }
+        }
+      },
+      "ClientCreate": {
+        "type": "object",
+        "required": ["nombre", "email"],
+        "properties": {
+          "nombre": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "email": { "type": "string", "format": "email", "maxLength": 254 },
+          "telefono": { "type": "string", "maxLength": 50 },
+          "direccion": { "type": "string", "maxLength": 500 },
+          "ciudad": { "type": "string", "maxLength": 120 },
+          "estado": { "type": "string", "maxLength": 120 },
+          "codigo_postal": { "type": "string", "maxLength": 24 },
+          "tipo": { "type": "string", "enum": ["retail", "wholesale", "business"], "default": "retail" },
+          "limite_credito": { "type": "number", "minimum": 0, "default": 0 },
+          "saldo_actual": { "type": "number", "default": 0 },
+          "estado_cliente": { "type": "string", "enum": ["activo", "inactivo", "suspendido"], "default": "activo" }
+        },
+        "additionalProperties": false
+      },
+      "ClientUpdate": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "nombre": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "email": { "type": "string", "format": "email", "maxLength": 254 },
+          "telefono": { "type": "string", "maxLength": 50 },
+          "direccion": { "type": "string", "maxLength": 500 },
+          "ciudad": { "type": "string", "maxLength": 120 },
+          "estado": { "type": "string", "maxLength": 120 },
+          "codigo_postal": { "type": "string", "maxLength": 24 },
+          "tipo": { "type": "string", "enum": ["retail", "wholesale", "business"] },
+          "limite_credito": { "type": "number", "minimum": 0 },
+          "saldo_actual": { "type": "number" },
+          "estado_cliente": { "type": "string", "enum": ["activo", "inactivo", "suspendido"] }
+        },
+        "additionalProperties": false
+      },
+      "SupplierCreate": {
+        "type": "object",
+        "required": ["nombre", "email"],
+        "properties": {
+          "nombre": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "persona_contacto": { "type": "string", "maxLength": 200 },
+          "email": { "type": "string", "format": "email", "maxLength": 254 },
+          "teléfono": { "type": "string", "maxLength": 50 },
+          "dirección": { "type": "string", "maxLength": 500 },
+          "ciudad": { "type": "string", "maxLength": 120 },
+          "estado": { "type": "string", "maxLength": 120 },
+          "país": { "type": "string", "maxLength": 120, "default": "Guatemala" },
+          "términos_pago": { "type": "string", "maxLength": 200 },
+          "activo": { "type": "boolean", "default": true }
+        },
+        "additionalProperties": false
+      },
+      "SupplierUpdate": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "nombre": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "persona_contacto": { "type": "string", "maxLength": 200 },
+          "email": { "type": "string", "format": "email", "maxLength": 254 },
+          "teléfono": { "type": "string", "maxLength": 50 },
+          "dirección": { "type": "string", "maxLength": 500 },
+          "ciudad": { "type": "string", "maxLength": 120 },
+          "estado": { "type": "string", "maxLength": 120 },
+          "país": { "type": "string", "maxLength": 120 },
+          "términos_pago": { "type": "string", "maxLength": 200 },
+          "activo": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      },
+      "EmployeeCreate": {
+        "type": "object",
+        "required": ["nombre", "email"],
+        "properties": {
+          "nombre": { "type": "string", "minLength": 1, "maxLength": 150 },
+          "apellido": { "type": "string", "maxLength": 150 },
+          "email": { "type": "string", "format": "email", "maxLength": 254 },
+          "telefono": { "type": "string", "maxLength": 50 },
+          "teléfono": { "type": "string", "maxLength": 50 },
+          "cargo": { "type": "string", "maxLength": 120 },
+          "puesto": { "type": "string", "maxLength": 120 },
+          "departamento": { "type": "string", "maxLength": 120 },
+          "fecha_ingreso": { "type": "string", "format": "date" },
+          "salario": { "type": "number", "minimum": 0 },
+          "estado": { "oneOf": [{ "type": "boolean" }, { "type": "string", "enum": ["activo", "inactivo"] }] }
+        },
+        "additionalProperties": false
+      },
+      "EmployeeUpdate": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "nombre": { "type": "string", "minLength": 1, "maxLength": 150 },
+          "apellido": { "type": "string", "maxLength": 150 },
+          "email": { "type": "string", "format": "email", "maxLength": 254 },
+          "telefono": { "type": "string", "maxLength": 50 },
+          "teléfono": { "type": "string", "maxLength": 50 },
+          "cargo": { "type": "string", "maxLength": 120 },
+          "puesto": { "type": "string", "maxLength": 120 },
+          "departamento": { "type": "string", "maxLength": 120 },
+          "fecha_ingreso": { "type": "string", "format": "date" },
+          "salario": { "type": "number", "minimum": 0 },
+          "estado": { "type": "string", "enum": ["activo", "inactivo"] }
+        },
+        "additionalProperties": false
+      },
+      "PurchaseCreate": {
+        "type": "object",
+        "required": ["numero_po", "proveedor_id", "fecha_orden"],
+        "properties": {
+          "numero_po": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "proveedor_id": { "type": "string", "format": "uuid" },
+          "fecha_orden": { "type": "string", "format": "date" },
+          "fecha_entrega_esperada": { "type": "string", "format": "date" },
+          "estado": { "type": "string", "enum": ["pending", "received", "partial", "cancelled", "pendiente", "recibido", "cancelado"] },
+          "monto_total": { "type": "number", "minimum": 0 }
+        },
+        "additionalProperties": false
+      },
+      "PurchaseUpdate": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "numero_po": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "proveedor_id": { "type": "string", "format": "uuid" },
+          "fecha_orden": { "type": "string", "format": "date" },
+          "fecha_entrega_esperada": { "type": "string", "format": "date" },
+          "estado": { "type": "string", "enum": ["pending", "received", "partial", "cancelled", "pendiente", "recibido", "cancelado"] },
+          "monto_total": { "type": "number", "minimum": 0 }
+        },
+        "additionalProperties": false
+      },
+      "ProductCreate": {
+        "type": "object",
+        "required": ["nombre", "sku", "categoria", "precio_venta"],
+        "properties": {
+          "nombre": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "sku": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "descripcion": { "type": "string", "maxLength": 2000 },
+          "categoria": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "costo_unitario": { "type": "number", "minimum": 0, "default": 0 },
+          "precio_venta": { "type": "number", "exclusiveMinimum": 0 },
+          "stock_minimo": { "type": "integer", "minimum": 0, "default": 0 }
+        },
+        "additionalProperties": false
+      },
+      "ProductUpdate": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "nombre": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "sku": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "descripcion": { "type": "string", "maxLength": 2000 },
+          "categoria": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "costo_unitario": { "type": "number", "minimum": 0 },
+          "precio_venta": { "type": "number", "exclusiveMinimum": 0 },
+          "stock_minimo": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": false
+      },
+      "InventoryMovement": {
+        "type": "object",
+        "required": ["id", "type", "quantity", "notes"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "description": "Client-generated idempotency identifier." },
+          "type": { "type": "string", "enum": ["entry", "exit", "adjustment"] },
+          "quantity": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+          "notes": { "type": "string", "minLength": 1, "maxLength": 500 }
+        },
+        "additionalProperties": false
+      },
+      "AttendanceCreate": {
+        "type": "object",
+        "required": ["empleado_id", "fecha", "hora_entrada"],
+        "properties": {
+          "empleado_id": { "type": "string", "format": "uuid" },
+          "fecha": { "type": "string", "format": "date" },
+          "hora_entrada": { "type": "string", "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9])?$" },
+          "hora_salida": { "type": ["string", "null"], "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9])?$" },
+          "latitud_entrada": { "type": ["number", "null"], "minimum": -90, "maximum": 90 },
+          "longitud_entrada": { "type": ["number", "null"], "minimum": -180, "maximum": 180 },
+          "latitud_salida": { "type": ["number", "null"], "minimum": -90, "maximum": 90 },
+          "longitud_salida": { "type": ["number", "null"], "minimum": -180, "maximum": 180 },
+          "qr_code": { "type": "string", "maxLength": 200 },
+          "observaciones": { "type": "string", "maxLength": 2000 }
+        },
+        "additionalProperties": false,
+        "description": "Latitude and longitude fields must be provided as pairs."
+      },
+      "AttendanceUpdate": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "empleado_id": { "type": "string", "format": "uuid" },
+          "fecha": { "type": "string", "format": "date" },
+          "hora_entrada": { "type": "string", "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9])?$" },
+          "hora_salida": { "type": ["string", "null"], "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9])?$" },
+          "latitud_entrada": { "type": ["number", "null"], "minimum": -90, "maximum": 90 },
+          "longitud_entrada": { "type": ["number", "null"], "minimum": -180, "maximum": 180 },
+          "latitud_salida": { "type": ["number", "null"], "minimum": -90, "maximum": 90 },
+          "longitud_salida": { "type": ["number", "null"], "minimum": -180, "maximum": 180 },
+          "qr_code": { "type": "string", "maxLength": 200 },
+          "observaciones": { "type": "string", "maxLength": 2000 }
+        },
+        "additionalProperties": false,
+        "description": "At least one field is required. Latitude and longitude fields must be provided as pairs."
+      },
+      "CreditCheck": {
+        "type": "object",
+        "required": ["amount"],
+        "properties": { "amount": { "type": "number", "minimum": 0 } },
+        "additionalProperties": false
+      },
+      "CreditTransaction": {
+        "type": "object",
+        "required": ["monto", "tipo"],
+        "properties": {
+          "monto": { "type": "number", "exclusiveMinimum": 0 },
+          "tipo": { "type": "string", "enum": ["compra", "pago", "ajuste"] },
+          "descripcion": { "type": "string", "maxLength": 1000 },
+          "fecha": {
+            "oneOf": [
+              { "type": "string", "format": "date" },
+              { "type": "string", "format": "date-time" }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "CashMovementCreate": {
+        "type": "object",
+        "required": ["tipo", "concepto", "monto", "fecha"],
+        "properties": {
+          "tipo": { "type": "string", "enum": ["ingreso", "egreso"] },
+          "concepto": { "type": "string", "minLength": 1, "maxLength": 1000 },
+          "monto": { "type": "number", "exclusiveMinimum": 0 },
+          "referencia": { "type": "string", "maxLength": 200 },
+          "fecha": { "type": "string", "format": "date" }
+        },
+        "additionalProperties": false
+      },
+      "CashMovementUpdate": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "cash_register_id": { "type": "string", "format": "uuid" },
+          "movement_type": { "type": "string", "enum": ["ingreso", "egreso"] },
+          "amount": { "type": "number", "exclusiveMinimum": 0 },
+          "reference_id": { "type": ["string", "null"], "format": "uuid" },
+          "description": { "type": "string", "maxLength": 1000 }
+        },
+        "additionalProperties": false
+      },
+      "ModulePermission": {
+        "type": "object",
+        "required": ["user_id", "module_id", "can_view", "can_create", "can_edit", "can_delete"],
+        "properties": {
+          "user_id": { "type": "string", "format": "uuid" },
+          "module_id": { "type": "string", "format": "uuid" },
+          "can_view": { "type": "boolean" },
+          "can_create": { "type": "boolean" },
+          "can_edit": { "type": "boolean" },
+          "can_delete": { "type": "boolean" }
+        },
+        "additionalProperties": false,
+        "description": "Write permissions require can_view to be true."
+      },
+      "Checkout": {
+        "type": "object",
+        "required": ["payment_method", "items"],
+        "properties": {
+          "customer_id": { "type": ["string", "null"], "format": "uuid", "default": null },
+          "payment_method": { "type": "string", "enum": ["efectivo", "tarjeta", "cheque"] },
+          "amount_paid": { "type": "number", "minimum": 0, "default": 0 },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["inventory_id", "quantity"],
+              "properties": {
+                "inventory_id": { "type": "string", "format": "uuid" },
+                "quantity": { "type": "integer", "minimum": 1 }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "PosOrderUpdate": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "status": { "type": "string", "enum": ["pending", "completed", "cancelled"] },
+          "notes": { "type": "string", "maxLength": 2000 },
+          "payment_method": { "type": "string", "enum": ["cash", "card", "transfer", "credit"] },
+          "customer_id": { "type": ["string", "null"], "format": "uuid" }
+        },
+        "additionalProperties": false
+      },
+      "RegisterOpening": {
+        "type": "object",
+        "required": ["opening_balance"],
+        "properties": { "opening_balance": { "type": "number", "minimum": 0 } },
+        "additionalProperties": false
+      },
+      "RegisterClosing": {
+        "type": "object",
+        "required": ["closing_balance"],
+        "properties": { "closing_balance": { "type": "number", "minimum": 0 } },
+        "additionalProperties": false
+      }
+    },
+    "requestBodies": {
+      "SignIn": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": ["username", "password"],
+              "properties": {
+                "username": { "type": "string", "minLength": 1, "maxLength": 254 },
+                "password": { "type": "string", "minLength": 1, "maxLength": 1024 }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "ClientCreate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ClientCreate" } } } },
+      "ClientUpdate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ClientUpdate" } } } },
+      "SupplierCreate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SupplierCreate" } } } },
+      "SupplierUpdate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SupplierUpdate" } } } },
+      "EmployeeCreate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmployeeCreate" } } } },
+      "EmployeeUpdate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmployeeUpdate" } } } },
+      "PurchaseCreate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PurchaseCreate" } } } },
+      "PurchaseUpdate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PurchaseUpdate" } } } },
+      "ProductCreate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProductCreate" } } } },
+      "ProductUpdate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProductUpdate" } } } },
+      "InventoryMovement": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InventoryMovement" } } } },
+      "AttendanceCreate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AttendanceCreate" } } } },
+      "AttendanceUpdate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AttendanceUpdate" } } } },
+      "CreditCheck": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreditCheck" } } } },
+      "CreditTransaction": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreditTransaction" } } } },
+      "CashMovementCreate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CashMovementCreate" } } } },
+      "CashMovementUpdate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CashMovementUpdate" } } } },
+      "ModulePermission": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ModulePermission" } } } },
+      "Checkout": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Checkout" } } } },
+      "PosOrderUpdate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PosOrderUpdate" } } } },
+      "RegisterOpening": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RegisterOpening" } } } },
+      "RegisterClosing": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RegisterClosing" } } } }
+    },
+    "responses": {
+      "OkObject": {
+        "description": "Successful response with a JSON object.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Record" } } }
+      },
+      "OkArray": {
+        "description": "Successful response with a JSON array.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RecordArray" } } }
+      },
+      "PaginatedArray": {
+        "description": "Paginated JSON array. The cash movement route instead returns a totals envelope.",
+        "headers": {
+          "X-Total-Count": { "$ref": "#/components/headers/TotalCount" },
+          "X-Page": { "$ref": "#/components/headers/Page" },
+          "X-Limit": { "$ref": "#/components/headers/Limit" }
+        },
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RecordArray" } } }
+      },
+      "CountedArray": {
+        "description": "Successful paginated JSON array with total count.",
+        "headers": {
+          "X-Total-Count": { "$ref": "#/components/headers/TotalCount" }
+        },
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RecordArray" } } }
+      },
+      "CreatedObject": {
+        "description": "Resource created.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Record" } } }
+      },
+      "OkSuccess": {
+        "description": "Operation completed.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Success" } } }
+      },
+      "AuthSession": {
+        "description": "Authenticated user and Supabase session. Also sets the HttpOnly access-token cookie.",
+        "headers": {
+          "Set-Cookie": {
+            "description": "HttpOnly sb-access-token cookie with SameSite=Lax.",
+            "schema": { "type": "string" }
+          }
+        },
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthSession" } } }
+      },
+      "CashMovements": {
+        "description": "Current-register movements and totals.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": ["data", "total", "incomeTotal", "expenseTotal"],
+              "properties": {
+                "data": { "$ref": "#/components/schemas/RecordArray" },
+                "total": { "type": "integer" },
+                "incomeTotal": { "type": "number" },
+                "expenseTotal": { "type": "number" }
+              }
+            }
+          }
+        }
+      },
+      "BadRequest": {
+        "description": "Invalid request or validation failure.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid authentication.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Forbidden": {
+        "description": "The profile is inactive or lacks the required permission.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "NotFound": {
+        "description": "The requested record was not found.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Conflict": {
+        "description": "The operation conflicts with current business state.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "ServerError": {
+        "description": "Unexpected server or service configuration error.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      }
+    }
+  }
+}

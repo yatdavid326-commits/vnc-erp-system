@@ -38,6 +38,12 @@ npm run test:integration
 
 `VNC_TEST_AUTH_TOKEN` es opcional; habilita el caso de integración con una sesión autenticada.
 
+## 📖 Documentación de API
+
+La referencia de endpoints y autenticación está en [docs/API.md](./docs/API.md).
+El contrato OpenAPI 3.1 se encuentra en [docs/openapi.json](./docs/openapi.json)
+y se puede importar en Swagger UI u otro visor compatible.
+
 ## 🏗️ Stack Tecnológico
 
 - **Frontend:** Next.js 16.4 + React 19 + TypeScript
