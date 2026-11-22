@@ -13,6 +13,13 @@ test('notification preferences are authenticated self-service API routes', () =>
   );
 });
 
+test('sending a report by email requires report view permission', () => {
+  assert.deepEqual(
+    getRequiredApiPermission('/api/reportes/email', 'POST'),
+    { moduleName: 'reports', permission: 'can_view' }
+  );
+});
+
 test('manual inventory movements require edit permission', () => {
   assert.deepEqual(
     getRequiredApiPermission('/api/inventario/550e8400-e29b-41d4-a716-446655440000/movimientos', 'POST'),

@@ -931,6 +931,46 @@
         }
       }
     },
+    "/api/reportes/email": {
+      "post": {
+        "tags": ["Reports"],
+        "summary": "Email the current report PDF to the authenticated user",
+        "description": "Requires can_view permission for Reports. The recipient is the authenticated account email and cannot be supplied in the request.",
+        "operationId": "emailCurrentReport",
+        "requestBody": { "$ref": "#/components/requestBodies/ReportEmail" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkSuccess" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "422": {
+            "description": "The account has no valid email address.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/ServerError" },
+          "502": {
+            "description": "SendGrid rejected the report.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "503": {
+            "description": "SendGrid is not configured or is temporarily unavailable.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/reportes": {
       "get": {
         "tags": ["Reports"],
@@ -1202,6 +1242,31 @@
           "skipped": { "type": "integer", "minimum": 0 },
           "retried": { "type": "integer", "minimum": 0 },
           "failed": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": false
+      },
+      "ReportEmail": {
+        "type": "object",
+        "required": ["report"],
+        "properties": {
+          "report": { "$ref": "#/components/schemas/ReportEmailSummary" }
+        },
+        "additionalProperties": false
+      },
+      "ReportEmailSummary": {
+        "type": "object",
+        "required": ["tipo", "periodo", "total_ventas", "total_compras", "total_ingresos_caja", "total_egresos_caja", "total_clientes", "total_proveedores", "total_productos", "total_asistencias"],
+        "properties": {
+          "tipo": { "type": "string", "enum": ["resumen", "ventas", "compras", "inventario", "asistencia"] },
+          "periodo": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2} a \\d{4}-\\d{2}-\\d{2}$" },
+          "total_ventas": { "type": "number" },
+          "total_compras": { "type": "number" },
+          "total_ingresos_caja": { "type": "number" },
+          "total_egresos_caja": { "type": "number" },
+          "total_clientes": { "type": "integer", "minimum": 0 },
+          "total_proveedores": { "type": "integer", "minimum": 0 },
+          "total_productos": { "type": "integer", "minimum": 0 },
+          "total_asistencias": { "type": "integer", "minimum": 0 }
         },
         "additionalProperties": false
       },
@@ -1537,6 +1602,7 @@
         }
       },
       "NotificationPreferences": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NotificationPreferencesUpdate" } } } },
+      "ReportEmail": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReportEmail" } } } },
       "ClientCreate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ClientCreate" } } } },
       "ClientUpdate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ClientUpdate" } } } },
       "SupplierCreate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SupplierCreate" } } } },

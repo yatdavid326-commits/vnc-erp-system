@@ -12,9 +12,14 @@ export class AuthenticatedProfileError extends Error {
   }
 }
 
-export async function getAuthenticatedProfileId(
+export interface AuthenticatedProfileIdentity {
+  id: string;
+  email: string | null;
+}
+
+export async function getAuthenticatedProfileIdentity(
   request: NextRequest
-): Promise<string> {
+): Promise<AuthenticatedProfileIdentity> {
   if (!supabaseAdmin) {
     throw new AuthenticatedProfileError('Server configuration error', 500);
   }
@@ -48,5 +53,15 @@ export async function getAuthenticatedProfileId(
     throw new AuthenticatedProfileError('Active user profile not found', 403);
   }
 
+  return {
+    id: profile.id,
+    email: typeof user.email === 'string' ? user.email : null,
+  };
+}
+
+export async function getAuthenticatedProfileId(
+  request: NextRequest
+): Promise<string> {
+  const profile = await getAuthenticatedProfileIdentity(request);
   return profile.id;
 }

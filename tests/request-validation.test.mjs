@@ -13,6 +13,7 @@ import {
   notificationPreferencesSchema,
   purchaseCreateSchema,
   productCreateSchema,
+  reportEmailSchema,
   signInSchema,
   supplierCreateSchema,
 } from '../lib/validation/requestSchemas.ts';
@@ -223,6 +224,36 @@ test('notification preferences require an E.164 number for each explicit opt-in'
       phone_e164: '555-0123',
       sms_opt_in: true,
       whatsapp_opt_in: false,
+    }).success,
+    false
+  );
+});
+
+test('report email accepts a valid current report but not arbitrary recipients or periods', () => {
+  const report = {
+    tipo: 'resumen',
+    periodo: '2026-11-01 a 2026-11-22',
+    total_ventas: 125.5,
+    total_compras: 20,
+    total_ingresos_caja: 12,
+    total_egresos_caja: 4,
+    total_clientes: 3,
+    total_proveedores: 2,
+    total_productos: 5,
+    total_asistencias: 8,
+  };
+
+  assert.equal(reportEmailSchema.safeParse({ report }).success, true);
+  assert.equal(
+    reportEmailSchema.safeParse({
+      report: { ...report, periodo: '2026-11-22 a 2026-11-01' },
+    }).success,
+    false
+  );
+  assert.equal(
+    reportEmailSchema.safeParse({
+      report,
+      to: 'someone@example.com',
     }).success,
     false
   );

@@ -27,6 +27,8 @@ Use the same origin as the ERP. For local development, start the app with
   `POST /api/clientes/{id}/credit` and
   `POST /api/inventario/{id}/movimientos` require `can_edit`.
 - `/api/admin/permissions` additionally requires the active `admin` role.
+- `POST /api/reportes/email` requires `can_view` permission for the Reports
+  module and sends only to the authenticated account email.
 - `GET` and `PUT /api/notifications/preferences` accept an authenticated user
   and manage only that user's external notification consent.
 - `GET /api/cron/notifications` requires `Authorization: Bearer <CRON_SECRET>`;
@@ -65,3 +67,12 @@ active administrators).
 The cron route processes queued low-stock notifications in batches. Deployment
 configuration and Twilio setup are described in
 [`LOW_STOCK_NOTIFICATIONS.md`](./LOW_STOCK_NOTIFICATIONS.md).
+
+## Email reports
+
+`POST /api/reportes/email` emails the currently displayed report as a PDF to
+the authenticated user's account email. The request cannot choose a recipient,
+and report data must pass schema validation. Configure the SendGrid sender
+server-side with `SENDGRID_API_KEY` and a verified `SENDGRID_FROM_EMAIL`;
+optionally set `SENDGRID_FROM_NAME`. Until these values are configured, the
+endpoint responds with `503`. Do not share or commit provider credentials.

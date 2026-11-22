@@ -381,3 +381,32 @@ export const notificationPreferencesSchema = z
       });
     }
   });
+
+const reportSummaryEmailSchema = z
+  .object({
+    tipo: z.enum(['resumen', 'ventas', 'compras', 'inventario', 'asistencia']),
+    periodo: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2} a \d{4}-\d{2}-\d{2}$/)
+      .refine((value) => {
+        const [start, end] = value.split(' a ');
+        return (
+          dateOnly.safeParse(start).success &&
+          dateOnly.safeParse(end).success &&
+          start <= end
+        );
+      }, 'El período debe contener fechas válidas y en orden.'),
+    total_ventas: finiteNumber,
+    total_compras: finiteNumber,
+    total_ingresos_caja: finiteNumber,
+    total_egresos_caja: finiteNumber,
+    total_clientes: z.number().int().nonnegative(),
+    total_proveedores: z.number().int().nonnegative(),
+    total_productos: z.number().int().nonnegative(),
+    total_asistencias: z.number().int().nonnegative(),
+  })
+  .strict();
+
+export const reportEmailSchema = z
+  .object({ report: reportSummaryEmailSchema })
+  .strict();

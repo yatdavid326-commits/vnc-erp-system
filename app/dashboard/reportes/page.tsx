@@ -13,6 +13,7 @@ export default function ReportesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [exportandoPDF, setExportandoPDF] = useState(false);
+  const [enviandoCorreo, setEnviandoCorreo] = useState(false);
   const [filtros, setFiltros] = useState({
     tipo: 'resumen',
     fechaInicio: new Date(new Date().setMonth(new Date().getMonth() - 1))
@@ -80,6 +81,35 @@ export default function ReportesPage() {
       );
     } finally {
       setExportandoPDF(false);
+    }
+  };
+
+  const enviarPorCorreo = async () => {
+    const report = reportes[0];
+    if (!report) return;
+
+    setEnviandoCorreo(true);
+    setError('');
+    try {
+      await fetchJson<{ success: boolean }>(
+        '/api/reportes/email',
+        'No se pudo enviar el reporte por correo.',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ report }),
+        }
+      );
+      showToast('Reporte enviado al correo de tu cuenta.', 'success');
+    } catch (sendError) {
+      const message =
+        sendError instanceof Error
+          ? sendError.message
+          : 'No se pudo enviar el reporte por correo.';
+      setError(message);
+      showToast(message, 'error');
+    } finally {
+      setEnviandoCorreo(false);
     }
   };
 
@@ -187,7 +217,18 @@ export default function ReportesPage() {
               >
                 {exportandoPDF ? 'Generando PDF...' : '📄 Exportar PDF'}
               </button>
+              <button
+                onClick={enviarPorCorreo}
+                disabled={enviandoCorreo || reportes.length === 0}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg disabled:opacity-50"
+              >
+                {enviandoCorreo ? 'Enviando...' : 'Enviar PDF a mi correo'}
+              </button>
             </div>
+            <p className="mt-2 text-sm text-gray-500">
+              El PDF se enviará solo al correo de tu cuenta. El servicio
+              requiere que SendGrid esté configurado.
+            </p>
           </>
         )}
       </div>

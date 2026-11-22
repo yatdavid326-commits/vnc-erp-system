@@ -56,13 +56,16 @@ export function getRequiredApiPermission(
   const moduleRoute = moduleRoutes.find(
     ([prefix]) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
-  const permission =
-    method === 'POST' && (
-      /^\/api\/clientes\/[^/]+\/credit$/.test(pathname) ||
-      /^\/api\/inventario\/[^/]+\/movimientos$/.test(pathname)
-    )
-      ? 'can_edit'
-      : permissionByMethod[method];
+  let permission = permissionByMethod[method];
+  if (method === 'POST' && pathname === '/api/reportes/email') {
+    permission = 'can_view';
+  } else if (
+    method === 'POST' &&
+    (/^\/api\/clientes\/[^/]+\/credit$/.test(pathname) ||
+      /^\/api\/inventario\/[^/]+\/movimientos$/.test(pathname))
+  ) {
+    permission = 'can_edit';
+  }
 
   if (!moduleRoute || !permission) {
     return null;
