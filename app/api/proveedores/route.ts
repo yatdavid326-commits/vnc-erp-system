@@ -10,26 +10,16 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const search = searchParams.get('search');
     const country = searchParams.get('country');
-
-    if (search) {
-      const results = await proveedoresService.search(search, limit);
-      if (results.error) throw new Error(results.error);
-      return NextResponse.json(results.data);
+    const status = searchParams.get('status');
+    if (status && status !== 'activo' && status !== 'inactivo') {
+      return NextResponse.json({ error: 'Estado de proveedor no válido.' }, { status: 400 });
     }
 
-    if (country) {
-      const result = await proveedoresService.getByCountry(country, page, limit);
-      if (result.error) throw new Error(result.error);
-      return NextResponse.json(result.data, {
-        headers: {
-          'X-Total-Count': result.count.toString(),
-          'X-Page': page.toString(),
-          'X-Limit': limit.toString(),
-        },
-      });
-    }
-
-    const result = await proveedoresService.getAll(page, limit);
+    const result = await proveedoresService.getAll(page, limit, {
+      search: search ?? undefined,
+      status: status === 'activo' || status === 'inactivo' ? status : undefined,
+      country: country ?? undefined,
+    });
     if (result.error) throw new Error(result.error);
 
     return NextResponse.json(result.data, {

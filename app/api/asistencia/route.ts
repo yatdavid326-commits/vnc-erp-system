@@ -8,15 +8,35 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
-    const empleadoId = searchParams.get('empleado_id');
+    const empleadoId = searchParams.get('empleado_id') || undefined;
+    const desde = searchParams.get('desde') || undefined;
+    const hasta = searchParams.get('hasta') || undefined;
+    const estado = searchParams.get('estado');
+    const validDate = (date: string) => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+      const parsedDate = new Date(`${date}T00:00:00.000Z`);
+      return !Number.isNaN(parsedDate.getTime()) && parsedDate.toISOString().slice(0, 10) === date;
+    };
 
-    if (empleadoId) {
-      const result = await asistenciaService.getByEmpleado(empleadoId, limit);
-      if (result.error) throw new Error(result.error);
-      return NextResponse.json(result.data);
+    if (desde && !validDate(desde)) {
+      return NextResponse.json({ error: 'Fecha inicial no válida.' }, { status: 400 });
+    }
+    if (hasta && !validDate(hasta)) {
+      return NextResponse.json({ error: 'Fecha final no válida.' }, { status: 400 });
+    }
+    if (desde && hasta && desde > hasta) {
+      return NextResponse.json({ error: 'El rango de fechas no es válido.' }, { status: 400 });
+    }
+    if (estado && estado !== 'completa' && estado !== 'pendiente') {
+      return NextResponse.json({ error: 'Estado de asistencia no válido.' }, { status: 400 });
     }
 
-    const result = await asistenciaService.getAll(page, limit);
+    const result = await asistenciaService.getAll(page, limit, {
+      empleadoId,
+      desde,
+      hasta,
+      estado: estado === 'completa' || estado === 'pendiente' ? estado : undefined,
+    });
     if (result.error) throw new Error(result.error);
 
     return NextResponse.json(result.data, {

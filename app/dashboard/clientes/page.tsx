@@ -25,6 +25,8 @@ export default function ClientesPage() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<ClienteFormData>({
@@ -40,7 +42,13 @@ export default function ClientesPage() {
   });
   const fetchClientes = useCallback(async () => {
     try {
-      const data = await fetchJson<Cliente[]>('/api/clientes', 'Error al cargar clientes');
+      const params = new URLSearchParams({ page: '1', limit: '50' });
+      if (search.trim()) params.set('search', search.trim());
+      if (status) params.set('status', status);
+      const data = await fetchJson<Cliente[]>(
+        `/api/clientes?${params}`,
+        'Error al cargar clientes'
+      );
       setClientes(data);
       setError('');
     } catch (err) {
@@ -48,28 +56,12 @@ export default function ClientesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [search, status]);
 
   useEffect(() => {
-    let active = true;
-    fetchJson<Cliente[]>('/api/clientes', 'Error al cargar clientes')
-      .then((data) => {
-        if (active) {
-          setClientes(data);
-          setError('');
-        }
-      })
-      .catch((err: unknown) => {
-        if (active) setError('Error al cargar clientes: ' + (err instanceof Error ? err.message : ''));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
+    const timeout = window.setTimeout(() => void fetchClientes(), 250);
+    return () => window.clearTimeout(timeout);
+  }, [fetchClientes]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,6 +164,32 @@ export default function ClientesPage() {
             editingId={editingId}
           />
         )}
+
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="text-sm font-medium">
+            Buscar clientes
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Nombre, correo o teléfono"
+              className="mt-1 w-full rounded-md border px-3 py-2"
+            />
+          </label>
+          <label className="text-sm font-medium">
+            Estado
+            <select
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+              className="mt-1 w-full rounded-md border px-3 py-2"
+            >
+              <option value="">Todos los estados</option>
+              <option value="activo">Activo</option>
+              <option value="inactivo">Inactivo</option>
+              <option value="suspendido">Suspendido</option>
+            </select>
+          </label>
+        </div>
 
         {loading ? (
           <div className="text-center py-12">

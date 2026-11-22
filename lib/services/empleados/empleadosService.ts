@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/db/supabase';
+import { sanitizePostgrestSearch } from '@/lib/utils/search';
 
 export interface Empleado {
   id: string;
@@ -75,14 +76,27 @@ function errorMessage(error: unknown) {
 }
 
 export const empleadosService = {
-  async getAll(page = 1, limit = 50) {
+  async getAll(
+    page = 1,
+    limit = 50,
+    filters: { search?: string; status?: 'activo' | 'inactivo' } = {}
+  ) {
     try {
       const start = (page - 1) * limit;
-      const { data, error, count } = await requireSupabaseAdmin()
+      let query = requireSupabaseAdmin()
         .from('empleados')
         .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(start, start + limit - 1);
+        .order('created_at', { ascending: false });
+
+      const safeSearch = sanitizePostgrestSearch(filters.search ?? '');
+      if (safeSearch) {
+        query = query.or(
+          `nombre.ilike.%${safeSearch}%,apellido.ilike.%${safeSearch}%,email.ilike.%${safeSearch}%,puesto.ilike.%${safeSearch}%`
+        );
+      }
+      if (filters.status) query = query.eq('estado', filters.status === 'activo');
+
+      const { data, error, count } = await query.range(start, start + limit - 1);
       if (error) throw error;
       return { data: (data ?? []).map((row) => mapEmployee(row as EmployeeRow)), count: count ?? 0 };
     } catch (error) {
@@ -92,7 +106,7 @@ export const empleadosService = {
 
   async search(query: string, limit = 50) {
     try {
-      const safeQuery = query.replace(/[%,_*()\\"]/g, ' ').trim();
+      const safeQuery = sanitizePostgrestSearch(query);
       const { data, error } = await requireSupabaseAdmin()
         .from('empleados')
         .select('*')

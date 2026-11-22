@@ -27,6 +27,8 @@ export default function ProveedoresPage() {
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<ProveedorFormData>({
@@ -43,7 +45,13 @@ export default function ProveedoresPage() {
   });
   const fetchProveedores = useCallback(async () => {
     try {
-      const data = await fetchJson<Proveedor[]>('/api/proveedores', 'Error al cargar proveedores');
+      const params = new URLSearchParams({ page: '1', limit: '50' });
+      if (search.trim()) params.set('search', search.trim());
+      if (status) params.set('status', status);
+      const data = await fetchJson<Proveedor[]>(
+        `/api/proveedores?${params}`,
+        'Error al cargar proveedores'
+      );
       setProveedores(data);
       setError('');
     } catch (err) {
@@ -51,28 +59,12 @@ export default function ProveedoresPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [search, status]);
 
   useEffect(() => {
-    let active = true;
-    fetchJson<Proveedor[]>('/api/proveedores', 'Error al cargar proveedores')
-      .then((data) => {
-        if (active) {
-          setProveedores(data);
-          setError('');
-        }
-      })
-      .catch((err: unknown) => {
-        if (active) setError('Error al cargar proveedores: ' + (err instanceof Error ? err.message : ''));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
+    const timeout = window.setTimeout(() => void fetchProveedores(), 250);
+    return () => window.clearTimeout(timeout);
+  }, [fetchProveedores]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,6 +170,31 @@ export default function ProveedoresPage() {
             editingId={editingId}
           />
         )}
+
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="text-sm font-medium">
+            Buscar proveedores
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Nombre, contacto o correo"
+              className="mt-1 w-full rounded-md border px-3 py-2"
+            />
+          </label>
+          <label className="text-sm font-medium">
+            Estado
+            <select
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+              className="mt-1 w-full rounded-md border px-3 py-2"
+            >
+              <option value="">Todos los estados</option>
+              <option value="activo">Activo</option>
+              <option value="inactivo">Inactivo</option>
+            </select>
+          </label>
+        </div>
 
         {loading ? (
           <div className="text-center py-12">

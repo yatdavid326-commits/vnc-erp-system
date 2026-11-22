@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/db/supabase';
+import { sanitizePostgrestSearch } from '@/lib/utils/search';
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
@@ -21,18 +22,27 @@ export interface Compra {
 }
 
 export const comprasService = {
-  async getAll(page = 1, limit = 50) {
+  async getAll(
+    page = 1,
+    limit = 50,
+    filters: { search?: string; status?: string; supplierId?: string } = {}
+  ) {
     try {
       if (!supabaseAdmin) throw new Error('Admin client not available');
-      
+
       const start = (page - 1) * limit;
-      
-      const { data, error, count } = await supabaseAdmin
+      let query = supabaseAdmin
         .from('compras')
         .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(start, start + limit - 1);
-      
+        .order('created_at', { ascending: false });
+
+      const safeSearch = sanitizePostgrestSearch(filters.search ?? '');
+      if (safeSearch) query = query.ilike('numero_po', `%${safeSearch}%`);
+      if (filters.status) query = query.eq('estado', filters.status);
+      if (filters.supplierId) query = query.eq('proveedor_id', filters.supplierId);
+
+      const { data, error, count } = await query.range(start, start + limit - 1);
+
       if (error) throw error;
       return { data: data || [], count: count || 0 };
     } catch (error) {
@@ -43,11 +53,11 @@ export const comprasService = {
   async search(query: string, limit = 50) {
     try {
       if (!supabaseAdmin) throw new Error('Admin client not available');
-      
+      const safeSearch = sanitizePostgrestSearch(query);
       const { data, error } = await supabaseAdmin
         .from('compras')
         .select('*')
-        .or(`numero_po.ilike.%${query}%,estado.ilike.%${query}%`)
+        .ilike('numero_po', `%${safeSearch}%`)
         .limit(limit);
       
       if (error) throw error;

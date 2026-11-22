@@ -8,11 +8,12 @@ import InventarioTable from '@/components/inventario/InventarioTable';
 import StockAlerts from '@/components/inventario/StockAlerts';
 import { Producto } from '@/lib/services/products/productService';
 
-async function loadProductos(page: number, limit: number, search: string) {
+async function loadProductos(page: number, limit: number, search: string, status: string) {
   const params = new URLSearchParams({
     page: page.toString(),
     limit: limit.toString(),
     ...(search && { search }),
+    ...(status && { status }),
   });
   const response = await fetch(`/api/inventario?${params}`, {
     headers: { 'Content-Type': 'application/json' },
@@ -34,6 +35,7 @@ export default function InventarioPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [limit] = useState(10);
@@ -49,7 +51,8 @@ export default function InventarioPage() {
       const { productos: data, total: productCount } = await loadProductos(
         page,
         limit,
-        search
+        search,
+        status
       );
       setProductos(data);
       setTotal(productCount);
@@ -59,11 +62,11 @@ export default function InventarioPage() {
     } finally {
       setLoading(false);
     }
-  }, [limit, page, search]);
+  }, [limit, page, search, status]);
 
   useEffect(() => {
     let active = true;
-    loadProductos(page, limit, search)
+    loadProductos(page, limit, search, status)
       .then(({ productos: data, total: productCount }) => {
         if (active) {
           setProductos(data);
@@ -83,7 +86,7 @@ export default function InventarioPage() {
     return () => {
       active = false;
     };
-  }, [page, limit, search]);
+  }, [page, limit, search, status]);
 
   const handleCreate = async (formData: Partial<Producto>) => {
     try {
@@ -293,17 +296,30 @@ export default function InventarioPage() {
         <StockAlerts productos={productos} />
 
         {/* Search */}
-        <div className="flex gap-4">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row">
           <input
-            type="text"
+            type="search"
             placeholder="Buscar por nombre, SKU o descripción..."
             value={search}
             onChange={e => {
               setSearch(e.target.value);
               setPage(1);
             }}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+            className="flex-1 rounded-lg border border-gray-300 px-4 py-2"
           />
+          <select
+            aria-label="Filtrar productos por estado"
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setPage(1);
+            }}
+            className="rounded-lg border border-gray-300 px-4 py-2"
+          >
+            <option value="">Todos los estados</option>
+            <option value="activo">Activos</option>
+            <option value="inactivo">Inactivos</option>
+          </select>
         </div>
 
         {/* Table */}

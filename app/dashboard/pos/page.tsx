@@ -62,6 +62,8 @@ export default function POSPage() {
   const [caja, setCaja] = useState<CajaAbierta | null>(null);
   const [carrito, setCarrito] = useState<CarritoItem[]>([]);
   const [busqueda, setBusqueda] = useState('');
+  const [salesSearch, setSalesSearch] = useState('');
+  const [salesStatus, setSalesStatus] = useState('');
   const [clienteId, setClienteId] = useState('');
   const [metodoPago, setMetodoPago] = useState<'efectivo' | 'tarjeta' | 'cheque'>(
     'efectivo'
@@ -77,17 +79,23 @@ export default function POSPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const cargarResumen = useCallback(async () => {
-    const [sales, register] = await Promise.all([
-      requestJson<Venta[]>('/api/pos?limit=10'),
-      requestJson<CajaAbierta | null>('/api/pos/register'),
-    ]);
-    setVentas(sales);
+  const cargarVentas = useCallback(async (signal?: AbortSignal) => {
+    const params = new URLSearchParams({ page: '1', limit: '10' });
+    if (salesSearch.trim()) params.set('search', salesSearch.trim());
+    if (salesStatus) params.set('status', salesStatus);
+    const response = await fetch(`/api/pos?${params}`, signal ? { signal } : undefined);
+    setVentas(await readJson<Venta[]>(response));
+  }, [salesSearch, salesStatus]);
+
+  const cargarCaja = useCallback(async () => {
+    const register = await requestJson<CajaAbierta | null>('/api/pos/register');
     setCaja(register);
-    if (register) {
-      setSaldoFinal(String(register.opening_balance));
-    }
+    if (register) setSaldoFinal(String(register.opening_balance));
   }, []);
+
+  const cargarResumen = useCallback(async () => {
+    await Promise.all([cargarVentas(), cargarCaja()]);
+  }, [cargarCaja, cargarVentas]);
 
   const cargarCatalogo = useCallback(
     async (page: number, search: string, append: boolean) => {
@@ -115,29 +123,44 @@ export default function POSPage() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      requestJson<Venta[]>('/api/pos?limit=10'),
-      requestJson<CajaAbierta | null>('/api/pos/register'),
-    ])
-      .then(([sales, register]) => {
-        if (!active) return;
-        setVentas(sales);
-        setCaja(register);
-        if (register) setSaldoFinal(String(register.opening_balance));
+    requestJson<CajaAbierta | null>('/api/pos/register')
+      .then((register) => {
+        if (active) {
+          setCaja(register);
+          if (register) setSaldoFinal(String(register.opening_balance));
+        }
       })
       .catch((loadError: unknown) => {
         if (active) {
-          setError(loadError instanceof Error ? loadError.message : 'Error de POS.');
+          setError(loadError instanceof Error ? loadError.message : 'Error al cargar la caja.');
         }
       })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
     return () => {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => {
+      setLoading(true);
+      cargarVentas(controller.signal)
+        .catch((loadError: unknown) => {
+          if (!controller.signal.aborted) {
+            setError(loadError instanceof Error ? loadError.message : 'Error al cargar ventas.');
+          }
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    }, 250);
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [cargarVentas]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -568,7 +591,32 @@ export default function POSPage() {
       </div>
 
       <section className="overflow-hidden rounded-lg bg-white shadow">
-        <h2 className="px-5 py-4 text-xl font-semibold">Ventas recientes</h2>
+        <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+          <h2 className="text-xl font-semibold">Ventas recientes</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-sm font-medium">
+              Buscar transacciones
+              <input
+                type="search"
+                value={salesSearch}
+                onChange={(event) => setSalesSearch(event.target.value)}
+                placeholder="Número o método de pago"
+                className="mt-1 w-full rounded-md border px-3 py-2"
+              />
+            </label>
+            <label className="text-sm font-medium">
+              Estado
+              <select
+                value={salesStatus}
+                onChange={(event) => setSalesStatus(event.target.value)}
+                className="mt-1 w-full rounded-md border px-3 py-2"
+              >
+                <option value="">Todos los estados</option>
+                <option value="completada">Completada</option>
+              </select>
+            </label>
+          </div>
+        </div>
         {loading ? (
           <p className="px-5 py-8 text-center text-gray-500">Cargando ventas...</p>
         ) : (

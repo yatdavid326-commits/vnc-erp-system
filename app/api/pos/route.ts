@@ -56,7 +56,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const result = await posService.getAll(pagination.page, pagination.limit);
+    const result = await posService.getAll(pagination.page, pagination.limit, {
+      search: request.nextUrl.searchParams.get('search') ?? undefined,
+      status: request.nextUrl.searchParams.get('status') ?? undefined,
+    });
     return NextResponse.json(result.data, {
       headers: { 'X-Total-Count': result.count.toString() },
     });

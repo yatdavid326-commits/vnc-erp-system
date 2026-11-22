@@ -46,12 +46,19 @@ export default function ComprasPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<PurchaseFormData>(emptyForm);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [supplierId, setSupplierId] = useState('');
 
   const fetchCompras = useCallback(async () => {
     try {
+      const params = new URLSearchParams({ page: '1', limit: '50' });
+      if (search.trim()) params.set('search', search.trim());
+      if (status) params.set('status', status);
+      if (supplierId) params.set('proveedor_id', supplierId);
       const [purchaseData, supplierData] = await Promise.all([
-        fetchJson<Compra[]>('/api/compras', 'Error al cargar compras'),
-        fetchJson<Proveedor[]>('/api/proveedores', 'Error al cargar proveedores'),
+        fetchJson<Compra[]>(`/api/compras?${params}`, 'Error al cargar compras'),
+        fetchJson<Proveedor[]>('/api/proveedores?page=1&limit=100', 'Error al cargar proveedores'),
       ]);
       setCompras(purchaseData);
       setProveedores(supplierData);
@@ -61,32 +68,12 @@ export default function ComprasPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [search, status, supplierId]);
 
   useEffect(() => {
-    let active = true;
-    Promise.all([
-      fetchJson<Compra[]>('/api/compras', 'Error al cargar compras'),
-      fetchJson<Proveedor[]>('/api/proveedores', 'Error al cargar proveedores'),
-    ])
-      .then(([purchaseData, supplierData]) => {
-        if (active) {
-          setCompras(purchaseData);
-          setProveedores(supplierData);
-          setError('');
-        }
-      })
-      .catch((err: unknown) => {
-        if (active) setError(err instanceof Error ? err.message : 'No se pudieron cargar las compras.');
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
+    const timeout = window.setTimeout(() => void fetchCompras(), 250);
+    return () => window.clearTimeout(timeout);
+  }, [fetchCompras]);
 
   const resetForm = () => {
     setFormData(emptyForm());
@@ -230,6 +217,46 @@ export default function ComprasPage() {
           </form>
         </div>
       )}
+
+      <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+        <label className="text-sm font-medium">
+          Buscar órdenes
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Número de orden"
+            className="mt-1 w-full rounded-md border px-3 py-2"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          Estado
+          <select
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+            className="mt-1 w-full rounded-md border px-3 py-2"
+          >
+            <option value="">Todos los estados</option>
+            <option value="pending">Pendiente</option>
+            <option value="partial">Parcial</option>
+            <option value="received">Recibida</option>
+            <option value="cancelled">Cancelada</option>
+          </select>
+        </label>
+        <label className="text-sm font-medium">
+          Proveedor
+          <select
+            value={supplierId}
+            onChange={(event) => setSupplierId(event.target.value)}
+            className="mt-1 w-full rounded-md border px-3 py-2"
+          >
+            <option value="">Todos los proveedores</option>
+            {proveedores.map((supplier) => (
+              <option value={supplier.id} key={supplier.id}>{supplier.nombre}</option>
+            ))}
+          </select>
+        </label>
+      </div>
 
       {loading ? (
         <div className="py-12 text-center">Cargando...</div>

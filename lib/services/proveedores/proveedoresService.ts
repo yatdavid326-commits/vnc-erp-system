@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/db/supabase';
+import { sanitizePostgrestSearch } from '@/lib/utils/search';
 
 export interface Proveedor {
   id: string;
@@ -79,14 +80,28 @@ function errorMessage(error: unknown) {
 }
 
 export const proveedoresService = {
-  async getAll(page = 1, limit = 50) {
+  async getAll(
+    page = 1,
+    limit = 50,
+    filters: { search?: string; status?: 'activo' | 'inactivo'; country?: string } = {}
+  ) {
     try {
       const start = (page - 1) * limit;
-      const { data, error, count } = await requireSupabaseAdmin()
+      let query = requireSupabaseAdmin()
         .from('suppliers')
         .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(start, start + limit - 1);
+        .order('created_at', { ascending: false });
+
+      const safeSearch = sanitizePostgrestSearch(filters.search ?? '');
+      if (safeSearch) {
+        query = query.or(
+          `name.ilike.%${safeSearch}%,email.ilike.%${safeSearch}%,contact_person.ilike.%${safeSearch}%`
+        );
+      }
+      if (filters.status) query = query.eq('is_active', filters.status === 'activo');
+      if (filters.country) query = query.eq('country', filters.country);
+
+      const { data, error, count } = await query.range(start, start + limit - 1);
       if (error) throw error;
       return { data: (data ?? []).map((row) => mapSupplier(row as SupplierRow)), count: count ?? 0, error: null };
     } catch (error) {
@@ -96,7 +111,7 @@ export const proveedoresService = {
 
   async search(query: string, limit = 50) {
     try {
-      const safeQuery = query.replace(/[%,_*()\\"]/g, ' ').trim();
+      const safeQuery = sanitizePostgrestSearch(query);
       const { data, error } = await requireSupabaseAdmin()
         .from('suppliers')
         .select('*')

@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/db/supabase';
 import type { PostgrestError } from '@supabase/supabase-js';
+import { sanitizePostgrestSearch } from '@/lib/utils/search';
 
 function getSupabaseAdmin() {
   if (!supabaseAdmin) {
@@ -95,16 +96,34 @@ function customerToCliente(customer: Customer): Cliente {
 }
 
 class CustomerService {
-  async getAll(page = 1, limit = 50): Promise<{ data: Cliente[]; error: PostgrestError | null; count: number }> {
+  async getAll(
+    page = 1,
+    limit = 50,
+    filters: {
+      search?: string;
+      status?: Cliente['estado_cliente'];
+      type?: Cliente['tipo'];
+    } = {}
+  ): Promise<{ data: Cliente[]; error: PostgrestError | null; count: number }> {
     try {
       const start = (page - 1) * limit;
       const end = start + limit - 1;
 
-      const { data, error, count } = await getSupabaseAdmin()
+      let query = getSupabaseAdmin()
         .from('customers')
         .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(start, end);
+        .order('created_at', { ascending: false });
+
+      const safeSearch = sanitizePostgrestSearch(filters.search ?? '');
+      if (safeSearch) {
+        query = query.or(
+          `name.ilike.%${safeSearch}%,email.ilike.%${safeSearch}%,phone.ilike.%${safeSearch}%`
+        );
+      }
+      if (filters.status) query = query.eq('status', filters.status);
+      if (filters.type) query = query.eq('customer_type', filters.type);
+
+      const { data, error, count } = await query.range(start, end);
 
       const clientes = (data || []).map(customerToCliente);
       return { data: clientes, error, count: count || 0 };
@@ -131,10 +150,11 @@ class CustomerService {
 
   async search(query: string, limit = 20): Promise<Cliente[]> {
     try {
+      const safeSearch = sanitizePostgrestSearch(query);
       const { data, error } = await getSupabaseAdmin()
         .from('customers')
         .select('*')
-        .or(`name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%`)
+        .or(`name.ilike.%${safeSearch}%,email.ilike.%${safeSearch}%,phone.ilike.%${safeSearch}%`)
         .limit(limit);
 
       if (error) throw error;

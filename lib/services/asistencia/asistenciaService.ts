@@ -17,18 +17,34 @@ export interface Asistencia {
 }
 
 export const asistenciaService = {
-  async getAll(page = 1, limit = 50) {
+  async getAll(
+    page = 1,
+    limit = 50,
+    filters: {
+      empleadoId?: string;
+      desde?: string;
+      hasta?: string;
+      estado?: 'completa' | 'pendiente';
+    } = {}
+  ) {
     try {
       if (!supabaseAdmin) throw new Error('Admin client not available');
-      
+
       const start = (page - 1) * limit;
-      
-      const { data, error, count } = await supabaseAdmin
+      let query = supabaseAdmin
         .from('asistencia')
         .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(start, start + limit - 1);
-      
+        .order('fecha', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (filters.empleadoId) query = query.eq('empleado_id', filters.empleadoId);
+      if (filters.desde) query = query.gte('fecha', filters.desde);
+      if (filters.hasta) query = query.lte('fecha', filters.hasta);
+      if (filters.estado === 'completa') query = query.not('hora_salida', 'is', null);
+      if (filters.estado === 'pendiente') query = query.is('hora_salida', null);
+
+      const { data, error, count } = await query.range(start, start + limit - 1);
+
       if (error) throw error;
       return { data: data || [], count: count || 0 };
     } catch (error) {

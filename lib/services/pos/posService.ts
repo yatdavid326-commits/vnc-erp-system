@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/db/supabase';
+import { sanitizePostgrestSearch } from '@/lib/utils/search';
 
 export interface POSCatalogProduct {
   inventory_id: string;
@@ -118,15 +119,28 @@ function mapCheckoutError(message: string): PosServiceError | null {
 }
 
 export const posService = {
-  async getAll(page = 1, limit = 50) {
+  async getAll(
+    page = 1,
+    limit = 50,
+    filters: { search?: string; status?: string } = {}
+  ) {
     const supabase = requireSupabaseAdmin();
     const start = (page - 1) * limit;
 
-    const { data, error, count } = await supabase
+    let query = supabase
       .from('pos_transacciones')
       .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(start, start + limit - 1);
+      .order('created_at', { ascending: false });
+
+    const safeSearch = sanitizePostgrestSearch(filters.search ?? '');
+    if (safeSearch) {
+      query = query.or(
+        `numero_transaccion.ilike.%${safeSearch}%,metodo_pago.ilike.%${safeSearch}%`
+      );
+    }
+    if (filters.status) query = query.eq('estado', filters.status);
+
+    const { data, error, count } = await query.range(start, start + limit - 1);
 
     if (error) throw error;
     return { data: data || [], count: count || 0 };
@@ -143,7 +157,7 @@ export const posService = {
       )
       .eq('is_active', true);
 
-    const safeSearch = search.replace(/[%,_*()\\"]/g, ' ').trim();
+    const safeSearch = sanitizePostgrestSearch(search);
     if (safeSearch) {
       query = query.or(
         `name.ilike.%${safeSearch}%,product_code.ilike.%${safeSearch}%`

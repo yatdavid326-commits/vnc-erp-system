@@ -9,14 +9,15 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
     const search = searchParams.get('search');
-
-    if (search) {
-      const results = await empleadosService.search(search, limit);
-      if (results.error) throw new Error(results.error);
-      return NextResponse.json(results.data);
+    const status = searchParams.get('status');
+    if (status && status !== 'activo' && status !== 'inactivo') {
+      return NextResponse.json({ error: 'Estado de empleado no válido.' }, { status: 400 });
     }
 
-    const result = await empleadosService.getAll(page, limit);
+    const result = await empleadosService.getAll(page, limit, {
+      search: search ?? undefined,
+      status: status === 'activo' || status === 'inactivo' ? status : undefined,
+    });
     if (result.error) throw new Error(result.error);
 
     return NextResponse.json(result.data, {

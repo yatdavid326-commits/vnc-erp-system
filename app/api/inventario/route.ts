@@ -10,8 +10,18 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const search = searchParams.get('search') || '';
     const category = searchParams.get('category') || '';
+    const status = searchParams.get('status') || '';
+    if (status && status !== 'activo' && status !== 'inactivo') {
+      return NextResponse.json({ error: 'Estado de producto no válido.' }, { status: 400 });
+    }
 
-    const result = await productService.getAll(page, limit, search, category);
+    const result = await productService.getAll(
+      page,
+      limit,
+      search,
+      category,
+      status as 'activo' | 'inactivo' | ''
+    );
 
     return NextResponse.json(result.data, {
       headers: {

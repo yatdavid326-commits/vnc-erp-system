@@ -8,15 +8,18 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
-    const search = searchParams.get('search');
-
-    if (search) {
-      const results = await comprasService.search(search, limit);
-      if (results.error) throw new Error(results.error);
-      return NextResponse.json(results.data);
+    const status = searchParams.get('status');
+    const supplierId = searchParams.get('proveedor_id');
+    const allowedStatuses = ['pending', 'partial', 'received', 'cancelled'];
+    if (status && !allowedStatuses.includes(status)) {
+      return NextResponse.json({ error: 'Estado de orden no válido.' }, { status: 400 });
     }
 
-    const result = await comprasService.getAll(page, limit);
+    const result = await comprasService.getAll(page, limit, {
+      search: searchParams.get('search') ?? undefined,
+      status: status ?? undefined,
+      supplierId: supplierId ?? undefined,
+    });
     if (result.error) throw new Error(result.error);
 
     return NextResponse.json(result.data, {

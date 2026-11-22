@@ -22,6 +22,8 @@ export default function EmpleadosPage() {
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -35,32 +37,23 @@ export default function EmpleadosPage() {
   });
   const fetchEmpleados = useCallback(async () => {
     try {
-      const data = await fetchJson<Empleado[]>('/api/empleados', 'Error');
+      const params = new URLSearchParams({ page: '1', limit: '50' });
+      if (search.trim()) params.set('search', search.trim());
+      if (status) params.set('status', status);
+      const data = await fetchJson<Empleado[]>(`/api/empleados?${params}`, 'Error');
       setEmpleados(data);
+      setError('');
     } catch (err) {
       setError('Error: ' + (err instanceof Error ? err.message : ''));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [search, status]);
 
   useEffect(() => {
-    let active = true;
-    fetchJson<Empleado[]>('/api/empleados', 'Error')
-      .then((data) => {
-        if (active) setEmpleados(data);
-      })
-      .catch((err: unknown) => {
-        if (active) setError('Error: ' + (err instanceof Error ? err.message : ''));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
+    const timeout = window.setTimeout(() => void fetchEmpleados(), 250);
+    return () => window.clearTimeout(timeout);
+  }, [fetchEmpleados]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -210,6 +203,31 @@ export default function EmpleadosPage() {
             </form>
           </div>
         )}
+
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="text-sm font-medium">
+            Buscar empleados
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Nombre, correo o cargo"
+              className="mt-1 w-full rounded-md border px-3 py-2"
+            />
+          </label>
+          <label className="text-sm font-medium">
+            Estado
+            <select
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+              className="mt-1 w-full rounded-md border px-3 py-2"
+            >
+              <option value="">Todos los estados</option>
+              <option value="activo">Activo</option>
+              <option value="inactivo">Inactivo</option>
+            </select>
+          </label>
+        </div>
 
         {loading ? (
           <div className="text-center py-12">Cargando...</div>

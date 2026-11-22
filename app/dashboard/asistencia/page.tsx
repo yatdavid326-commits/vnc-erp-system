@@ -28,6 +28,11 @@ export default function AsistenciaPage() {
   const [empleados, setEmpleados] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [employeeFilter, setEmployeeFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [showRegistro, setShowRegistro] = useState(false);
   const [empleadoId, setEmpleadoId] = useState('');
   const [qrCode, setQrCode] = useState('');
@@ -35,9 +40,15 @@ export default function AsistenciaPage() {
   const [registrando, setRegistrando] = useState(false);
 
   const fetchData = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams({ page: '1', limit: '50' });
+    if (employeeFilter) params.set('empleado_id', employeeFilter);
+    if (dateFrom) params.set('desde', dateFrom);
+    if (dateTo) params.set('hasta', dateTo);
+    if (statusFilter) params.set('estado', statusFilter);
     try {
       const [attendance, employees] = await Promise.all([
-        fetchJson<Asistencia[]>('/api/asistencia', 'Error al cargar asistencia'),
+        fetchJson<Asistencia[]>(`/api/asistencia?${params}`, 'Error al cargar asistencia'),
         fetchJson<Employee[]>('/api/asistencia/empleados', 'Error al cargar empleados'),
       ]);
       setAsistencias(attendance);
@@ -48,32 +59,12 @@ export default function AsistenciaPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dateFrom, dateTo, employeeFilter, statusFilter]);
 
   useEffect(() => {
-    let active = true;
-    Promise.all([
-      fetchJson<Asistencia[]>('/api/asistencia', 'Error al cargar asistencia'),
-      fetchJson<Employee[]>('/api/asistencia/empleados', 'Error al cargar empleados'),
-    ])
-      .then(([attendance, employees]) => {
-        if (active) {
-          setAsistencias(attendance);
-          setEmpleados(employees);
-          setError('');
-        }
-      })
-      .catch((err: unknown) => {
-        if (active) setError(err instanceof Error ? err.message : 'No se pudieron cargar los datos.');
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
+    const timeout = window.setTimeout(() => void fetchData(), 250);
+    return () => window.clearTimeout(timeout);
+  }, [fetchData]);
 
   const obtenerGPS = () => {
     if (!('geolocation' in navigator)) {
@@ -141,6 +132,9 @@ export default function AsistenciaPage() {
     const employee = empleados.find((item) => item.id === id);
     return employee ? `${employee.nombre} ${employee.apellido}`.trim() : 'Empleado no disponible';
   };
+  const filteredAsistencias = asistencias.filter((asistencia) =>
+    employeeName(asistencia.empleado_id).toLocaleLowerCase().includes(employeeSearch.trim().toLocaleLowerCase())
+  );
 
   return (
     <div className="p-6">
@@ -231,6 +225,64 @@ export default function AsistenciaPage() {
         <p className="mb-6 text-sm text-gray-600">Crea un empleado activo antes de registrar asistencia.</p>
       )}
 
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <label className="text-sm font-medium">
+          Buscar empleado
+          <input
+            type="search"
+            value={employeeSearch}
+            onChange={(event) => setEmployeeSearch(event.target.value)}
+            placeholder="Nombre o apellido"
+            className="mt-1 w-full rounded-md border px-3 py-2"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          Empleado
+          <select
+            value={employeeFilter}
+            onChange={(event) => setEmployeeFilter(event.target.value)}
+            className="mt-1 w-full rounded-md border px-3 py-2"
+          >
+            <option value="">Todos los empleados</option>
+            {empleados.map((employee) => (
+              <option value={employee.id} key={employee.id}>
+                {employee.nombre} {employee.apellido}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm font-medium">
+          Estado
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+            className="mt-1 w-full rounded-md border px-3 py-2"
+          >
+            <option value="">Todos los estados</option>
+            <option value="completa">Completa</option>
+            <option value="pendiente">Entrada registrada</option>
+          </select>
+        </label>
+        <label className="text-sm font-medium">
+          Desde
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(event) => setDateFrom(event.target.value)}
+            className="mt-1 w-full rounded-md border px-3 py-2"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          Hasta
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(event) => setDateTo(event.target.value)}
+            className="mt-1 w-full rounded-md border px-3 py-2"
+          />
+        </label>
+      </div>
+
       {loading ? (
         <div className="py-12 text-center">Cargando...</div>
       ) : (
@@ -247,9 +299,9 @@ export default function AsistenciaPage() {
               </tr>
             </thead>
             <tbody>
-              {asistencias.length === 0 ? (
-                <tr><td colSpan={6} className="px-6 py-4 text-center text-gray-500">No hay registros</td></tr>
-              ) : asistencias.map((asistencia) => (
+              {filteredAsistencias.length === 0 ? (
+                <tr><td colSpan={6} className="px-6 py-4 text-center text-gray-500">No hay registros con esos filtros</td></tr>
+              ) : filteredAsistencias.map((asistencia) => (
                 <tr key={asistencia.id} className="border-b">
                   <td className="px-6 py-4 text-sm">{employeeName(asistencia.empleado_id)}</td>
                   <td className="px-6 py-4 text-sm">{asistencia.fecha}</td>

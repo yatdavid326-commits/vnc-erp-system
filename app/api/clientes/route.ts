@@ -8,25 +8,23 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
-    const search = searchParams.get('search');
     const type = searchParams.get('type');
+    const status = searchParams.get('status');
+    const allowedTypes = ['retail', 'wholesale', 'business'];
+    const allowedStatuses = ['activo', 'inactivo', 'suspendido'];
 
-    if (search) {
-      const results = await customerService.search(search, limit);
-      return NextResponse.json(results);
+    if (type && !allowedTypes.includes(type)) {
+      return NextResponse.json({ error: 'Tipo de cliente no válido.' }, { status: 400 });
+    }
+    if (status && !allowedStatuses.includes(status)) {
+      return NextResponse.json({ error: 'Estado de cliente no válido.' }, { status: 400 });
     }
 
-    if (type) {
-      const { data, error } = await customerService.getCustomersByType(
-        type as 'retail' | 'wholesale' | 'business',
-        page,
-        limit
-      );
-      if (error) throw error;
-      return NextResponse.json(data);
-    }
-
-    const { data, error, count } = await customerService.getAll(page, limit);
+    const { data, error, count } = await customerService.getAll(page, limit, {
+      search: searchParams.get('search') ?? undefined,
+      status: status as 'activo' | 'inactivo' | 'suspendido' | undefined,
+      type: type as 'retail' | 'wholesale' | 'business' | undefined,
+    });
     if (error) throw error;
     
     return NextResponse.json(data, {

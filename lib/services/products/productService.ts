@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/db/supabase';
+import { sanitizePostgrestSearch } from '@/lib/utils/search';
 
 export interface Producto {
   id: string;
@@ -87,7 +88,7 @@ class ProductService {
     return ProductService.instance;
   }
 
-  async getAll(page = 1, limit = 10, search = '', category = '') {
+  async getAll(page = 1, limit = 10, search = '', category = '', status: 'activo' | 'inactivo' | '' = '') {
     const supabase = getSupabaseAdmin();
     const fields = category
       ? 'id, product_code, name, description, cost_price, selling_price, reorder_level, is_active, created_at, updated_at, categories!inner(name), inventory(quantity_on_hand, quantity_reserved)'
@@ -95,13 +96,16 @@ class ProductService {
     let query = supabase.from('products').select(fields, { count: 'exact' });
 
     if (search.trim()) {
-      const safeSearch = search.replace(/[%,_*()\\"]/g, ' ').trim();
-      query = query.or(
-        `name.ilike.%${safeSearch}%,product_code.ilike.%${safeSearch}%,description.ilike.%${safeSearch}%`
-      );
+      const safeSearch = sanitizePostgrestSearch(search);
+      if (safeSearch) {
+        query = query.or(
+          `name.ilike.%${safeSearch}%,product_code.ilike.%${safeSearch}%,description.ilike.%${safeSearch}%`
+        );
+      }
     }
 
     if (category) query = query.eq('categories.name', category);
+    if (status) query = query.eq('is_active', status === 'activo');
 
     const start = (page - 1) * limit;
     const { data, count, error } = await query
