@@ -4,25 +4,13 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
 import { fetchJson } from '@/lib/utils/fetchJson';
-
-
-interface Reporte {
-  tipo: string;
-  periodo: string;
-  total_ventas: number;
-  total_compras: number;
-  total_ingresos_caja: number;
-  total_egresos_caja: number;
-  total_clientes: number;
-  total_proveedores: number;
-  total_productos: number;
-  total_asistencias: number;
-}
+import type { ReportSummary } from '@/lib/utils/reportPdf';
 
 export default function ReportesPage() {
-  const [reportes, setReportes] = useState<Reporte[]>([]);
+  const [reportes, setReportes] = useState<ReportSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [exportandoPDF, setExportandoPDF] = useState(false);
   const [filtros, setFiltros] = useState({
     tipo: 'resumen',
     fechaInicio: new Date(new Date().setMonth(new Date().getMonth() - 1))
@@ -32,7 +20,7 @@ export default function ReportesPage() {
   });
   const generarReporte = useCallback(async () => {
     try {
-      const data = await fetchJson<Reporte | Reporte[]>(
+      const data = await fetchJson<ReportSummary | ReportSummary[]>(
         `/api/reportes?tipo=${filtros.tipo}&inicio=${filtros.fechaInicio}&fin=${filtros.fechaFin}`,
         'Error'
       );
@@ -48,7 +36,7 @@ export default function ReportesPage() {
   useEffect(() => {
     let active = true;
     const url = `/api/reportes?tipo=${filtros.tipo}&inicio=${filtros.fechaInicio}&fin=${filtros.fechaFin}`;
-    fetchJson<Reporte | Reporte[]>(url, 'Error')
+    fetchJson<ReportSummary | ReportSummary[]>(url, 'Error')
       .then((data) => {
         if (active) {
           setReportes(Array.isArray(data) ? data : [data]);
@@ -67,29 +55,24 @@ export default function ReportesPage() {
     };
   }, [filtros]);
 
-  const exportarPDF = () => {
-    const contenido = reportes
-      .map((r) => `
-Reporte: ${r.tipo}
-Período: ${r.periodo}
-═══════════════════════════════════════
-VENTAS: $${r.total_ventas.toFixed(2)}
-COMPRAS: $${r.total_compras.toFixed(2)}
-INGRESOS: $${r.total_ingresos_caja.toFixed(2)}
-EGRESOS: $${r.total_egresos_caja.toFixed(2)}
-CLIENTES: ${r.total_clientes}
-PROVEEDORES: ${r.total_proveedores}
-PRODUCTOS: ${r.total_productos}
-ASISTENCIAS: ${r.total_asistencias}
-`)
-      .join('\n');
-
-    const blob = new Blob([contenido], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `reporte-${new Date().toISOString().split('T')[0]}.txt`;
-    a.click();
+  const exportarPDF = async () => {
+    setExportandoPDF(true);
+    setError('');
+    try {
+      const { createReportPdf } = await import('@/lib/utils/reportPdf');
+      const pdf = createReportPdf(reportes);
+      pdf.save(
+        `reporte-${filtros.tipo}-${filtros.fechaInicio}-${filtros.fechaFin}.pdf`
+      );
+    } catch (exportError) {
+      setError(
+        `No se pudo generar el PDF: ${
+          exportError instanceof Error ? exportError.message : 'Error desconocido.'
+        }`
+      );
+    } finally {
+      setExportandoPDF(false);
+    }
   };
 
   const exportarCSV = () => {
@@ -208,9 +191,10 @@ ASISTENCIAS: ${r.total_asistencias}
             <div className="flex gap-2">
               <button
                 onClick={exportarPDF}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+                disabled={exportandoPDF}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg disabled:opacity-50"
               >
-                📄 Exportar PDF
+                {exportandoPDF ? 'Generando PDF...' : '📄 Exportar PDF'}
               </button>
               <button
                 onClick={exportarCSV}
