@@ -4,6 +4,7 @@ import { useEffect, ReactNode, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/hooks';
 import { supabaseClient } from '@/lib/db/supabase';
+import { ToastProvider } from '@/components/notifications/ToastProvider';
 
 async function syncServerSession(accessToken: string) {
   const response = await fetch('/api/auth/session', {
@@ -153,5 +154,5 @@ export function AuthProvider({ children }: AuthProviderProps) {
     );
   }
 
-  return children;
+  return <ToastProvider>{children}</ToastProvider>;
 }

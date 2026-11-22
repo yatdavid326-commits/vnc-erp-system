@@ -5,8 +5,10 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback } from 'react';
 import { fetchJson } from '@/lib/utils/fetchJson';
 import type { ReportSummary } from '@/lib/utils/reportPdf';
+import { useToast } from '@/components/notifications/ToastProvider';
 
 export default function ReportesPage() {
+  const { showToast } = useToast();
   const [reportes, setReportes] = useState<ReportSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -26,12 +28,16 @@ export default function ReportesPage() {
       );
       setReportes(Array.isArray(data) ? data : [data]);
       setError('');
+      showToast('Reporte actualizado correctamente.', 'success');
     } catch (err) {
-      setError('Error: ' + (err instanceof Error ? err.message : ''));
+      showToast(
+        'Error al generar el reporte: ' + (err instanceof Error ? err.message : ''),
+        'error'
+      );
     } finally {
       setLoading(false);
     }
-  }, [filtros]);
+  }, [filtros, showToast]);
 
   useEffect(() => {
     let active = true;
@@ -64,11 +70,13 @@ export default function ReportesPage() {
       pdf.save(
         `reporte-${filtros.tipo}-${filtros.fechaInicio}-${filtros.fechaFin}.pdf`
       );
+      showToast('PDF generado y descargado.', 'success');
     } catch (exportError) {
-      setError(
+      showToast(
         `No se pudo generar el PDF: ${
           exportError instanceof Error ? exportError.message : 'Error desconocido.'
-        }`
+        }`,
+        'error'
       );
     } finally {
       setExportandoPDF(false);

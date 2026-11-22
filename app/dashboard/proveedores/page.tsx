@@ -8,6 +8,7 @@ import ProveedoresForm, { type ProveedorFormData } from '@/components/proveedore
 import ProveedoresTable from '@/components/proveedores/ProveedoresTable';
 import PaginationControls from '@/components/common/PaginationControls';
 import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
+import { useToast } from '@/components/notifications/ToastProvider';
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
@@ -27,6 +28,7 @@ interface Proveedor {
 }
 
 export default function ProveedoresPage() {
+  const { showToast } = useToast();
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -92,6 +94,10 @@ export default function ProveedoresPage() {
 
       if (!response.ok) throw new Error('Error al guardar proveedor');
 
+      showToast(
+        editingId ? 'Proveedor actualizado correctamente.' : 'Proveedor creado correctamente.',
+        'success'
+      );
       if (page === 1) await fetchProveedores();
       else setPage(1);
       setShowForm(false);
@@ -109,7 +115,10 @@ export default function ProveedoresPage() {
         activo: true,
       });
     } catch (err) {
-      setError('Error al guardar: ' + (err instanceof Error ? err.message : ''));
+      showToast(
+        'Error al guardar: ' + (err instanceof Error ? err.message : ''),
+        'error'
+      );
     }
   };
 
@@ -136,9 +145,13 @@ export default function ProveedoresPage() {
     try {
       const response = await fetch(`/api/proveedores/${id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Error al eliminar proveedor');
+      showToast('Proveedor eliminado correctamente.', 'success');
       await fetchProveedores();
     } catch (err) {
-      setError('Error al eliminar: ' + (err instanceof Error ? err.message : ''));
+      showToast(
+        'Error al eliminar: ' + (err instanceof Error ? err.message : ''),
+        'error'
+      );
     }
   };
 

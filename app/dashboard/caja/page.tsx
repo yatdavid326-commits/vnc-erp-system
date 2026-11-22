@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { fetchJson } from '@/lib/utils/fetchJson';
 import PaginationControls from '@/components/common/PaginationControls';
 import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
+import { useToast } from '@/components/notifications/ToastProvider';
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
@@ -27,6 +28,7 @@ interface CashMovementPage {
 }
 
 export default function CajaPage() {
+  const { showToast } = useToast();
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [incomeTotal, setIncomeTotal] = useState(0);
   const [expenseTotal, setExpenseTotal] = useState(0);
@@ -83,6 +85,7 @@ export default function CajaPage() {
 
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'No se pudo registrar el movimiento.');
+      showToast('Movimiento de caja registrado correctamente.', 'success');
       if (page === 1) await fetchMovimientos();
       else setPage(1);
       setShowForm(false);
@@ -94,7 +97,10 @@ export default function CajaPage() {
         fecha: new Date().toISOString().split('T')[0],
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo registrar el movimiento.');
+      showToast(
+        err instanceof Error ? err.message : 'No se pudo registrar el movimiento.',
+        'error'
+      );
     }
   };
 

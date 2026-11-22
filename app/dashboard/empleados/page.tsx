@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { fetchPaginatedJson } from '@/lib/utils/fetchJson';
 import PaginationControls from '@/components/common/PaginationControls';
 import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
+import { useToast } from '@/components/notifications/ToastProvider';
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
@@ -22,6 +23,7 @@ interface Empleado {
 }
 
 export default function EmpleadosPage() {
+  const { showToast } = useToast();
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -80,6 +82,10 @@ export default function EmpleadosPage() {
       });
 
       if (!response.ok) throw new Error('Error');
+      showToast(
+        editingId ? 'Empleado actualizado correctamente.' : 'Empleado creado correctamente.',
+        'success'
+      );
       if (page === 1) await fetchEmpleados();
       else setPage(1);
       setShowForm(false);
@@ -94,7 +100,10 @@ export default function EmpleadosPage() {
         estado: 'activo',
       });
     } catch (err) {
-      setError('Error: ' + (err instanceof Error ? err.message : ''));
+      showToast(
+        'Error al guardar empleado: ' + (err instanceof Error ? err.message : ''),
+        'error'
+      );
     }
   };
 
@@ -117,9 +126,13 @@ export default function EmpleadosPage() {
     try {
       const response = await fetch(`/api/empleados/${id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Error al eliminar empleado');
+      showToast('Empleado eliminado correctamente.', 'success');
       await fetchEmpleados();
     } catch (err) {
-      setError('Error: ' + (err instanceof Error ? err.message : ''));
+      showToast(
+        'Error al eliminar empleado: ' + (err instanceof Error ? err.message : ''),
+        'error'
+      );
     }
   };
 

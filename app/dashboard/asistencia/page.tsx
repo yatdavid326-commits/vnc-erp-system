@@ -9,6 +9,7 @@ import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
 import QRScanner from '@/components/asistencia/QRScanner';
 import { MAX_ATTENDANCE_QR_LENGTH } from '@/lib/utils/qrCode';
 import { getGeolocationErrorMessage } from '@/lib/utils/geolocation';
+import { useToast } from '@/components/notifications/ToastProvider';
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
@@ -31,6 +32,7 @@ interface Asistencia {
 }
 
 export default function AsistenciaPage() {
+  const { showToast } = useToast();
   const [asistencias, setAsistencias] = useState<Asistencia[]>([]);
   const [empleados, setEmpleados] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -151,6 +153,7 @@ export default function AsistenciaPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'No se pudo registrar la asistencia.');
 
+      showToast('Asistencia registrada correctamente.', 'success');
       if (page === 1) await fetchData();
       else setPage(1);
       setShowRegistro(false);
@@ -159,7 +162,10 @@ export default function AsistenciaPage() {
       setQrCode('');
       setCoords(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo registrar la asistencia.');
+      showToast(
+        err instanceof Error ? err.message : 'No se pudo registrar la asistencia.',
+        'error'
+      );
     } finally {
       setRegistrando(false);
     }

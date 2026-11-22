@@ -8,6 +8,7 @@ import ClientesForm, { type ClienteFormData } from '@/components/clientes/Client
 import ClientesTable from '@/components/clientes/ClientesTable';
 import PaginationControls from '@/components/common/PaginationControls';
 import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
+import { useToast } from '@/components/notifications/ToastProvider';
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
@@ -26,6 +27,7 @@ interface Cliente {
 }
 
 export default function ClientesPage() {
+  const { showToast } = useToast();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -90,6 +92,10 @@ export default function ClientesPage() {
 
       if (!response.ok) throw new Error('Error al guardar cliente');
 
+      showToast(
+        editingId ? 'Cliente actualizado correctamente.' : 'Cliente creado correctamente.',
+        'success'
+      );
       if (page === 1) await fetchClientes();
       else setPage(1);
       setShowForm(false);
@@ -106,7 +112,10 @@ export default function ClientesPage() {
         estado_cliente: 'activo',
       });
     } catch (err) {
-      setError('Error al guardar: ' + (err instanceof Error ? err.message : ''));
+      showToast(
+        'Error al guardar: ' + (err instanceof Error ? err.message : ''),
+        'error'
+      );
     }
   };
 
@@ -132,9 +141,13 @@ export default function ClientesPage() {
     try {
       const response = await fetch(`/api/clientes/${id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Error al eliminar cliente');
+      showToast('Cliente eliminado correctamente.', 'success');
       await fetchClientes();
     } catch (err) {
-      setError('Error al eliminar: ' + (err instanceof Error ? err.message : ''));
+      showToast(
+        'Error al eliminar: ' + (err instanceof Error ? err.message : ''),
+        'error'
+      );
     }
   };
 

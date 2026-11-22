@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { fetchJson, fetchPaginatedJson } from '@/lib/utils/fetchJson';
 import PaginationControls from '@/components/common/PaginationControls';
 import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
+import { useToast } from '@/components/notifications/ToastProvider';
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
@@ -43,6 +44,7 @@ const emptyForm = (): PurchaseFormData => ({
 });
 
 export default function ComprasPage() {
+  const { showToast } = useToast();
   const [compras, setCompras] = useState<Compra[]>([]);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,12 +105,19 @@ export default function ComprasPage() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'No se pudo guardar la compra.');
+      showToast(
+        editingId ? 'Orden de compra actualizada.' : 'Orden de compra creada.',
+        'success'
+      );
       if (page === 1) await fetchCompras();
       else setPage(1);
       setShowForm(false);
       resetForm();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo guardar la compra.');
+      showToast(
+        err instanceof Error ? err.message : 'No se pudo guardar la compra.',
+        'error'
+      );
     }
   };
 
@@ -130,9 +139,13 @@ export default function ComprasPage() {
       const response = await fetch(`/api/compras/${id}`, { method: 'DELETE' });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'No se pudo eliminar la compra.');
+      showToast('Orden de compra eliminada.', 'success');
       await fetchCompras();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo eliminar la compra.');
+      showToast(
+        err instanceof Error ? err.message : 'No se pudo eliminar la compra.',
+        'error'
+      );
     }
   };
 

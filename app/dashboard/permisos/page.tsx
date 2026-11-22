@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Save, ShieldCheck } from 'lucide-react';
 import { supabaseClient } from '@/lib/db/supabase';
+import { useToast } from '@/components/notifications/ToastProvider';
 
 interface PermissionUser {
   id: string;
@@ -84,6 +85,7 @@ function samePermissions(
 }
 
 export default function PermissionsPage() {
+  const { showToast } = useToast();
   const [users, setUsers] = useState<PermissionUser[]>([]);
   const [modules, setModules] = useState<PermissionModule[]>([]);
   const [assignments, setAssignments] = useState<PermissionAssignment[]>([]);
@@ -92,7 +94,6 @@ export default function PermissionsPage() {
   const [savingModuleId, setSavingModuleId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const selectedUser = users.find((user) => user.id === selectedUserId);
 
   useEffect(() => {
@@ -167,7 +168,6 @@ export default function PermissionsPage() {
 
     setDrafts((current) => ({ ...current, [moduleId]: next }));
     setError(null);
-    setSuccess(null);
   };
 
   const saveModulePermissions = async (moduleId: string) => {
@@ -178,7 +178,6 @@ export default function PermissionsPage() {
       getAssignment(assignments, selectedUser.id, moduleId);
     setSavingModuleId(moduleId);
     setError(null);
-    setSuccess(null);
 
     try {
       const {
@@ -221,13 +220,17 @@ export default function PermissionsPage() {
         delete next[moduleId];
         return next;
       });
-      setSuccess(`Permisos de ${modules.find((module) => module.id === moduleId)?.display_name} guardados.`);
+      showToast(
+        `Permisos de ${modules.find((module) => module.id === moduleId)?.display_name} guardados.`,
+        'success'
+      );
     } catch (saveError) {
       console.error('Error saving role permissions:', saveError);
-      setError(
+      showToast(
         saveError instanceof Error
           ? saveError.message
-          : 'No se pudieron guardar los permisos.'
+          : 'No se pudieron guardar los permisos.',
+        'error'
       );
     } finally {
       setSavingModuleId(null);
@@ -259,12 +262,6 @@ export default function PermissionsPage() {
           {error}
         </p>
       )}
-      {success && (
-        <p role="status" className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-          {success}
-        </p>
-      )}
-
       {users.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-6 text-sm text-gray-600">
           No hay usuarios activos para administrar.
@@ -286,7 +283,6 @@ export default function PermissionsPage() {
                 setSelectedUserId(event.target.value);
                 setDrafts({});
                 setError(null);
-                setSuccess(null);
               }}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
             >

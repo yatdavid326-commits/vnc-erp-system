@@ -7,6 +7,7 @@ import InventarioForm from '@/components/inventario/InventarioForm';
 import InventarioTable from '@/components/inventario/InventarioTable';
 import StockAlerts from '@/components/inventario/StockAlerts';
 import { Producto } from '@/lib/services/products/productService';
+import { useToast } from '@/components/notifications/ToastProvider';
 
 async function loadProductos(page: number, limit: number, search: string, status: string) {
   const params = new URLSearchParams({
@@ -29,6 +30,7 @@ async function loadProductos(page: number, limit: number, search: string, status
 }
 
 export default function InventarioPage() {
+  const { showToast } = useToast();
   const [productos, setProductos] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -98,10 +100,11 @@ export default function InventarioPage() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Failed to create product');
 
+      showToast('Producto creado correctamente.', 'success');
       setShowForm(false);
       await fetchProductos();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      showToast(err instanceof Error ? err.message : 'No se pudo crear el producto.', 'error');
       throw err;
     }
   };
@@ -118,11 +121,12 @@ export default function InventarioPage() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Failed to update product');
 
+      showToast('Producto actualizado correctamente.', 'success');
       setShowForm(false);
       setEditingId(null);
       await fetchProductos();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      showToast(err instanceof Error ? err.message : 'No se pudo actualizar el producto.', 'error');
       throw err;
     }
   };
@@ -137,9 +141,10 @@ export default function InventarioPage() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Failed to delete product');
 
+      showToast('Producto eliminado correctamente.', 'success');
       await fetchProductos();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      showToast(err instanceof Error ? err.message : 'No se pudo eliminar el producto.', 'error');
     }
   };
 
@@ -163,13 +168,17 @@ export default function InventarioPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'No se pudo registrar el movimiento.');
 
+      showToast('Movimiento de inventario registrado.', 'success');
       setMovementProduct(null);
       setMovementQuantity('');
       setMovementNotes('');
       setMovementRequestId(crypto.randomUUID());
       await fetchProductos();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo registrar el movimiento.');
+      showToast(
+        err instanceof Error ? err.message : 'No se pudo registrar el movimiento.',
+        'error'
+      );
     } finally {
       setSavingMovement(false);
     }

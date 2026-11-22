@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import PaginationControls from '@/components/common/PaginationControls';
 import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
+import { useToast } from '@/components/notifications/ToastProvider';
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
@@ -60,6 +61,7 @@ function moneda(value: number | string) {
 }
 
 export default function POSPage() {
+  const { showToast } = useToast();
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [productos, setProductos] = useState<ProductoPOS[]>([]);
   const [totalProductos, setTotalProductos] = useState(0);
@@ -83,7 +85,6 @@ export default function POSPage() {
   const [savingRegister, setSavingRegister] = useState(false);
   const [savingSale, setSavingSale] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   const cargarVentas = useCallback(async (signal?: AbortSignal) => {
     const params = new URLSearchParams({ page: String(salesPage), limit: String(PAGE_SIZE) });
@@ -235,7 +236,6 @@ export default function POSPage() {
   const abrirCaja = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
-    setSuccess('');
     setSavingRegister(true);
     try {
       const register = await requestJson<CajaAbierta>('/api/pos/register', {
@@ -245,7 +245,7 @@ export default function POSPage() {
       });
       setCaja(register);
       setSaldoFinal(String(register.opening_balance));
-      setSuccess('Caja abierta correctamente.');
+      showToast('Caja abierta correctamente.', 'success');
     } catch (openError) {
       setError(openError instanceof Error ? openError.message : 'No se pudo abrir la caja.');
     } finally {
@@ -256,7 +256,6 @@ export default function POSPage() {
   const cerrarCaja = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
-    setSuccess('');
     setSavingRegister(true);
     try {
       await requestJson<CajaAbierta>('/api/pos/register', {
@@ -265,7 +264,7 @@ export default function POSPage() {
         body: JSON.stringify({ closing_balance: Number(saldoFinal) }),
       });
       setCaja(null);
-      setSuccess('Caja cerrada correctamente.');
+      showToast('Caja cerrada correctamente.', 'success');
     } catch (closeError) {
       setError(closeError instanceof Error ? closeError.message : 'No se pudo cerrar la caja.');
     } finally {
@@ -276,7 +275,6 @@ export default function POSPage() {
   const procesarVenta = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
-    setSuccess('');
     if (!caja) {
       setError('Abre una caja antes de procesar ventas.');
       return;
@@ -323,7 +321,7 @@ export default function POSPage() {
     setClienteId('');
     setEfectivoRecibido('0');
     setSalesPage(1);
-    setSuccess(`Venta ${sale.numero_transaccion} registrada correctamente.`);
+    showToast(`Venta ${sale.numero_transaccion} registrada correctamente.`, 'success');
     try {
       await Promise.all([
         cargarCaja(),
@@ -355,11 +353,6 @@ export default function POSPage() {
       {error && (
         <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-red-700">
           {error}
-        </div>
-      )}
-      {success && (
-        <div className="rounded border border-green-200 bg-green-50 px-4 py-3 text-green-700">
-          {success}
         </div>
       )}
 
