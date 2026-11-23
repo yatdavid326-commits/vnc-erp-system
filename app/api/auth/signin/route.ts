@@ -2,11 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/db/supabase';
 import { createSignInResponse } from '@/lib/auth/sessionCookies';
+import { validateSameOriginJsonRequest } from '@/lib/auth/validateSameOriginJsonRequest';
 import { validateRequestBody } from '@/lib/validation/requestBody';
 import { signInSchema } from '@/lib/validation/requestSchemas';
 
 export async function POST(request: NextRequest) {
   try {
+    const invalidRequest = validateSameOriginJsonRequest(
+      request,
+      request.nextUrl.origin
+    );
+    if (invalidRequest) return invalidRequest;
+
     const parsedBody = await validateRequestBody(request, signInSchema);
     if (!parsedBody.success) return parsedBody.response;
     const { username, password } = parsedBody.data;

@@ -61,6 +61,8 @@
           "200": { "$ref": "#/components/responses/AuthSession" },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/CrossSiteRequest" },
+          "415": { "$ref": "#/components/responses/UnsupportedMediaType" },
           "500": { "$ref": "#/components/responses/ServerError" }
         }
       }
@@ -1864,6 +1866,14 @@
       },
       "Forbidden": {
         "description": "The profile is inactive or lacks the required permission.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "CrossSiteRequest": {
+        "description": "The request origin is missing or does not match the application origin.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "UnsupportedMediaType": {
+        "description": "The request body must use the application/json media type.",
         "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
       },
       "NotFound": {

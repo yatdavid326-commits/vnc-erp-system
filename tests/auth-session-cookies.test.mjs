@@ -7,6 +7,66 @@ import {
   createSignInResponse,
   REFRESH_TOKEN_COOKIE,
 } from '../lib/auth/sessionCookies.ts';
+import { validateSameOriginJsonRequest } from '../lib/auth/validateSameOriginJsonRequest.ts';
+
+test('sign-in request protection accepts same-origin JSON', () => {
+  const request = new Request('https://erp.example.com/api/auth/signin', {
+    method: 'POST',
+    headers: {
+      Origin: 'https://erp.example.com',
+      'Content-Type': 'application/json; charset=utf-8',
+    },
+    body: JSON.stringify({ username: 'admin', password: 'secret' }),
+  });
+
+  assert.equal(
+    validateSameOriginJsonRequest(request, 'https://erp.example.com'),
+    null
+  );
+});
+
+test('sign-in request protection rejects missing and cross-origin origins', () => {
+  const requests = [
+    new Request('https://erp.example.com/api/auth/signin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    }),
+    new Request('https://erp.example.com/api/auth/signin', {
+      method: 'POST',
+      headers: {
+        Origin: 'https://attacker.example',
+        'Content-Type': 'application/json',
+      },
+      body: '{}',
+    }),
+  ];
+
+  for (const request of requests) {
+    const response = validateSameOriginJsonRequest(
+      request,
+      'https://erp.example.com'
+    );
+    assert.equal(response?.status, 403);
+  }
+});
+
+test('sign-in request protection rejects form content types', () => {
+  const request = new Request('https://erp.example.com/api/auth/signin', {
+    method: 'POST',
+    headers: {
+      Origin: 'https://erp.example.com',
+      'Content-Type': 'text/plain',
+    },
+    body: '{"username":"admin","password":"secret"}',
+  });
+
+  const response = validateSameOriginJsonRequest(
+    request,
+    'https://erp.example.com'
+  );
+  assert.equal(response?.status, 415);
+});
 
 test('sign-in keeps tokens out of JSON and sets both HttpOnly cookies', async () => {
   const response = createSignInResponse({
