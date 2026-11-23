@@ -76,7 +76,9 @@ export default function CreditMovementForm({ clienteId, onSaved }: {
         setError('El movimiento se guardó, pero no se pudo actualizar la información. Cierre y vuelva a abrir el cliente.');
       }
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'No se pudo registrar el movimiento.');
+      setError(failure instanceof TypeError
+        ? 'No se pudo confirmar el envío. Reintente el mismo movimiento.'
+        : failure instanceof Error ? failure.message : 'No se pudo registrar el movimiento.');
     } finally {
       setBusy(false);
     }
