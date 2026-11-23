@@ -32,6 +32,11 @@ historical file contents. Therefore this review cannot rule out credentials in
 current files, deleted files, earlier commits, deployed versions, or existing
 sessions.
 
+GitHub secret scanning and push protection are enabled on the repository. On
+2026-11-23, its API reported zero open and zero resolved secret-scanning alerts.
+This does not establish that all credential types, deployments, or sessions
+have been reviewed.
+
 No credential values are included in this report. The credential audit remains
 open in the continuous-improvements checklist until a content-level scan of
 current files and relevant history, plus deployment/session review, can be
@@ -43,4 +48,6 @@ completed.
   authentication end-to-end suite (5 tests) passed.
 - Targeted ESLint and the production build passed.
 - No database migration was required.
-- The fix is committed locally and has not been confirmed in production.
+- Deployed to the Vercel testing environment and verified with a successful
+  interactive login. Cross-origin and missing-origin requests returned 403;
+  same-origin non-JSON returned 415; same-origin JSON reached validation (400).
