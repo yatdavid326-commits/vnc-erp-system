@@ -17,7 +17,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { user, setUser, isLoading, setLoading } = useAuthStore();
+  const { user, setUser, isLoading } = useAuthStore();
   const { setModules, setUserModules } = useModuleStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -32,12 +32,10 @@ export default function DashboardLayout({
     }
 
     let active = true;
-    const shouldShowLoading = loadedUserId.current !== user.id;
 
     const loadModules = async () => {
       let loaded = false;
       try {
-        if (shouldShowLoading) setLoading(true);
         const [modules, userModules, profile] = await Promise.all([
           modulesService.getAllModules(),
           modulesService.getUserModulesWithDetails(),
@@ -55,7 +53,6 @@ export default function DashboardLayout({
       } finally {
         if (active) {
           if (loaded) loadedUserId.current = user.id;
-          setLoading(false);
         }
       }
     };
@@ -64,7 +61,7 @@ export default function DashboardLayout({
     return () => {
       active = false;
     };
-  }, [user, setUser, setModules, setUserModules, setLoading]);
+  }, [user, setUser, setModules, setUserModules]);
 
   const handleLogout = async () => {
     await authService.signOut();
