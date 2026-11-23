@@ -1,0 +1,41 @@
+# Security review summary
+
+**Date:** 2026-11-23  
+**Scope:** Authentication CSRF finding and credential-exposure review.
+
+## Confirmed finding
+
+### Medium — Login CSRF (fixed)
+
+`POST /api/auth/signin` previously accepted cross-site form submissions and set
+session cookies without checking the request origin or media type. A victim
+could be signed into an attacker-controlled account in their browser.
+
+The endpoint now requires an `Origin` matching the request origin and the
+`application/json` media type. Requests without a valid matching origin receive
+403, and non-JSON requests receive 415. Focused tests cover same-origin JSON,
+missing/cross-origin headers, and form content types.
+
+**Fix commit:** `9a3e888` (`fix: protect sign-in against CSRF`).
+
+## Credential review status
+
+No additional credential exposure was confirmed, but the credential audit is
+**incomplete**. The bounded repository scan enumerated tracked files and
+working-tree status but did not inspect file contents. The history scan
+identified local and remote refs and commit counts but did not inspect
+historical file contents. Therefore this review cannot rule out credentials in
+current files, deleted files, earlier commits, deployed versions, or existing
+sessions.
+
+No credential values are included in this report. The credential audit remains
+open in the continuous-improvements checklist until a content-level scan of
+current files and relevant history, plus deployment/session review, can be
+completed.
+
+## Verification
+
+- Focused CSRF tests and the complete unit-test suite passed (52 tests).
+- Targeted ESLint and the production build passed.
+- No database migration was required.
+- The fix is committed locally and has not been confirmed in production.
