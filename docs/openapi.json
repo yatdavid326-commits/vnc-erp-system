@@ -1005,7 +1005,7 @@
       "cronAuth": {
         "type": "http",
         "scheme": "bearer",
-        "description": "CRON_SECRET configured for the Vercel Cron job."
+        "description": "Server-side CRON_SECRET. The endpoint is not scheduled while external notification delivery is paused."
       }
     },
     "parameters": {
