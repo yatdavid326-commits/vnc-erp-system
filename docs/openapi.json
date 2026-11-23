@@ -38,7 +38,7 @@
     "/api/auth/signin": {
       "post": {
         "tags": ["Auth"],
-        "summary": "Sign in with username or email",
+        "summary": "Sign in and set HttpOnly session cookies",
         "operationId": "signIn",
         "security": [],
         "requestBody": { "$ref": "#/components/requestBodies/SignIn" },
@@ -78,7 +78,7 @@
     "/api/auth/signout": {
       "post": {
         "tags": ["Auth"],
-        "summary": "Clear the browser access-token cookie",
+        "summary": "Revoke the session and clear authentication cookies",
         "operationId": "signOut",
         "security": [],
         "responses": {
@@ -103,7 +103,7 @@
         "tags": ["Modules"],
         "summary": "List modules assigned to the current user",
         "operationId": "listCurrentUserModules",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
         "responses": {
           "200": { "$ref": "#/components/responses/OkArray" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
@@ -117,7 +117,7 @@
         "tags": ["Auth"],
         "summary": "Get the current user's profile",
         "operationId": "getCurrentUserProfile",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
         "responses": {
           "200": { "$ref": "#/components/responses/OkObject" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
@@ -865,6 +865,44 @@
         }
       }
     },
+    "/api/notifications": {
+      "get": {
+        "tags": ["Notifications"],
+        "summary": "List the current user's in-app notifications",
+        "operationId": "listCurrentUserNotifications",
+        "responses": {
+          "200": {
+            "description": "Recent notifications and unread count.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/NotificationList" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      },
+      "patch": {
+        "tags": ["Notifications"],
+        "summary": "Mark one or all current-user notifications as read",
+        "operationId": "markCurrentUserNotificationsRead",
+        "requestBody": { "$ref": "#/components/requestBodies/NotificationRead" },
+        "responses": {
+          "200": {
+            "description": "Notifications marked as read.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/NotificationReadResult" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
     "/api/notifications/preferences": {
       "get": {
         "tags": ["Notifications"],
@@ -1205,11 +1243,61 @@
       },
       "AuthSession": {
         "type": "object",
-        "required": ["user", "session"],
+        "required": ["authenticated"],
         "properties": {
-          "user": { "type": "object", "additionalProperties": true },
-          "session": { "type": "object", "additionalProperties": true }
-        }
+          "authenticated": { "type": "boolean", "const": true }
+        },
+        "additionalProperties": false
+      },
+      "Notification": {
+        "type": "object",
+        "required": ["id", "title", "message", "href", "created_at", "read_at"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "message": { "type": "string" },
+          "href": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "read_at": { "type": ["string", "null"], "format": "date-time" }
+        },
+        "additionalProperties": false
+      },
+      "NotificationList": {
+        "type": "object",
+        "required": ["notifications", "unreadCount"],
+        "properties": {
+          "notifications": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Notification" }
+          },
+          "unreadCount": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": false
+      },
+      "NotificationRead": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["id"],
+            "properties": { "id": { "type": "string", "format": "uuid" } },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["all"],
+            "properties": { "all": { "type": "boolean", "const": true } },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "NotificationReadResult": {
+        "type": "object",
+        "required": ["success", "read_at"],
+        "properties": {
+          "success": { "type": "boolean", "const": true },
+          "read_at": { "type": "string", "format": "date-time" }
+        },
+        "additionalProperties": false
       },
       "NotificationPreferences": {
         "type": "object",
@@ -1602,6 +1690,7 @@
         }
       },
       "NotificationPreferences": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NotificationPreferencesUpdate" } } } },
+      "NotificationRead": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NotificationRead" } } } },
       "ReportEmail": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReportEmail" } } } },
       "ClientCreate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ClientCreate" } } } },
       "ClientUpdate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ClientUpdate" } } } },
@@ -1660,10 +1749,10 @@
         "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Success" } } }
       },
       "AuthSession": {
-        "description": "Authenticated user and Supabase session. Also sets the HttpOnly access-token cookie.",
+        "description": "Returns only an authenticated flag and sets HttpOnly access and refresh token cookies.",
         "headers": {
           "Set-Cookie": {
-            "description": "HttpOnly sb-access-token cookie with SameSite=Lax.",
+            "description": "HttpOnly sb-access-token and sb-refresh-token cookies with SameSite=Lax.",
             "schema": { "type": "string" }
           }
         },

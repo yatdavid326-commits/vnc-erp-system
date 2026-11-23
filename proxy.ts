@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { ACCESS_TOKEN_COOKIE } from '@/lib/auth/constants';
+import { createClient, type Session, type User } from '@supabase/supabase-js';
+import {
+  ACCESS_TOKEN_COOKIE,
+  clearAuthCookies,
+  REFRESH_TOKEN_COOKIE,
+  setAuthCookies,
+} from '@/lib/auth/sessionCookies';
 import {
   canAccessAdminApi,
   getRequiredApiPermission,
@@ -24,11 +29,15 @@ export async function proxy(request: NextRequest) {
   }
 
   const authorization = request.headers.get('authorization');
-  const token = authorization?.startsWith('Bearer ')
-    ? authorization.slice('Bearer '.length)
+  const hasBearerToken = authorization?.startsWith('Bearer ') ?? false;
+  let accessToken = hasBearerToken
+    ? authorization?.slice('Bearer '.length)
     : request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
+  const refreshToken = hasBearerToken
+    ? undefined
+    : request.cookies.get(REFRESH_TOKEN_COOKIE)?.value;
 
-  if (!token) {
+  if (!accessToken && !refreshToken) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -49,31 +58,76 @@ export async function proxy(request: NextRequest) {
       persistSession: false,
     },
   });
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser(token);
 
-  if (error || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  let user: User | null = null;
+  let refreshedSession: Session | null = null;
+  if (accessToken) {
+    const {
+      data: { user: accessUser },
+      error,
+    } = await supabase.auth.getUser(accessToken);
+    if (!error) user = accessUser;
   }
 
+  if (!user && refreshToken) {
+    const { data, error } = await supabase.auth.refreshSession({
+      refresh_token: refreshToken,
+    });
+    if (error) {
+      console.error('Error refreshing authentication session:', error);
+      if (error.status !== 400 && error.status !== 401) {
+        return NextResponse.json(
+          { error: 'Authentication service unavailable' },
+          { status: 503 }
+        );
+      }
+
+      const response = NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+      clearAuthCookies(response);
+      return response;
+    }
+
+    refreshedSession = data.session;
+    user = data.user ?? data.session?.user ?? null;
+    accessToken = data.session?.access_token;
+  }
+
+  if (!user || !accessToken) {
+    const response = NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+    if (!hasBearerToken) clearAuthCookies(response);
+    return response;
+  }
+
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('authorization', `Bearer ${accessToken}`);
+  const withSessionCookies = (response: NextResponse) =>
+    refreshedSession ? setAuthCookies(response, refreshedSession) : response;
+  const next = () =>
+    withSessionCookies(
+      NextResponse.next({ request: { headers: requestHeaders } })
+    );
+  const fail = (error: string, status: number) =>
+    withSessionCookies(NextResponse.json({ error }, { status }));
+
   if (selfServiceApiPaths.has(pathname)) {
-    return NextResponse.next();
+    return next();
   }
 
   const requirement = getRequiredApiPermission(pathname, request.method);
   const isAdminApi = isAdminApiPath(pathname);
   if (!requirement && !isAdminApi) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return fail('Forbidden', 403);
   }
 
   if (!supabaseAdmin) {
     console.error('Supabase admin client is not configured.');
-    return NextResponse.json(
-      { error: 'Server configuration error' },
-      { status: 500 }
-    );
+    return fail('Server configuration error', 500);
   }
 
   const { data: profile, error: profileError } = await supabaseAdmin
@@ -84,30 +138,27 @@ export async function proxy(request: NextRequest) {
 
   if (profileError) {
     console.error('Error checking API permissions:', profileError);
-    return NextResponse.json(
-      { error: 'Authorization check failed' },
-      { status: 500 }
-    );
+    return fail('Authorization check failed', 500);
   }
 
   if (!profile) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return fail('Forbidden', 403);
   }
 
   if (profile.is_active !== true) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return fail('Forbidden', 403);
   }
 
   if (isAdminApi && !canAccessAdminApi(pathname, profile)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return fail('Forbidden', 403);
   }
 
   if (profile.role === 'admin') {
-    return NextResponse.next();
+    return next();
   }
 
   if (isAdminApi || !requirement) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return fail('Forbidden', 403);
   }
 
   const { data: moduleAccess, error: accessError } = await supabaseAdmin
@@ -122,17 +173,14 @@ export async function proxy(request: NextRequest) {
 
   if (accessError) {
     console.error('Error checking module permissions:', accessError);
-    return NextResponse.json(
-      { error: 'Authorization check failed' },
-      { status: 500 }
-    );
+    return fail('Authorization check failed', 500);
   }
 
   if (moduleAccess?.[requirement.permission] !== true) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return fail('Forbidden', 403);
   }
 
-  return NextResponse.next();
+  return next();
 }
 
 export const config = {

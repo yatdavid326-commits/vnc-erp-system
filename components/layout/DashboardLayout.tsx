@@ -116,10 +116,7 @@ export default function DashboardLayout({
 
           <div className="flex items-center gap-3">
             <CsvExportButton />
-            <NotificationCenter
-              key={user.auth_id}
-              authUserId={user.auth_id}
-            />
+            <NotificationCenter key={user.auth_id} />
             {/* User Menu */}
             <div className="relative">
               <button

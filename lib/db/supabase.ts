@@ -8,14 +8,11 @@ if (!supabaseUrl || !supabaseKey) {
   throw new Error('supabaseUrl and supabaseKey (NEXT_PUBLIC_SUPABASE_ANON_KEY) are required.');
 }
 
-// Create a single Supabase client - used for both server and client
-// On server, localStorage will be undefined which is expected
 export const supabaseClient = createClient(supabaseUrl, supabaseKey, {
   auth: {
-    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
+    autoRefreshToken: false,
+    persistSession: false,
+    detectSessionInUrl: false,
   },
 });
 

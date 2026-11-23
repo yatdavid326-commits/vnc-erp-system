@@ -6,11 +6,12 @@ import {
   selfServiceApiPaths,
 } from '../lib/auth/apiPermissions.ts';
 
-test('notification preferences are authenticated self-service API routes', () => {
+test('notification routes are authenticated self-service API routes', () => {
   assert.equal(
     selfServiceApiPaths.has('/api/notifications/preferences'),
     true
   );
+  assert.equal(selfServiceApiPaths.has('/api/notifications'), true);
 });
 
 test('sending a report by email requires report view permission', () => {

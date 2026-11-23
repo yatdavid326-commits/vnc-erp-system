@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ACCESS_TOKEN_COOKIE } from '@/lib/auth/constants';
+import { ACCESS_TOKEN_COOKIE } from '@/lib/auth/sessionCookies';
 import { supabaseAdmin } from '@/lib/db/supabase';
 
 export async function GET(request: NextRequest) {

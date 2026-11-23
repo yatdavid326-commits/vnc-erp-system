@@ -38,6 +38,7 @@ test('all data APIs reject requests without an authenticated session', async () 
     '/api/proveedores',
     '/api/reportes',
     '/api/modules/user',
+    '/api/notifications',
     '/api/admin/permissions',
     '/api/user/profile',
     '/api/auth/restore',
@@ -147,5 +148,6 @@ test('signout clears the server-side access-token cookie', async () => {
   });
   assert.equal(response.status, 200);
   assert.match(response.headers.get('set-cookie') ?? '', /sb-access-token=;/);
+  assert.match(response.headers.get('set-cookie') ?? '', /sb-refresh-token=;/);
   assert.match(response.headers.get('set-cookie') ?? '', /Max-Age=0/i);
 });

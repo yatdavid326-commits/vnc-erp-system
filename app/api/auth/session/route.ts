@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ACCESS_TOKEN_COOKIE } from '@/lib/auth/constants';
 import { supabaseAdmin } from '@/lib/db/supabase';
+import { setAccessTokenCookie } from '@/lib/auth/sessionCookies';
 
 export async function POST(request: NextRequest) {
   if (!supabaseAdmin) {
@@ -26,12 +26,5 @@ export async function POST(request: NextRequest) {
   }
 
   const response = NextResponse.json({ authenticated: true });
-  response.cookies.set(ACCESS_TOKEN_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60,
-  });
-  return response;
+  return setAccessTokenCookie(response, token, 60 * 60);
 }

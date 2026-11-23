@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { Save, ShieldCheck } from 'lucide-react';
-import { supabaseClient } from '@/lib/db/supabase';
 import { useToast } from '@/components/notifications/ToastProvider';
 
 interface PermissionUser {
@@ -101,17 +100,8 @@ export default function PermissionsPage() {
 
     const loadPermissions = async () => {
       try {
-        const {
-          data: { session },
-          error: sessionError,
-        } = await supabaseClient.auth.getSession();
-        if (sessionError) throw sessionError;
-        if (!session?.access_token) {
-          throw new Error('Tu sesión expiró. Inicia sesión nuevamente.');
-        }
-
         const response = await fetch('/api/admin/permissions', {
-          headers: { Authorization: `Bearer ${session.access_token}` },
+          cache: 'no-store',
         });
         const result = await response.json();
         if (!response.ok) {
@@ -180,20 +170,10 @@ export default function PermissionsPage() {
     setError(null);
 
     try {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabaseClient.auth.getSession();
-      if (sessionError) throw sessionError;
-      if (!session?.access_token) {
-        throw new Error('Tu sesión expiró. Inicia sesión nuevamente.');
-      }
-
       const response = await fetch('/api/admin/permissions', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           user_id: selectedUser.id,

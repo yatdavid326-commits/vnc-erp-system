@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { ACCESS_TOKEN_COOKIE } from '@/lib/auth/constants';
+import { ACCESS_TOKEN_COOKIE } from '@/lib/auth/sessionCookies';
 import { supabaseAdmin } from '@/lib/db/supabase';
 
 export class AuthenticatedProfileError extends Error {
@@ -14,6 +14,7 @@ export class AuthenticatedProfileError extends Error {
 
 export interface AuthenticatedProfileIdentity {
   id: string;
+  authId: string;
   email: string | null;
 }
 
@@ -55,6 +56,7 @@ export async function getAuthenticatedProfileIdentity(
 
   return {
     id: profile.id,
+    authId: user.id,
     email: typeof user.email === 'string' ? user.email : null,
   };
 }

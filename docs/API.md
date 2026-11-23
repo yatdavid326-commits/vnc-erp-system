@@ -11,15 +11,16 @@ Use the same origin as the ERP. For local development, start the app with
 
 ## Authentication and authorization
 
-- Most data routes accept a Supabase access token in `Authorization: Bearer
-  <token>` or the `sb-access-token` HttpOnly cookie.
-- `POST /api/auth/signin` is public and returns the user and Supabase session;
-  it also sets the HttpOnly cookie.
+- Browser requests use the `sb-access-token` and `sb-refresh-token` HttpOnly
+  cookies; API clients may also use `Authorization: Bearer <token>`.
+- `POST /api/auth/signin` is public and returns only `{ "authenticated": true
+  }`. It sets both HttpOnly cookies; tokens are never returned in JSON.
 - `POST /api/auth/session` requires a Bearer token and sets the cookie.
 - `GET /api/auth/restore` accepts either the cookie or a Bearer token.
-- `POST /api/auth/signout` clears the cookie and does not require a token.
+- `POST /api/auth/signout` revokes the Supabase session when possible, clears
+  both cookies, and does not require a token.
 - `GET /api/modules/all` is public. `GET /api/modules/user` and
-  `GET /api/user/profile` require a Bearer token.
+  `GET /api/user/profile` accept either a Bearer token or the HttpOnly cookies.
 - Other API routes require an active profile. Administrators have full access
   to module routes; other users need the permission assigned to the matching
   module. `GET`/`HEAD` require `can_view`, `POST` requires `can_create`,
@@ -31,6 +32,10 @@ Use the same origin as the ERP. For local development, start the app with
   module and sends only to the authenticated account email.
 - `GET` and `PUT /api/notifications/preferences` accept an authenticated user
   and manage only that user's external notification consent.
+- `GET /api/notifications` returns the authenticated user's recent in-app
+  notifications and unread count. `PATCH /api/notifications` marks one
+  notification (`{ "id": "<uuid>" }`) or all notifications (`{ "all": true }`)
+  as read.
 - `GET /api/cron/notifications` requires `Authorization: Bearer <CRON_SECRET>`;
   it is not scheduled on the current Vercel Hobby plan. External delivery is
   paused while in-app inventory alerts are being validated.

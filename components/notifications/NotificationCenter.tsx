@@ -3,91 +3,45 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Bell, CheckCheck, Settings } from 'lucide-react';
-import { supabaseClient } from '@/lib/db/supabase';
 import {
   isRealtimeNotification,
-  mergeRealtimeNotification,
   type RealtimeNotification,
 } from '@/lib/utils/notifications';
 
-const notificationFields = 'id, title, message, href, created_at, read_at';
-
-export default function NotificationCenter({
-  authUserId,
-}: {
-  authUserId: string;
-}) {
+export default function NotificationCenter() {
   const [notifications, setNotifications] = useState<RealtimeNotification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [realtimeError, setRealtimeError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    let hasSubscribed = false;
-
-    async function loadUnreadCount() {
-      try {
-        const { count, error } = await supabaseClient
-          .from('notifications')
-          .select('id', { count: 'exact', head: true })
-          .eq('recipient_auth_id', authUserId)
-          .is('read_at', null);
-
-        if (!active) return;
-        if (error) throw error;
-        setUnreadCount(count ?? 0);
-        setLoadError(null);
-      } catch (error) {
-        if (!active) return;
-        console.error('Error loading unread notification count:', error);
-        setLoadError('No se pudo actualizar el contador de notificaciones.');
-      }
-    }
 
     const loadNotifications = async () => {
       try {
-        const [notificationResult, countResult] = await Promise.all([
-          supabaseClient
-            .from('notifications')
-            .select(notificationFields)
-            .eq('recipient_auth_id', authUserId)
-            .order('created_at', { ascending: false })
-            .order('id', { ascending: false })
-            .limit(20),
-          supabaseClient
-            .from('notifications')
-            .select('id', { count: 'exact', head: true })
-            .eq('recipient_auth_id', authUserId)
-            .is('read_at', null),
-        ]);
-
-        if (!active) return;
-        if (notificationResult.error) throw notificationResult.error;
-
-        const records = (notificationResult.data ?? []).filter(
-          isRealtimeNotification
-        );
-        setNotifications((current) =>
-          records.reduce(
-            (merged, notification) =>
-              mergeRealtimeNotification(merged, notification),
-            current
-          )
-        );
-        if (countResult.error) {
-          console.error(
-            'Error loading unread notification count:',
-            countResult.error
+        const response = await fetch('/api/notifications', {
+          cache: 'no-store',
+        });
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(
+            result.error || 'No se pudieron cargar las notificaciones.'
           );
-          setLoadError('No se pudo actualizar el contador de notificaciones.');
-        } else {
-          setUnreadCount(countResult.count ?? 0);
-          setLoadError(null);
         }
+        if (
+          !Array.isArray(result.notifications) ||
+          !Number.isInteger(result.unreadCount)
+        ) {
+          throw new Error('Respuesta de notificaciones no válida.');
+        }
+        if (!active) return;
+        setNotifications(
+          result.notifications.filter(isRealtimeNotification)
+        );
+        setUnreadCount(result.unreadCount);
+        setLoadError(null);
       } catch (error) {
         if (!active) return;
         console.error('Error loading notifications:', error);
@@ -98,105 +52,73 @@ export default function NotificationCenter({
     };
 
     void loadNotifications();
-
-    const channel = supabaseClient
-      .channel(`notifications:${authUserId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'notifications',
-          filter: `recipient_auth_id=eq.${authUserId}`,
-        },
-        (payload) => {
-          if (payload.eventType === 'DELETE') return;
-          const incoming: unknown = payload.new;
-          if (!isRealtimeNotification(incoming)) return;
-          setNotifications((current) =>
-            mergeRealtimeNotification(current, incoming)
-          );
-          void loadUnreadCount();
-        }
-      )
-      .subscribe((status, error) => {
-        if (!active) return;
-        if (status === 'SUBSCRIBED') {
-          if (hasSubscribed) void loadNotifications();
-          hasSubscribed = true;
-          setRealtimeError(null);
-        } else if (
-          status === 'CHANNEL_ERROR' ||
-          status === 'TIMED_OUT' ||
-          status === 'CLOSED'
-        ) {
-          console.error('Realtime notifications channel error:', error);
-          setRealtimeError(
-            'La conexión en tiempo real no está disponible.'
-          );
-        }
-      });
+    const intervalId = window.setInterval(() => {
+      void loadNotifications();
+    }, 15_000);
 
     return () => {
       active = false;
-      void supabaseClient.removeChannel(channel);
+      window.clearInterval(intervalId);
     };
-  }, [authUserId]);
+  }, []);
 
   const markAsRead = async (id: string) => {
     const wasUnread = notifications.some(
       (notification) => notification.id === id && notification.read_at === null
     );
-    const readAt = new Date().toISOString();
-    const { error } = await supabaseClient
-      .from('notifications')
-      .update({ read_at: readAt })
-      .eq('id', id)
-      .eq('recipient_auth_id', authUserId)
-      .is('read_at', null);
+    try {
+      const response = await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'No se pudo marcar la notificación.');
+      }
 
-    if (error) {
+      setActionError(null);
+      if (wasUnread) {
+        setUnreadCount((current) => Math.max(0, current - 1));
+      }
+      setNotifications((current) =>
+        current.map((notification) =>
+          notification.id === id
+            ? { ...notification, read_at: result.read_at }
+            : notification
+        )
+      );
+    } catch (error) {
       console.error('Error marking notification as read:', error);
       setActionError('No se pudo marcar la notificación como leída.');
-      return;
     }
-
-    setActionError(null);
-    if (wasUnread) {
-      setUnreadCount((current) => Math.max(0, current - 1));
-    }
-    setNotifications((current) =>
-      current.map((notification) =>
-        notification.id === id
-          ? { ...notification, read_at: readAt }
-          : notification
-      )
-    );
   };
 
   const markAllAsRead = async () => {
-    const readAt = new Date().toISOString();
-    const { error } = await supabaseClient
-      .from('notifications')
-      .update({ read_at: readAt })
-      .eq('recipient_auth_id', authUserId)
-      .is('read_at', null);
+    try {
+      const response = await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ all: true }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'No se pudieron marcar como leídas.');
+      }
 
-    if (error) {
+      setActionError(null);
+      setUnreadCount(0);
+      setNotifications((current) =>
+        current.map((notification) =>
+          notification.read_at === null
+            ? { ...notification, read_at: result.read_at }
+            : notification
+        )
+      );
+    } catch (error) {
       console.error('Error marking all notifications as read:', error);
       setActionError('No se pudieron marcar todas como leídas.');
-      return;
     }
-
-    setActionError(null);
-    setUnreadCount(0);
-    setNotifications((current) =>
-      current.map((notification) =>
-        notification.read_at === null
-          ? { ...notification, read_at: readAt }
-          : notification
-      )
-    );
   };
 
   return (
@@ -256,9 +178,9 @@ export default function NotificationCenter({
             </div>
           </header>
 
-          {(loadError || realtimeError || actionError) && (
+          {(loadError || actionError) && (
             <p role="alert" className="border-b border-red-100 bg-red-50 px-4 py-2 text-sm text-red-700">
-              {actionError || loadError || realtimeError}
+              {actionError || loadError}
             </p>
           )}
 

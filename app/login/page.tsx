@@ -20,7 +20,7 @@ export default function LoginPage() {
 
     try {
       // Use server-side signin that bypasses RLS
-      const { data, error } = await serverSignIn(username, password);
+      const { error } = await serverSignIn(username, password);
 
       if (error) {
         setError(error.message);
@@ -28,18 +28,7 @@ export default function LoginPage() {
         return;
       }
 
-      // Save session and tokens to localStorage for persistence
-      if (data?.session) {
-        localStorage.setItem('supabase-session', JSON.stringify(data.session));
-        localStorage.setItem('supabase-access-token', data.session.access_token);
-        localStorage.setItem('supabase-refresh-token', data.session.refresh_token);
-        localStorage.setItem('supabase-user', JSON.stringify(data.user));
-      }
-
-      // Small delay to ensure localStorage is set
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 100);
+      router.replace('/dashboard');
     } catch (err) {
       setError('Error al iniciar sesión. Intenta nuevamente.');
       console.error(err);

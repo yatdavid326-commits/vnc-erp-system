@@ -36,20 +36,8 @@ export const modulesService = {
 
   async getUserModulesWithDetails(): Promise<UserModuleWithDetails[]> {
     try {
-      // Get the session to get the access token
-      const {
-        data: { session },
-      } = await supabaseClient.auth.getSession();
-
-      if (!session?.access_token) return [];
-
-      // Use server-side API to bypass RLS
       const response = await fetch('/api/modules/user', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
+        cache: 'no-store',
       });
 
       if (!response.ok) return [];

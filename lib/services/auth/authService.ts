@@ -1,34 +1,19 @@
 import { supabaseClient } from '@/lib/db/supabase';
-import { clientSignIn } from '@/lib/services/auth/serverSignIn';
+import { serverSignIn } from '@/lib/services/auth/serverSignIn';
 import type { User } from '@/lib/types';
 
 export const authService = {
   async getCurrentUser() {
-    const {
-      data: { user },
-    } = await supabaseClient.auth.getUser();
-    return user;
+    const response = await fetch('/api/auth/restore', { cache: 'no-store' });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.user ?? null;
   },
 
   async getUserProfile(): Promise<User | null> {
-    const user = await this.getCurrentUser();
-    if (!user) return null;
-
     try {
-      // Get the session to get the access token
-      const {
-        data: { session },
-      } = await supabaseClient.auth.getSession();
-
-      if (!session?.access_token) return null;
-
-      // Use server-side API instead of direct query to bypass RLS
       const response = await fetch('/api/user/profile', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
+        cache: 'no-store',
       });
 
       if (!response.ok) return null;
@@ -47,16 +32,15 @@ export const authService = {
   },
 
   async signIn(emailOrUsername: string, password: string) {
-    return await clientSignIn(emailOrUsername, password);
+    return await serverSignIn(emailOrUsername, password);
   },
 
   async signOut() {
-    const result = await supabaseClient.auth.signOut();
     const response = await fetch('/api/auth/signout', { method: 'POST' });
     if (!response.ok) {
       throw new Error(`Server signout failed: HTTP ${response.status}`);
     }
-    return result;
+    return { error: null };
   },
 
   async updatePassword(newPassword: string) {

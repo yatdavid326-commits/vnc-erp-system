@@ -382,6 +382,11 @@ export const notificationPreferencesSchema = z
     }
   });
 
+export const notificationReadSchema = z.union([
+  z.object({ id: z.string().uuid() }).strict(),
+  z.object({ all: z.literal(true) }).strict(),
+]);
+
 const reportSummaryEmailSchema = z
   .object({
     tipo: z.enum(['resumen', 'ventas', 'compras', 'inventario', 'asistencia']),

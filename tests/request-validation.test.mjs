@@ -10,6 +10,7 @@ import {
   employeeCreateSchema,
   employeeUpdateSchema,
   inventoryMovementSchema,
+  notificationReadSchema,
   notificationPreferencesSchema,
   purchaseCreateSchema,
   productCreateSchema,
@@ -225,6 +226,28 @@ test('notification preferences require an E.164 number for each explicit opt-in'
       sms_opt_in: true,
       whatsapp_opt_in: false,
     }).success,
+    false
+  );
+});
+
+test('notification read updates require exactly one valid target', () => {
+  assert.equal(
+    notificationReadSchema.safeParse({
+      id: 'ed8c4009-88bf-4aeb-a0a8-6e63841f3d09',
+    }).success,
+    true
+  );
+  assert.equal(notificationReadSchema.safeParse({ all: true }).success, true);
+  assert.equal(notificationReadSchema.safeParse({}).success, false);
+  assert.equal(
+    notificationReadSchema.safeParse({
+      id: 'ed8c4009-88bf-4aeb-a0a8-6e63841f3d09',
+      all: true,
+    }).success,
+    false
+  );
+  assert.equal(
+    notificationReadSchema.safeParse({ id: 'not-a-uuid' }).success,
     false
   );
 });

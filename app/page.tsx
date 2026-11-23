@@ -2,25 +2,20 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabaseClient } from '@/lib/db/supabase';
 
 export default function Page() {
   const router = useRouter();
 
   useEffect(() => {
     const checkAuth = async () => {
-      const {
-        data: { session },
-      } = await supabaseClient.auth.getSession();
-
-      if (session) {
-        router.push('/dashboard');
-      } else {
-        router.push('/login');
-      }
+      const response = await fetch('/api/auth/restore', { cache: 'no-store' });
+      router.replace(response.ok ? '/dashboard' : '/login');
     };
 
-    checkAuth();
+    void checkAuth().catch((error) => {
+      console.error('Error checking the current session:', error);
+      router.replace('/login');
+    });
   }, [router]);
 
   return (

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/db/supabase';
-import { ACCESS_TOKEN_COOKIE } from '@/lib/auth/constants';
+import { createSignInResponse } from '@/lib/auth/sessionCookies';
 import { validateRequestBody } from '@/lib/validation/requestBody';
 import { signInSchema } from '@/lib/validation/requestSchemas';
 
@@ -66,23 +66,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Keep the access token in an HttpOnly cookie for authenticated API requests.
-    const response = NextResponse.json({
-      user: data.user,
-      session: data.session,
-    });
-
-    if (data.session) {
-      response.cookies.set(ACCESS_TOKEN_COOKIE, data.session.access_token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: data.session.expires_in,
-      });
+    if (!data.session) {
+      return NextResponse.json(
+        { error: 'Authentication failed' },
+        { status: 401 }
+      );
     }
 
-    return response;
+    return createSignInResponse(data.session);
   } catch (error) {
     console.error('Error in signin:', error);
     return NextResponse.json(
