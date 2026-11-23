@@ -17,7 +17,7 @@ const publicApiPaths = new Set([
   '/api/modules/all',
 ]);
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (!pathname.startsWith('/api/') || publicApiPaths.has(pathname)) {
     return NextResponse.next();
