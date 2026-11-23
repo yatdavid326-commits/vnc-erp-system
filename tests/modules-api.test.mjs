@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 
 test('modules API returns the configured modules in database order', async () => {
@@ -117,6 +118,34 @@ test('authenticated module API returns assignments for the linked profile', asyn
   const modules = await response.json();
   assert.ok(Array.isArray(modules));
   assert.ok(modules.length > 0);
+});
+
+test('authenticated updates and deletes return 404 for missing records', async (t) => {
+  const accessToken = process.env.VNC_TEST_AUTH_TOKEN;
+  if (!accessToken) {
+    t.skip('Set VNC_TEST_AUTH_TOKEN to an account with the required permissions');
+    return;
+  }
+
+  const baseUrl = process.env.VNC_BASE_URL;
+  assert.ok(baseUrl, 'Set VNC_BASE_URL to the server under test');
+  const id = randomUUID();
+  for (const resource of ['clientes', 'inventario', 'proveedores']) {
+    const url = new URL(`/api/${resource}/${id}`, baseUrl);
+    const headers = { Authorization: `Bearer ${accessToken}` };
+    const get = await fetch(url, { headers });
+    assert.equal(get.status, 404, `${resource} GET must confirm the ID is absent`);
+
+    const update = await fetch(url, {
+      method: 'PUT',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre: 'Registro inexistente' }),
+    });
+    assert.equal(update.status, 404, `${resource} PUT`);
+
+    const deleted = await fetch(url, { method: 'DELETE', headers });
+    assert.equal(deleted.status, 404, `${resource} DELETE`);
+  }
 });
 
 test('session sync rejects requests without a bearer token', async () => {

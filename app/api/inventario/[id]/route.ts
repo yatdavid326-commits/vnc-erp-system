@@ -38,6 +38,9 @@ export async function PUT(
 
     const product = await productService.update((await params).id, body);
 
+    if (!product) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
     return NextResponse.json(product);
   } catch (error) {
     console.error(`PUT /api/inventario/${(await params).id} error:`, error);
@@ -53,7 +56,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await productService.delete((await params).id);
+    const deleted = await productService.delete((await params).id);
+    if (!deleted) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error(`DELETE /api/inventario/${(await params).id} error:`, error);

@@ -167,13 +167,14 @@ class ProductService {
     }
   }
 
-  async update(id: string, producto: Partial<Producto>): Promise<Producto> {
+  async update(id: string, producto: Partial<Producto>): Promise<Producto | null> {
     try {
       const updateData: Record<string, string | number | boolean | null> = {};
       if (producto.nombre !== undefined) updateData.name = producto.nombre.trim();
       if (producto.sku !== undefined) updateData.product_code = producto.sku.trim();
       if (producto.descripcion !== undefined) updateData.description = producto.descripcion || null;
       if (producto.categoria !== undefined) {
+        if (!await this.getById(id)) return null;
         updateData.category_id = await getCategoryId(producto.categoria);
       }
       if (producto.costo_unitario !== undefined) updateData.cost_price = producto.costo_unitario;
@@ -188,20 +189,25 @@ class ProductService {
         .select(productFields)
         .maybeSingle();
       if (error) throw error;
-      if (!data) throw new Error('Product not found');
-      return productToProducto(data as ProductRow);
+      return data ? productToProducto(data as ProductRow) : null;
     } catch (error) {
       console.error(`Error updating product ${id}:`, error);
       throw error;
     }
   }
 
-  async delete(id: string): Promise<void> {
-    const { error } = await getSupabaseAdmin().from('products').delete().eq('id', id);
+  async delete(id: string): Promise<boolean> {
+    const { data, error } = await getSupabaseAdmin()
+      .from('products')
+      .delete()
+      .eq('id', id)
+      .select('id')
+      .maybeSingle();
     if (error) {
       console.error(`Error deleting product ${id}:`, error);
       throw error;
     }
+    return data !== null;
   }
 
   async search(query: string, limit = 10): Promise<Producto[]> {

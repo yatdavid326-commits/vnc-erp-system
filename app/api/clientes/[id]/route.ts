@@ -22,6 +22,7 @@ export async function PUT(request: NextRequest, { params }: Context) {
     if (!parsedBody.success) return parsedBody.response;
 
     const cliente = await customerService.update((await params).id, parsedBody.data);
+    if (!cliente) return NextResponse.json({ error: 'Cliente no encontrado.' }, { status: 404 });
     return NextResponse.json(cliente);
   } catch (error) {
     console.error('PUT /api/clientes/[id] error:', error);
@@ -32,7 +33,8 @@ export async function PUT(request: NextRequest, { params }: Context) {
 export async function DELETE(request: NextRequest, { params }: Context) {
   try {
     const { id } = await params;
-    await customerService.delete(id);
+    const deleted = await customerService.delete(id);
+    if (!deleted) return NextResponse.json({ error: 'Cliente no encontrado.' }, { status: 404 });
     return NextResponse.json({ success: true, id });
   } catch (error) {
     console.error('DELETE /api/clientes/[id] error:', error);

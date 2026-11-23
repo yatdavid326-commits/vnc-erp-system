@@ -186,9 +186,14 @@ export const proveedoresService = {
 
   async delete(id: string) {
     try {
-      const { error } = await requireSupabaseAdmin().from('suppliers').delete().eq('id', id);
+      const { data, error } = await requireSupabaseAdmin()
+        .from('suppliers')
+        .delete()
+        .eq('id', id)
+        .select('id')
+        .maybeSingle();
       if (error) throw error;
-      return { success: true, error: null };
+      return { success: data !== null, error: null };
     } catch (error) {
       return { success: false, error: errorMessage(error) };
     }

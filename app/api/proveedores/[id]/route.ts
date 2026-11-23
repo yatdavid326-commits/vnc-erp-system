@@ -61,6 +61,9 @@ export async function DELETE(
       }
       throw new Error(result.error);
     }
+    if (!result.success) {
+      return NextResponse.json({ error: 'Proveedor no encontrado.' }, { status: 404 });
+    }
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('DELETE /api/proveedores/[id] error:', error);

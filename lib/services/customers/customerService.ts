@@ -182,7 +182,7 @@ class CustomerService {
     }
   }
 
-  async update(id: string, cliente: Partial<Cliente>): Promise<Cliente> {
+  async update(id: string, cliente: Partial<Cliente>): Promise<Cliente | null> {
     try {
       const updateData: Partial<Customer> = {};
       
@@ -206,10 +206,10 @@ class CustomerService {
         .update(updateData)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
-      return customerToCliente(data);
+      return data ? customerToCliente(data) : null;
     } catch (error) {
       throw error;
     }
@@ -217,13 +217,15 @@ class CustomerService {
 
   async delete(id: string): Promise<boolean> {
     try {
-      const { error } = await getSupabaseAdmin()
+      const { data, error } = await getSupabaseAdmin()
         .from('customers')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select('id')
+        .maybeSingle();
 
       if (error) throw error;
-      return true;
+      return data !== null;
     } catch (error) {
       throw error;
     }
