@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import type { CreditTransaction } from '@/lib/services/customers/customerService';
 import { fetchJson } from '@/lib/utils/fetchJson';
+import CreditMovementForm from './CreditMovementForm';
 
 interface Cliente {
   id: string;
@@ -24,10 +25,12 @@ interface ClientesModalProps {
   cliente: Cliente | null;
   isOpen: boolean;
   onClose: () => void;
+  onUpdated: (id: string) => Promise<void>;
 }
 
-export default function ClientesModal({ cliente, isOpen, onClose }: ClientesModalProps) {
+export default function ClientesModal({ cliente, isOpen, onClose, onUpdated }: ClientesModalProps) {
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
+  const [transactionsError, setTransactionsError] = useState('');
   const [loadedClienteId, setLoadedClienteId] = useState<string | null>(null);
   const loading = isOpen && cliente !== null && loadedClienteId !== cliente.id;
   const clienteId = cliente?.id;
@@ -44,7 +47,10 @@ export default function ClientesModal({ cliente, isOpen, onClose }: ClientesModa
         if (active) setTransactions(data);
       })
       .catch((error: unknown) => {
-        if (active) console.error('Error loading transactions:', error);
+        if (active) {
+          console.error('Error loading transactions:', error);
+          setTransactionsError('No se pudo cargar el historial de crédito.');
+        }
       })
       .finally(() => {
         if (active) setLoadedClienteId(clienteId);
@@ -151,26 +157,37 @@ export default function ClientesModal({ cliente, isOpen, onClose }: ClientesModa
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Transacciones Recientes</h3>
             {loading ? (
               <p className="text-gray-500 text-center py-4">Cargando transacciones...</p>
+            ) : transactionsError ? (
+              <p role="alert" className="text-red-700">{transactionsError}</p>
             ) : transactions.length === 0 ? (
               <p className="text-gray-500 text-center py-4">No hay transacciones</p>
             ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {transactions.map((transaction, index) => (
-                  <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                {transactions.map((transaction) => (
+                  <div key={transaction.id} className="flex justify-between items-center p-3 bg-gray-50 rounded">
                     <div>
                       <p className="font-medium text-gray-900">{transaction.descripcion || transaction.tipo}</p>
                       <p className="text-xs text-gray-500">{new Date(transaction.fecha).toLocaleDateString()}</p>
                     </div>
                     <span className={`font-bold ${
-                      transaction.tipo === 'pago' ? 'text-green-600' : 'text-red-600'
+                      transaction.tipo === 'pago' || transaction.monto < 0 ? 'text-green-600' : 'text-red-600'
                     }`}>
-                      {transaction.tipo === 'pago' ? '-' : '+'} ${transaction.monto.toFixed(2)}
+                      {transaction.tipo === 'pago' || transaction.monto < 0 ? '-' : '+'} ${Math.abs(transaction.monto).toFixed(2)}
                     </span>
                   </div>
                 ))}
               </div>
             )}
           </div>
+          <CreditMovementForm clienteId={cliente.id} onSaved={async () => {
+            await onUpdated(cliente.id);
+            const data = await fetchJson<CreditTransaction[]>(
+              `/api/clientes/${cliente.id}/transactions?limit=20`,
+              'No se pudo cargar el historial de crédito.'
+            );
+            setTransactions(data);
+            setTransactionsError('');
+          }} />
         </div>
 
         <div className="border-t p-6 flex gap-4 justify-end">

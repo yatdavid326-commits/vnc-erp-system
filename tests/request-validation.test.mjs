@@ -7,6 +7,7 @@ import {
   cashMovementFormSchema,
   customerCreateSchema,
   customerUpdateSchema,
+  creditTransactionSchema,
   employeeCreateSchema,
   employeeUpdateSchema,
   inventoryMovementSchema,
@@ -48,6 +49,7 @@ test('customer validation trims fields and rejects invalid email and unknown key
     email: 'ana@example.com',
     tipo: 'retail',
   });
+
   assert.equal(valid.success, true);
   if (valid.success) assert.equal(valid.data.nombre, 'Ana');
 
@@ -66,6 +68,22 @@ test('customer validation trims fields and rejects invalid email and unknown key
     }).success,
     false
   );
+});
+
+test('credit movements accept signed adjustments but reject invalid monetary values', () => {
+  const movement = {
+    id: 'ed8c4009-88bf-4aeb-a0a8-6e63841f3d09',
+    tipo: 'ajuste',
+    monto: -12.34,
+    fecha: '2026-11-23T00:00:00.000Z',
+  };
+  assert.equal(creditTransactionSchema.safeParse(movement).success, true);
+  assert.equal(creditTransactionSchema.safeParse({ ...movement, tipo: 'pago' }).success, false);
+  assert.equal(creditTransactionSchema.safeParse({ ...movement, monto: 0 }).success, false);
+  assert.equal(creditTransactionSchema.safeParse({ ...movement, monto: 1.001 }).success, false);
+  assert.equal(creditTransactionSchema.safeParse({ ...movement, id: 'bad' }).success, false);
+  assert.equal(customerUpdateSchema.safeParse({ saldo_actual: 1 }).success, false);
+  assert.equal(customerCreateSchema.safeParse({ nombre: 'Ana', email: 'ana@example.com', saldo_actual: 1 }).success, false);
 });
 
 test('update validation rejects empty objects and product validation enforces numeric limits', () => {

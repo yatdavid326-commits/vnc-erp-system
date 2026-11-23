@@ -3,9 +3,10 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
-import { fetchPaginatedJson } from '@/lib/utils/fetchJson';
+import { fetchJson, fetchPaginatedJson } from '@/lib/utils/fetchJson';
 import ClientesForm, { type ClienteFormData } from '@/components/clientes/ClientesForm';
 import ClientesTable from '@/components/clientes/ClientesTable';
+import ClientesModal from '@/components/clientes/ClientesModal';
 import PaginationControls from '@/components/common/PaginationControls';
 import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
 import { useToast } from '@/components/notifications/ToastProvider';
@@ -23,6 +24,8 @@ interface Cliente {
   codigo_postal: string;
   tipo: string;
   estado_cliente: string;
+  limite_credito?: number;
+  saldo_actual?: number;
   created_at: string;
 }
 
@@ -36,6 +39,7 @@ export default function ClientesPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [showForm, setShowForm] = useState(false);
+  const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<ClienteFormData>({
     nombre: '',
@@ -130,6 +134,7 @@ export default function ClientesPage() {
       codigo_postal: cliente.codigo_postal,
       tipo: cliente.tipo,
       estado_cliente: cliente.estado_cliente,
+      limite_credito: cliente.limite_credito,
     });
     setEditingId(cliente.id);
     setShowForm(true);
@@ -235,6 +240,7 @@ export default function ClientesPage() {
               clientes={clientes}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onView={setSelectedCliente}
             />
             <PaginationControls
               page={page}
@@ -246,6 +252,17 @@ export default function ClientesPage() {
             />
           </div>
         )}
+        {selectedCliente && <ClientesModal
+          key={selectedCliente.id}
+          cliente={selectedCliente}
+          isOpen
+          onClose={() => setSelectedCliente(null)}
+          onUpdated={async (id) => {
+            const updated = await fetchJson<Cliente>(`/api/clientes/${id}`, 'No se pudo actualizar el cliente.');
+            setSelectedCliente(updated);
+            await fetchClientes();
+          }}
+        />}
       </div>
   );
 }

@@ -47,7 +47,6 @@ const customerFields = {
   codigo_postal: optionalText(24),
   tipo: z.enum(['retail', 'wholesale', 'business']),
   limite_credito: nonNegativeNumber,
-  saldo_actual: finiteNumber,
   estado_cliente: z.enum(['activo', 'inactivo', 'suspendido']),
 };
 
@@ -56,7 +55,6 @@ export const customerCreateSchema = z
     ...customerFields,
     tipo: customerFields.tipo.optional(),
     limite_credito: customerFields.limite_credito.optional(),
-    saldo_actual: customerFields.saldo_actual.optional(),
     estado_cliente: customerFields.estado_cliente.optional(),
   })
   .strict();
@@ -316,12 +314,18 @@ export const creditCheckSchema = z
 
 export const creditTransactionSchema = z
   .object({
-    monto: positiveNumber,
+    id: uuid,
+    monto: finiteNumber
+      .refine((value) => value !== 0 && Math.abs(value) <= 9999999999.99 && Math.abs(value * 100 - Math.round(value * 100)) < 0.0001, 'El monto debe tener hasta dos decimales.'),
     tipo: z.enum(['compra', 'pago', 'ajuste']),
     descripcion: optionalText(1000),
-    fecha: dateOrDateTime.optional(),
+    fecha: dateOrDateTime,
   })
-  .strict();
+  .strict()
+  .refine((body) => body.tipo === 'ajuste' || body.monto > 0, {
+    message: 'El monto de compra o pago debe ser positivo.',
+    path: ['monto'],
+  });
 
 export const posOrderUpdateSchema = updateSchema({
   status: z.enum(['pending', 'completed', 'cancelled']),

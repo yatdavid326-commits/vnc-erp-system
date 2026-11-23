@@ -48,13 +48,20 @@ export interface Customer {
 }
 
 export interface CreditTransaction {
-  id?: string;
+  id: string;
   cliente_id: string;
   monto: number;
   tipo: 'compra' | 'pago' | 'ajuste';
   descripcion?: string;
   fecha: string;
   created_at?: string;
+  created_by?: string;
+}
+
+export class CreditTransactionError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+  }
 }
 
 // Helper functions to map between UI and database formats
@@ -195,7 +202,6 @@ class CustomerService {
       if (cliente.codigo_postal !== undefined) updateData.postal_code = cliente.codigo_postal;
       if (cliente.tipo) updateData.customer_type = cliente.tipo;
       if (cliente.limite_credito !== undefined) updateData.credit_limit = cliente.limite_credito;
-      if (cliente.saldo_actual !== undefined) updateData.current_balance = cliente.saldo_actual;
       if (cliente.estado_cliente) {
         updateData.status = cliente.estado_cliente;
         updateData.is_active = cliente.estado_cliente === 'activo';
@@ -247,43 +253,31 @@ class CustomerService {
     }
   }
 
-  async updateCreditBalance(clienteId: string, amount: number): Promise<number> {
-    try {
-      const currentBalance = await this.getCreditBalance(clienteId);
-      const newBalance = currentBalance + amount;
-
-      const { data, error } = await getSupabaseAdmin()
-        .from('customers')
-        .update({ current_balance: newBalance })
-        .eq('id', clienteId)
-        .select('current_balance')
-        .single();
-
-      if (error) throw error;
-      return data?.current_balance || 0;
-    } catch (error) {
+  async addCreditTransaction(transaction: CreditTransaction, userId: string): Promise<CreditTransaction> {
+    const { data, error } = await getSupabaseAdmin().rpc('create_credit_transaction', {
+      p_id: transaction.id,
+      p_cliente_id: transaction.cliente_id,
+      p_monto: transaction.monto,
+      p_tipo: transaction.tipo,
+      p_descripcion: transaction.descripcion ?? null,
+      p_fecha: transaction.fecha,
+      p_created_by: userId,
+    }).single();
+    if (error) {
+      const errors: Record<string, [string, number]> = {
+        CUSTOMER_NOT_FOUND: ['Cliente no encontrado.', 404],
+        INSUFFICIENT_BALANCE: ['El movimiento no puede reducir la deuda por debajo de cero.', 409],
+        CREDIT_LIMIT_EXCEEDED: ['La compra supera el límite de crédito.', 409],
+        IDEMPOTENCY_CONFLICT: ['El identificador del movimiento ya se usó con otros datos.', 409],
+        INVALID_TRANSACTION: ['Los datos del movimiento no son válidos.', 400],
+        BALANCE_TOO_LARGE: ['El saldo excede el máximo permitido.', 409],
+      };
+      const known = errors[error.message];
+      if (known) throw new CreditTransactionError(known[0], known[1]);
+      if (error.code === '23505') throw new CreditTransactionError('El identificador del movimiento ya está en uso.', 409);
       throw error;
     }
-  }
-
-  async addCreditTransaction(transaction: CreditTransaction): Promise<CreditTransaction> {
-    try {
-      const { data, error } = await getSupabaseAdmin()
-        .from('credit_transactions')
-        .insert([transaction])
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      // Update the customer's current_balance
-      const monto = transaction.tipo === 'pago' ? -transaction.monto : transaction.monto;
-      await this.updateCreditBalance(transaction.cliente_id, monto);
-
-      return data as CreditTransaction;
-    } catch (error) {
-      throw error;
-    }
+    return data as CreditTransaction;
   }
 
   async getCreditTransactions(clienteId: string, limit = 100): Promise<CreditTransaction[]> {
@@ -293,6 +287,8 @@ class CustomerService {
         .select('*')
         .eq('cliente_id', clienteId)
         .order('fecha', { ascending: false })
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
         .limit(limit);
 
       if (error) throw error;

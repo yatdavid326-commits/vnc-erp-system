@@ -20,9 +20,10 @@ interface ClientesTableProps {
   clientes: Cliente[];
   onEdit: (cliente: Cliente) => void;
   onDelete: (id: string) => void;
+  onView: (cliente: Cliente) => void;
 }
 
-export default function ClientesTable({ clientes, onEdit, onDelete }: ClientesTableProps) {
+export default function ClientesTable({ clientes, onEdit, onDelete, onView }: ClientesTableProps) {
   const getTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
       retail: 'Minorista',
@@ -92,6 +93,12 @@ export default function ClientesTable({ clientes, onEdit, onDelete }: ClientesTa
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm space-x-2">
+                    <button
+                      onClick={() => onView(cliente)}
+                      className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                    >
+                      Crédito
+                    </button>
                     <button
                       onClick={() => onEdit(cliente)}
                       className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"

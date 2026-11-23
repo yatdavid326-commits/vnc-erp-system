@@ -67,6 +67,10 @@ test('customer credit changes require edit permission', () => {
     ),
     { moduleName: 'clients', permission: 'can_edit' }
   );
+  assert.deepEqual(
+    getRequiredApiPermission('/api/clientes/550e8400-e29b-41d4-a716-446655440000/transactions', 'POST'),
+    { moduleName: 'clients', permission: 'can_edit' }
+  );
 });
 
 test('admin endpoints require an active administrator profile', () => {

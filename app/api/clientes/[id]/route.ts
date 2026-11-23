@@ -38,6 +38,9 @@ export async function DELETE(request: NextRequest, { params }: Context) {
     return NextResponse.json({ success: true, id });
   } catch (error) {
     console.error('DELETE /api/clientes/[id] error:', error);
+    if (typeof error === 'object' && error !== null && 'code' in error && error.code === '23503') {
+      return NextResponse.json({ error: 'No se puede eliminar un cliente con registros relacionados.' }, { status: 409 });
+    }
     return NextResponse.json({ error: 'Error al eliminar el cliente.' }, { status: 500 });
   }
 }

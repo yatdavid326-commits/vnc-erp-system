@@ -63,7 +63,7 @@ export function getRequiredApiPermission(
     permission = 'can_view';
   } else if (
     method === 'POST' &&
-    (/^\/api\/clientes\/[^/]+\/credit$/.test(pathname) ||
+    (/^\/api\/clientes\/[^/]+\/(credit|transactions)$/.test(pathname) ||
       /^\/api\/inventario\/[^/]+\/movimientos$/.test(pathname))
   ) {
     permission = 'can_edit';

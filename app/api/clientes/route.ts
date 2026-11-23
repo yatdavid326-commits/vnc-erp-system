@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       codigo_postal: body.codigo_postal,
       tipo: body.tipo ?? 'retail',
       limite_credito: body.limite_credito ?? 0,
-      saldo_actual: body.saldo_actual ?? 0,
+      saldo_actual: 0,
       estado_cliente: body.estado_cliente ?? 'activo',
     });
 
