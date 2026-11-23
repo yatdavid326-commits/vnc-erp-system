@@ -37,6 +37,14 @@ npm run test:integration
 ```
 
 `VNC_TEST_AUTH_TOKEN` es opcional; habilita el caso de integración con una sesión autenticada.
+Las pruebas de navegador usan Chromium y Playwright; instala el navegador una vez y ejecuta:
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
+
+Playwright inicia el servidor local si no hay uno disponible en `http://127.0.0.1:3000`.
 
 ## 📖 Documentación de API
 
@@ -74,7 +82,7 @@ La configuración de alertas de inventario por SMS y WhatsApp está en
 ## 🔐 Seguridad
 
 - Autenticación con Supabase Auth
-- Las API de datos validan una sesión Supabase; el servidor usa una cookie HttpOnly y el cliente conserva su sesión local.
+- Las API de datos validan una sesión Supabase; el navegador usa cookies HttpOnly y no conserva tokens de sesión en `localStorage`.
 - Las API aplican permisos por módulo y operación; el rol `admin` tiene acceso completo.
 - Las asignaciones de permisos usan `user_profiles.id`, resuelto desde el usuario autenticado mediante `auth_id`.
 - Row Level Security (RLS) en PostgreSQL
