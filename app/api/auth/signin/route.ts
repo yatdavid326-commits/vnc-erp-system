@@ -8,10 +8,7 @@ import { signInSchema } from '@/lib/validation/requestSchemas';
 
 export async function POST(request: NextRequest) {
   try {
-    const invalidRequest = validateSameOriginJsonRequest(
-      request,
-      request.nextUrl.origin
-    );
+    const invalidRequest = validateSameOriginJsonRequest(request);
     if (invalidRequest) return invalidRequest;
 
     const parsedBody = await validateRequestBody(request, signInSchema);

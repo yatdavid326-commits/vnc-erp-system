@@ -9,33 +9,51 @@ import {
 } from '../lib/auth/sessionCookies.ts';
 import { validateSameOriginJsonRequest } from '../lib/auth/validateSameOriginJsonRequest.ts';
 
-test('sign-in request protection accepts same-origin JSON', () => {
-  const request = new Request('https://erp.example.com/api/auth/signin', {
+test('sign-in request protection accepts same-origin JSON behind a proxy', () => {
+  const request = new Request('http://localhost:3000/api/auth/signin', {
     method: 'POST',
     headers: {
+      Host: 'erp.example.com',
+      'X-Forwarded-Proto': 'https',
       Origin: 'https://erp.example.com',
       'Content-Type': 'application/json; charset=utf-8',
     },
     body: JSON.stringify({ username: 'admin', password: 'secret' }),
   });
 
-  assert.equal(
-    validateSameOriginJsonRequest(request, 'https://erp.example.com'),
-    null
-  );
+  assert.equal(validateSameOriginJsonRequest(request), null);
 });
 
 test('sign-in request protection rejects missing and cross-origin origins', () => {
   const requests = [
     new Request('https://erp.example.com/api/auth/signin', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { Host: 'erp.example.com', 'Content-Type': 'application/json' },
       body: '{}',
     }),
     new Request('https://erp.example.com/api/auth/signin', {
       method: 'POST',
       headers: {
+        Host: 'erp.example.com',
         Origin: 'https://attacker.example',
+        'Content-Type': 'application/json',
+      },
+      body: '{}',
+    }),
+    new Request('https://erp.example.com/api/auth/signin', {
+      method: 'POST',
+      headers: {
+        Origin: 'https://erp.example.com',
+        'Content-Type': 'application/json',
+      },
+      body: '{}',
+    }),
+    new Request('https://erp.example.com/api/auth/signin', {
+      method: 'POST',
+      headers: {
+        Host: 'erp.example.com',
+        Origin: 'https://erp.example.com',
+        'X-Forwarded-Proto': 'invalid',
         'Content-Type': 'application/json',
       },
       body: '{}',
@@ -43,10 +61,7 @@ test('sign-in request protection rejects missing and cross-origin origins', () =
   ];
 
   for (const request of requests) {
-    const response = validateSameOriginJsonRequest(
-      request,
-      'https://erp.example.com'
-    );
+    const response = validateSameOriginJsonRequest(request);
     assert.equal(response?.status, 403);
   }
 });
@@ -55,16 +70,14 @@ test('sign-in request protection rejects form content types', () => {
   const request = new Request('https://erp.example.com/api/auth/signin', {
     method: 'POST',
     headers: {
+      Host: 'erp.example.com',
       Origin: 'https://erp.example.com',
       'Content-Type': 'text/plain',
     },
     body: '{"username":"admin","password":"secret"}',
   });
 
-  const response = validateSameOriginJsonRequest(
-    request,
-    'https://erp.example.com'
-  );
+  const response = validateSameOriginJsonRequest(request);
   assert.equal(response?.status, 415);
 });
 

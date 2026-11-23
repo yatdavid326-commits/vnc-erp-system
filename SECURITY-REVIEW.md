@@ -15,6 +15,10 @@ The endpoint now requires an `Origin` matching the request origin and the
 `application/json` media type. Requests without a valid matching origin receive
 403, and non-JSON requests receive 415. Focused tests cover same-origin JSON,
 missing/cross-origin headers, and form content types.
+The origin comparison uses the request host and the forwarded protocol when
+present, so legitimate same-origin requests work behind the deployment proxy.
+The application must be hosted behind a trusted proxy that controls the
+`Host` and `X-Forwarded-Proto` headers.
 
 **Fix commit:** `9a3e888` (`fix: protect sign-in against CSRF`).
 
@@ -35,7 +39,8 @@ completed.
 
 ## Verification
 
-- Focused CSRF tests and the complete unit-test suite passed (52 tests).
+- Focused CSRF tests, the complete unit-test suite (52 tests), and the
+  authentication end-to-end suite (5 tests) passed.
 - Targeted ESLint and the production build passed.
 - No database migration was required.
 - The fix is committed locally and has not been confirmed in production.

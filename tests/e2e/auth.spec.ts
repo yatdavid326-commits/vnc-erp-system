@@ -65,6 +65,35 @@ test('unauthenticated dashboard access redirects to login', async ({ page }) => 
   ).toBeVisible();
 });
 
+test('sign-in rejects cross-origin and non-JSON requests', async ({ request }) => {
+  const url = 'http://127.0.0.1:3000/api/auth/signin';
+  const crossOrigin = await request.post(url, {
+    headers: {
+      Origin: 'https://other.example',
+      'Content-Type': 'text/plain',
+    },
+    data: '{"username":"test","password":"test"}',
+  });
+  expect(crossOrigin.status()).toBe(403);
+  expect(crossOrigin.headers()['set-cookie']).toBeUndefined();
+
+  const form = await request.post(url, {
+    headers: {
+      Origin: 'http://127.0.0.1:3000',
+      'Content-Type': 'text/plain',
+    },
+    data: '{"username":"test","password":"test"}',
+  });
+  expect(form.status()).toBe(415);
+  expect(form.headers()['set-cookie']).toBeUndefined();
+
+  const sameOrigin = await request.post(url, {
+    headers: { Origin: 'http://127.0.0.1:3000' },
+    data: { username: '', password: '' },
+  });
+  expect(sameOrigin.status()).toBe(400);
+});
+
 test('notification API rejects requests without a session cookie', async ({
   request,
 }) => {
