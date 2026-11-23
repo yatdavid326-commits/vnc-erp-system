@@ -30,6 +30,7 @@ test('all data APIs reject requests without an authenticated session', async () 
     '/api/caja',
     '/api/clientes?limit=1',
     '/api/compras',
+    '/api/dashboard/metrics',
     '/api/empleados',
     '/api/inventario',
     '/api/pos',

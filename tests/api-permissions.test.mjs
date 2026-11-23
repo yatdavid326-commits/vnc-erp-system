@@ -21,6 +21,13 @@ test('sending a report by email requires report view permission', () => {
   );
 });
 
+test('dashboard metrics require dashboard view permission', () => {
+  assert.deepEqual(
+    getRequiredApiPermission('/api/dashboard/metrics', 'GET'),
+    { moduleName: 'dashboard', permission: 'can_view' }
+  );
+});
+
 test('manual inventory movements require edit permission', () => {
   assert.deepEqual(
     getRequiredApiPermission('/api/inventario/550e8400-e29b-41d4-a716-446655440000/movimientos', 'POST'),

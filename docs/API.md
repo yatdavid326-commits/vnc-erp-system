@@ -36,6 +36,10 @@ Use the same origin as the ERP. For local development, start the app with
   notifications and unread count. `PATCH /api/notifications` marks one
   notification (`{ "id": "<uuid>" }`) or all notifications (`{ "all": true }`)
   as read.
+- `GET /api/dashboard/metrics` requires `can_view` permission for the Dashboard
+  module. It returns current-month completed sales, active stock and customer
+  counts, all-time completed-sale income, up to five recent completed sales,
+  and up to five products at or below their reorder level.
 - `GET /api/cron/notifications` requires `Authorization: Bearer <CRON_SECRET>`;
   it is not scheduled on the current Vercel Hobby plan. External delivery is
   paused while in-app inventory alerts are being validated.

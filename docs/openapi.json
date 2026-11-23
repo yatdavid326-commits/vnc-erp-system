@@ -32,9 +32,24 @@
     { "name": "Cash", "description": "Cash movements." },
     { "name": "POS", "description": "Sales, POS catalog, and cash register." },
     { "name": "Reports", "description": "Business summary report." },
-    { "name": "Notifications", "description": "Notification preferences and scheduled delivery." }
+    { "name": "Notifications", "description": "Notification preferences and scheduled delivery." },
+    { "name": "Dashboard", "description": "Aggregated dashboard metrics." }
   ],
   "paths": {
+    "/api/dashboard/metrics": {
+      "get": {
+        "tags": ["Dashboard"],
+        "summary": "Get aggregated dashboard metrics",
+        "description": "Requires can_view permission for the Dashboard module.",
+        "operationId": "getDashboardMetrics",
+        "responses": {
+          "200": { "$ref": "#/components/responses/DashboardMetrics" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
     "/api/auth/signin": {
       "post": {
         "tags": ["Auth"],
@@ -1214,6 +1229,66 @@
       }
     },
     "schemas": {
+      "DashboardMetrics": {
+        "type": "object",
+        "required": ["salesThisMonth", "stock", "activeCustomers", "totalIncome", "recentSales", "lowStockCount", "lowStockProducts"],
+        "properties": {
+          "salesThisMonth": {
+            "type": "object",
+            "required": ["amount", "count"],
+            "properties": {
+              "amount": { "type": "number", "minimum": 0 },
+              "count": { "type": "integer", "minimum": 0 }
+            },
+            "additionalProperties": false
+          },
+          "stock": {
+            "type": "object",
+            "required": ["productsWithStock", "availableUnits"],
+            "properties": {
+              "productsWithStock": { "type": "integer", "minimum": 0 },
+              "availableUnits": { "type": "integer", "minimum": 0 }
+            },
+            "additionalProperties": false
+          },
+          "activeCustomers": { "type": "integer", "minimum": 0 },
+          "totalIncome": { "type": "number", "minimum": 0 },
+          "recentSales": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "type": "object",
+              "required": ["id", "transactionNumber", "paymentMethod", "total", "createdAt"],
+              "properties": {
+                "id": { "type": "string", "format": "uuid" },
+                "transactionNumber": { "type": "string" },
+                "paymentMethod": { "type": "string" },
+                "total": { "type": "number", "minimum": 0 },
+                "createdAt": { "type": "string", "format": "date-time" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "lowStockCount": { "type": "integer", "minimum": 0 },
+          "lowStockProducts": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "type": "object",
+              "required": ["id", "productCode", "name", "quantityOnHand", "reorderLevel"],
+              "properties": {
+                "id": { "type": "string", "format": "uuid" },
+                "productCode": { "type": "string" },
+                "name": { "type": "string" },
+                "quantityOnHand": { "type": "integer", "minimum": 0 },
+                "reorderLevel": { "type": "integer", "minimum": 0 }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "Error": {
         "type": "object",
         "required": ["error"],
@@ -1716,6 +1791,10 @@
       "RegisterClosing": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RegisterClosing" } } } }
     },
     "responses": {
+      "DashboardMetrics": {
+        "description": "Current-month completed sales, stock, active customers, all-time income, recent sales, and low-stock products.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DashboardMetrics" } } }
+      },
       "OkObject": {
         "description": "Successful response with a JSON object.",
         "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Record" } } }

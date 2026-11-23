@@ -18,7 +18,29 @@ import {
   signInSchema,
   supplierCreateSchema,
 } from '../lib/validation/requestSchemas.ts';
+import { dashboardSummarySchema } from '../lib/validation/dashboardSummary.ts';
 import { MAX_ATTENDANCE_QR_LENGTH } from '../lib/utils/qrCode.ts';
+
+test('dashboard summary accepts empty-state metrics and rejects invalid totals', () => {
+  const emptySummary = {
+    salesThisMonth: { amount: 0, count: 0 },
+    stock: { productsWithStock: 0, availableUnits: 0 },
+    activeCustomers: 0,
+    totalIncome: 0,
+    recentSales: [],
+    lowStockCount: 0,
+    lowStockProducts: [],
+  };
+
+  assert.equal(dashboardSummarySchema.safeParse(emptySummary).success, true);
+  assert.equal(
+    dashboardSummarySchema.safeParse({
+      ...emptySummary,
+      lowStockCount: -1,
+    }).success,
+    false
+  );
+});
 
 test('customer validation trims fields and rejects invalid email and unknown keys', () => {
   const valid = customerCreateSchema.safeParse({

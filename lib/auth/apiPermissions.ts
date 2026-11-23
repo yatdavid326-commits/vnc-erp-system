@@ -9,6 +9,7 @@ const moduleRoutes = [
   ['/api/caja', 'cash'],
   ['/api/clientes', 'clients'],
   ['/api/compras', 'purchases'],
+  ['/api/dashboard', 'dashboard'],
   ['/api/empleados', 'employees'],
   ['/api/inventario', 'inventory'],
   ['/api/pos', 'pos'],
