@@ -91,6 +91,9 @@ reuse it with the same payload when retrying an uncertain request.
 including all remaining quantities for a complete receipt. Its receipt UUID is
 also an idempotency key. Stock, movements, order lines and order status change
 atomically. A receipt cannot exceed the remaining quantities.
+Receipts, manual inventory movements and POS sales serialize changes to the
+same product using database locks. A sale that waits for another operation
+checks the available stock again before completing.
 Only pending, unreceived orders can be cancelled or have their date and notes
 edited; editing requires the current `edit_version`. Orders are not deleted.
 The former write endpoints and the legacy `compras` table are not used; the
