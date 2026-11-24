@@ -10,6 +10,7 @@ import CsvExportButton from '@/components/reports/CsvExportButton';
 import NotificationCenter from '@/components/notifications/NotificationCenter';
 import Sidebar from './Sidebar';
 import Link from 'next/link';
+import { clearClientCache } from '@/lib/utils/clientCache';
 
 export default function DashboardLayout({
   children,
@@ -65,6 +66,7 @@ export default function DashboardLayout({
 
   const handleLogout = async () => {
     await authService.signOut();
+    clearClientCache();
     setUser(null);
     router.push('/login');
   };

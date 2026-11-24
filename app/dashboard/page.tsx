@@ -6,6 +6,7 @@ import { useAuthStore } from '@/hooks';
 import { fetchJson } from '@/lib/utils/fetchJson';
 import type { DashboardSummary } from '@/lib/validation/dashboardSummary';
 import { TrendingUp, Package, Users, DollarSign, RefreshCw } from 'lucide-react';
+import { getCachedValue, setCachedValue } from '@/lib/utils/clientCache';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +33,18 @@ export default function DashboardPage() {
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
+    const cacheKey = 'dashboard:metrics';
+    const cached = reloadKey === 0
+      ? getCachedValue<DashboardSummary>(cacheKey)
+      : undefined;
+
+    if (cached) {
+      setRequestState({ key: reloadKey, status: 'success', summary: cached });
+      return () => {
+        active = false;
+        controller.abort();
+      };
+    }
 
     void fetchJson<DashboardSummary>(
       '/api/dashboard/metrics',
@@ -40,6 +53,7 @@ export default function DashboardPage() {
     )
       .then((data) => {
         if (active) {
+          setCachedValue(cacheKey, data, 30_000);
           setRequestState({ key: reloadKey, status: 'success', summary: data });
         }
       })

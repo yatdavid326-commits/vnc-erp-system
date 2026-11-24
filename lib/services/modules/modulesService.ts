@@ -1,9 +1,12 @@
 import { supabaseClient } from '@/lib/db/supabase';
 import type { Module, UserModule, UserModuleWithDetails } from '@/lib/types';
+import { getCachedValue, setCachedValue, clearCachedValue } from '@/lib/utils/clientCache';
 
 export const modulesService = {
   async getAllModules(): Promise<Module[]> {
     try {
+      const cached = getCachedValue<Module[]>('modules:all');
+      if (cached) return cached;
       // Use server-side API to bypass RLS
       const response = await fetch('/api/modules/all', {
         method: 'GET',
@@ -18,7 +21,9 @@ export const modulesService = {
       const modules = await response.json();
       
       // Filter to active modules only
-      return modules.filter((m: Module) => m.is_active);
+      const active = modules.filter((m: Module) => m.is_active);
+      setCachedValue('modules:all', active, 60_000);
+      return active;
     } catch (error) {
       console.error('Error fetching modules:', error);
       return [];
@@ -36,12 +41,15 @@ export const modulesService = {
 
   async getUserModulesWithDetails(): Promise<UserModuleWithDetails[]> {
     try {
+      const cached = getCachedValue<UserModuleWithDetails[]>('modules:user');
+      if (cached) return cached;
       const response = await fetch('/api/modules/user', {
         cache: 'no-store',
       });
 
       if (!response.ok) return [];
       const userModules: UserModuleWithDetails[] = await response.json();
+      setCachedValue('modules:user', userModules, 60_000);
       return userModules;
     } catch (error) {
       console.error('Error fetching user modules:', error);
