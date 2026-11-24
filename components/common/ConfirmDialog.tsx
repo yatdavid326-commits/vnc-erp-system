@@ -1,5 +1,6 @@
 'use client';
 
+import Tooltip from './Tooltip';
 interface ConfirmDialogProps {
   open: boolean;
   title: string;
@@ -34,12 +35,16 @@ export default function ConfirmDialog({
         <h2 id="confirm-title" className="text-lg font-bold text-gray-900">{title}</h2>
         <p className="mt-2 text-sm text-gray-600">{description}</p>
         <div className="mt-6 flex justify-end gap-3">
-          <button type="button" onClick={onCancel} disabled={busy} className="rounded border px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
-            {cancelText}
-          </button>
-          <button type="button" onClick={onConfirm} disabled={busy} className={`rounded px-4 py-2 text-sm font-medium text-white disabled:opacity-50 ${confirmClass}`}>
-            {busy ? 'Procesando...' : confirmText}
-          </button>
+          <Tooltip label={cancelText} align="left">
+            <button type="button" onClick={onCancel} disabled={busy} className="rounded border px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
+              {cancelText}
+            </button>
+          </Tooltip>
+          <Tooltip label={busy ? 'Acción en proceso' : confirmText} align="right">
+            <button type="button" onClick={onConfirm} disabled={busy} className={`rounded px-4 py-2 text-sm font-medium text-white disabled:opacity-50 ${confirmClass}`}>
+              {busy ? 'Procesando...' : confirmText}
+            </button>
+          </Tooltip>
         </div>
       </div>
     </div>

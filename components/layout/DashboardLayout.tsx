@@ -18,6 +18,7 @@ const NotificationCenter = dynamicImport(
 import Sidebar from './Sidebar';
 import Link from 'next/link';
 import { clearClientCache } from '@/lib/utils/clientCache';
+import Tooltip from '@/components/common/Tooltip';
 
 export default function DashboardLayout({
   children,
@@ -125,18 +126,21 @@ export default function DashboardLayout({
         {/* Header */}
         <header className="bg-white border-b border-gray-200 px-3 py-3 sm:px-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => {
-                if (window.matchMedia('(min-width: 768px)').matches) {
-                  setIsSidebarOpen((open) => !open);
-                } else {
-                  setIsMobileMenuOpen((open) => !open);
-                }
-              }}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
+            <Tooltip label="Abrir o cerrar el menú" align="left">
+              <button
+                aria-label="Abrir o cerrar el menú"
+                onClick={() => {
+                  if (window.matchMedia('(min-width: 768px)').matches) {
+                    setIsSidebarOpen((open) => !open);
+                  } else {
+                    setIsMobileMenuOpen((open) => !open);
+                  }
+                }}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+            </Tooltip>
             <h1 className="max-w-40 truncate text-base font-bold text-gray-900 sm:max-w-none sm:text-xl">
               {process.env.NEXT_PUBLIC_BUSINESS_NAME}
             </h1>
