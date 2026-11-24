@@ -72,6 +72,8 @@ Use the same origin as the ERP. For local development, start the app with
 - Employee and attendance tables also deny direct access to those roles.
   `/api/reportes` counts records from the ERP's `asistencia` table across all
   dates; its attendance total is not filtered by the report period.
+- `audit_logs` denies direct access to those roles; `service_role` retains
+  access. This protection does not itself record audit events.
 - `PUT` and `DELETE /api/caja/{id}` apply only to manual movements without a
   linked sale/reference in the caller's open cash register. A closed register
   cannot be modified, and linked movements cannot be edited or deleted.
