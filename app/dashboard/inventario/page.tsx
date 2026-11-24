@@ -9,12 +9,13 @@ import StockAlerts from '@/components/inventario/StockAlerts';
 import { Producto } from '@/lib/services/products/productService';
 import { useToast } from '@/components/notifications/ToastProvider';
 
-async function loadProductos(page: number, limit: number, search: string, status: string) {
+async function loadProductos(page: number, limit: number, search: string, status: string, lowStock: boolean) {
   const params = new URLSearchParams({
     page: page.toString(),
     limit: limit.toString(),
     ...(search && { search }),
     ...(status && { status }),
+    ...(lowStock && { low_stock: 'true' }),
   });
   const response = await fetch(`/api/inventario?${params}`, {
     headers: { 'Content-Type': 'application/json' },
@@ -38,6 +39,7 @@ export default function InventarioPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [lowStock, setLowStock] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [limit] = useState(10);
@@ -54,7 +56,8 @@ export default function InventarioPage() {
         page,
         limit,
         search,
-        status
+        status,
+        lowStock
       );
       setProductos(data);
       setTotal(productCount);
@@ -64,11 +67,11 @@ export default function InventarioPage() {
     } finally {
       setLoading(false);
     }
-  }, [limit, page, search, status]);
+  }, [limit, page, search, status, lowStock]);
 
   useEffect(() => {
     let active = true;
-    loadProductos(page, limit, search, status)
+    loadProductos(page, limit, search, status, lowStock)
       .then(({ productos: data, total: productCount }) => {
         if (active) {
           setProductos(data);
@@ -88,7 +91,7 @@ export default function InventarioPage() {
     return () => {
       active = false;
     };
-  }, [page, limit, search, status]);
+  }, [page, limit, search, status, lowStock]);
 
   const handleCreate = async (formData: Partial<Producto>) => {
     try {
@@ -329,6 +332,17 @@ export default function InventarioPage() {
             <option value="activo">Activos</option>
             <option value="inactivo">Inactivos</option>
           </select>
+          <label className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm">
+            <input
+              type="checkbox"
+              checked={lowStock}
+              onChange={(event) => {
+                setLowStock(event.target.checked);
+                setPage(1);
+              }}
+            />
+            Solo bajo stock
+          </label>
         </div>
 
         {/* Table */}

@@ -23,6 +23,7 @@ import {
 import { dashboardSummarySchema } from '../lib/validation/dashboardSummary.ts';
 import { purchaseCreateSchema, purchaseDetailsSchema, purchaseReceiptSchema } from '../lib/purchases.ts';
 import { MAX_ATTENDANCE_QR_LENGTH } from '../lib/utils/qrCode.ts';
+import { isProductLowStock } from '../lib/services/products/lowStock.ts';
 
 test('dashboard summary accepts empty-state metrics and rejects invalid totals', () => {
   const emptySummary = {
@@ -176,6 +177,13 @@ test('MFA verification accepts six-digit codes and strict factor UUIDs', () => {
   assert.equal(mfaVerifySchema.safeParse({ ...valid, code: '12345a' }).success, false);
   assert.equal(mfaVerifySchema.safeParse({ ...valid, factorId: 'bad-id' }).success, false);
   assert.equal(mfaVerifySchema.safeParse({ ...valid, extra: true }).success, false);
+});
+
+test('low-stock detection includes threshold matches and excludes inactive products', () => {
+  assert.equal(isProductLowStock({ activo: true, cantidad_stock: 5, stock_minimo: 5 }), true);
+  assert.equal(isProductLowStock({ activo: true, cantidad_stock: 4, stock_minimo: 5 }), true);
+  assert.equal(isProductLowStock({ activo: true, cantidad_stock: 6, stock_minimo: 5 }), false);
+  assert.equal(isProductLowStock({ activo: false, cantidad_stock: 0, stock_minimo: 5 }), false);
 });
 
 test('write schemas reject malformed business values and accept employee form data', () => {

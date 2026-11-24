@@ -397,7 +397,13 @@
           { "$ref": "#/components/parameters/Limit10" },
           { "$ref": "#/components/parameters/Search" },
           { "$ref": "#/components/parameters/Category" },
-          { "$ref": "#/components/parameters/ProductStatus" }
+          { "$ref": "#/components/parameters/ProductStatus" },
+          {
+            "name": "low_stock",
+            "in": "query",
+            "description": "Set to true to include only active products at or below the reorder level.",
+            "schema": { "type": "boolean", "enum": [true] }
+          }
         ],
         "responses": {
           "200": { "$ref": "#/components/responses/PaginatedArray" },

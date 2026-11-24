@@ -15,17 +15,23 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
     const category = searchParams.get('category') || '';
     const status = searchParams.get('status') || '';
+    const lowStock = searchParams.get('low_stock') || '';
     if (status && status !== 'activo' && status !== 'inactivo') {
       return NextResponse.json({ error: 'Estado de producto no válido.' }, { status: 400 });
     }
+    if (lowStock && lowStock !== 'true' && lowStock !== 'false') {
+      return NextResponse.json({ error: 'Filtro de stock bajo no válido.' }, { status: 400 });
+    }
 
-    const result = await productService.getAll(
-      page,
-      limit,
-      search,
-      category,
-      status as 'activo' | 'inactivo' | ''
-    );
+    const result = lowStock === 'true'
+      ? await productService.getLowStockPage(page, limit, search, status as 'activo' | 'inactivo' | '')
+      : await productService.getAll(
+          page,
+          limit,
+          search,
+          category,
+          status as 'activo' | 'inactivo' | ''
+        );
 
     return NextResponse.json(result.data, {
       headers: {

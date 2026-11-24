@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/db/supabase';
 import { sanitizePostgrestSearch } from '@/lib/utils/search';
+import { isProductLowStock } from './lowStock';
 
 export interface Producto {
   id: string;
@@ -217,7 +218,24 @@ class ProductService {
 
   async getLowStockProducts(): Promise<Producto[]> {
     const result = await this.getAll(1, 1000);
-    return result.data.filter((product) => product.activo && product.cantidad_stock <= product.stock_minimo);
+    return result.data.filter(isProductLowStock);
+  }
+
+  async getLowStockPage(
+    page = 1,
+    limit = 10,
+    search = '',
+    status: 'activo' | 'inactivo' | '' = ''
+  ) {
+    const result = await this.getAll(1, 1000, search, '', status);
+    const products = result.data.filter(isProductLowStock);
+    const start = (page - 1) * limit;
+    return {
+      data: products.slice(start, start + limit),
+      total: products.length,
+      page,
+      limit,
+    };
   }
 
   async getByCategory(category: string): Promise<Producto[]> {

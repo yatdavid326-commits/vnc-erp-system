@@ -69,6 +69,8 @@ Use the same origin as the ERP. For local development, start the app with
 - Direct `anon` and `authenticated` access to the POS transaction, line-item
   cash-register and cash-movement tables is revoked; these operations use the
   authorized ERP API and its server-side service role.
+- `GET /api/inventario?low_stock=true` returns only active products whose
+  available stock is at or below the reorder level, with normal pagination.
 - Employee and attendance tables also deny direct access to those roles.
   `/api/reportes` counts records from the ERP's `asistencia` table across all
   dates; its attendance total is not filtered by the report period.
