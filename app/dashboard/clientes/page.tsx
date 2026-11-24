@@ -4,9 +4,17 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
 import { fetchJson, fetchPaginatedJson } from '@/lib/utils/fetchJson';
-import ClientesForm, { type ClienteFormData } from '@/components/clientes/ClientesForm';
+import dynamicImport from 'next/dynamic';
+import { type ClienteFormData } from '@/components/clientes/ClientesForm';
+const ClientesForm = dynamicImport(
+  () => import('@/components/clientes/ClientesForm'),
+  { ssr: false, loading: () => <p className="py-4 text-sm text-gray-600">Cargando formulario...</p> }
+);
 import ClientesTable from '@/components/clientes/ClientesTable';
-import ClientesModal from '@/components/clientes/ClientesModal';
+const ClientesModal = dynamicImport(
+  () => import('@/components/clientes/ClientesModal'),
+  { ssr: false }
+);
 import PaginationControls from '@/components/common/PaginationControls';
 import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
 import { useToast } from '@/components/notifications/ToastProvider';

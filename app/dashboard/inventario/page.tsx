@@ -3,7 +3,11 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
-import InventarioForm from '@/components/inventario/InventarioForm';
+import dynamicImport from 'next/dynamic';
+const InventarioForm = dynamicImport(
+  () => import('@/components/inventario/InventarioForm'),
+  { ssr: false, loading: () => <p className="py-4 text-sm text-gray-600">Cargando formulario...</p> }
+);
 import InventarioTable from '@/components/inventario/InventarioTable';
 import StockAlerts from '@/components/inventario/StockAlerts';
 import { Producto } from '@/lib/services/products/productService';

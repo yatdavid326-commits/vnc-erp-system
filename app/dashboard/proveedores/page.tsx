@@ -4,7 +4,12 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
 import { fetchPaginatedJson } from '@/lib/utils/fetchJson';
-import ProveedoresForm, { type ProveedorFormData } from '@/components/proveedores/ProveedoresForm';
+import dynamicImport from 'next/dynamic';
+import { type ProveedorFormData } from '@/components/proveedores/ProveedoresForm';
+const ProveedoresForm = dynamicImport(
+  () => import('@/components/proveedores/ProveedoresForm'),
+  { ssr: false, loading: () => <p className="py-4 text-sm text-gray-600">Cargando formulario...</p> }
+);
 import ProveedoresTable from '@/components/proveedores/ProveedoresTable';
 import PaginationControls from '@/components/common/PaginationControls';
 import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';

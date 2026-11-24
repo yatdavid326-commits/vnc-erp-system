@@ -6,7 +6,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { fetchJson, fetchPaginatedJson } from '@/lib/utils/fetchJson';
 import PaginationControls from '@/components/common/PaginationControls';
 import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
-import QRScanner from '@/components/asistencia/QRScanner';
+import dynamicImport from 'next/dynamic';
+const QRScanner = dynamicImport(
+  () => import('@/components/asistencia/QRScanner'),
+  { ssr: false, loading: () => <p className="text-sm text-gray-600">Cargando lector QR...</p> }
+);
 import { MAX_ATTENDANCE_QR_LENGTH } from '@/lib/utils/qrCode';
 import { getGeolocationErrorMessage } from '@/lib/utils/geolocation';
 import { useToast } from '@/components/notifications/ToastProvider';
