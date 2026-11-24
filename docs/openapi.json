@@ -154,6 +154,20 @@
         }
       }
     },
+    "/api/admin/audit": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "List recent critical audit events",
+        "operationId": "listAdminAuditEvents",
+        "description": "Requires the active admin role. Sensitive fields are redacted.",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
     "/api/admin/permissions": {
       "get": {
         "tags": ["Admin"],

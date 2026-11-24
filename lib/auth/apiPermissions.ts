@@ -26,7 +26,7 @@ const permissionByMethod: Record<string, ApiPermission | undefined> = {
   DELETE: 'can_delete',
 };
 
-const adminApiPaths = new Set(['/api/admin/permissions']);
+const adminApiPaths = new Set(['/api/admin/permissions', '/api/admin/audit']);
 
 export const selfServiceApiPaths = new Set([
   '/api/auth/restore',

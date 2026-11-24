@@ -6,6 +6,7 @@ import {
   getRequiredApiPermissions,
   selfServiceApiPaths,
 } from '../lib/auth/apiPermissions.ts';
+import { sanitizeAuditValues } from '../lib/services/audit/auditSanitize.ts';
 
 test('notification routes are authenticated self-service API routes', () => {
   assert.equal(
@@ -109,4 +110,32 @@ test('admin endpoints require an active administrator profile', () => {
     false
   );
   assert.equal(canAccessAdminApi('/api/admin/other', { role: 'admin', is_active: true }), false);
+});
+
+test('audit values redact sensitive fields', () => {
+  assert.deepEqual(
+    sanitizeAuditValues({
+      user_id: 'user-1',
+      password: 'secret',
+      refresh_token: 'refresh',
+      can_edit: true,
+    }),
+    {
+      user_id: 'user-1',
+      password: '[REDACTED]',
+      refresh_token: '[REDACTED]',
+      can_edit: true,
+    }
+  );
+});
+
+test('audit API is restricted to active administrators', () => {
+  assert.equal(
+    canAccessAdminApi('/api/admin/audit', { role: 'admin', is_active: true }),
+    true
+  );
+  assert.equal(
+    canAccessAdminApi('/api/admin/audit', { role: 'user', is_active: true }),
+    false
+  );
 });

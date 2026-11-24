@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/db/supabase';
 import { validateRequestBody } from '@/lib/validation/requestBody';
 import { modulePermissionSchema } from '@/lib/validation/requestSchemas';
+import { writeAuditEvent } from '@/lib/services/audit/auditService';
+import { getAuthenticatedProfileIdentity } from '@/lib/auth/getAuthenticatedProfileId';
 
 export async function GET() {
   if (!supabaseAdmin) {
@@ -88,6 +90,7 @@ export async function PUT(request: NextRequest) {
   } = parsedBody.data;
 
   try {
+    const actor = await getAuthenticatedProfileIdentity(request);
     const [userResult, moduleResult] = await Promise.all([
       supabaseAdmin
         .from('user_profiles')
@@ -134,6 +137,17 @@ export async function PUT(request: NextRequest) {
         .eq('module_id', moduleId);
 
       if (error) throw error;
+      await writeAuditEvent(actor.id, {
+        action: 'DELETE_USER_MODULE_PERMISSION',
+        tableName: 'user_modules',
+        recordId: null,
+        oldValues: {
+          user_id: userId,
+          module_id: moduleId,
+        },
+        newValues: null,
+        ipAddress: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
+      });
       return NextResponse.json({ permission: null });
     }
 
@@ -154,6 +168,17 @@ export async function PUT(request: NextRequest) {
       .single();
 
     if (error) throw error;
+    await writeAuditEvent(actor.id, {
+      action: 'UPSERT_USER_MODULE_PERMISSION',
+      tableName: 'user_modules',
+      recordId: null,
+      oldValues: {
+        user_id: userId,
+        module_id: moduleId,
+      },
+      newValues: data,
+      ipAddress: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
+    });
     return NextResponse.json({ permission: data });
   } catch (error) {
     console.error('Error updating module permissions:', error);

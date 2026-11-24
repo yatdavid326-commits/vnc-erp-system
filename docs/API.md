@@ -73,7 +73,8 @@ Use the same origin as the ERP. For local development, start the app with
   `/api/reportes` counts records from the ERP's `asistencia` table across all
   dates; its attendance total is not filtered by the report period.
 - `audit_logs` denies direct access to those roles; `service_role` retains
-  access. This protection does not itself record audit events.
+  access. Critical admin permission changes are recorded through
+  `write_audit_log`; sensitive keys are redacted before storage.
 - Legacy `sales`, `sale_items` and `cajas` tables deny direct access to `public`,
   `anon` and `authenticated`; `service_role` retains access. Current POS and
   cash-register operations use their dedicated protected tables and APIs.
