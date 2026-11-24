@@ -71,6 +71,8 @@ Use the same origin as the ERP. For local development, start the app with
   authorized ERP API and its server-side service role.
 - `GET /api/inventario?low_stock=true` returns only active products whose
   available stock is at or below the reorder level, with normal pagination.
+- Operational database indexes cover attendance, audit, notifications, cash,
+  inventory, purchases, customers and products for frequent filters and history.
 - Employee and attendance tables also deny direct access to those roles.
   `/api/reportes` counts records from the ERP's `asistencia` table across all
   dates; its attendance total is not filtered by the report period.
