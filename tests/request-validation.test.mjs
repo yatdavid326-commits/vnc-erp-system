@@ -5,6 +5,7 @@ import {
   attendanceCreateSchema,
   cashMovementCreateSchema,
   cashMovementFormSchema,
+  cashMovementUpdateSchema,
   customerCreateSchema,
   customerUpdateSchema,
   creditTransactionSchema,
@@ -219,6 +220,9 @@ test('write schemas reject malformed business values and accept employee form da
     }).success,
     false
   );
+  assert.equal(cashMovementUpdateSchema.safeParse({ amount: 10 }).success, true);
+  assert.equal(cashMovementUpdateSchema.safeParse({ cash_register_id: 'ed8c4009-88bf-4aeb-a0a8-6e63841f3d09' }).success, false);
+  assert.equal(cashMovementUpdateSchema.safeParse({ reference_id: null }).success, false);
   assert.equal(
     inventoryMovementSchema.safeParse({
       id: 'ed8c4009-88bf-4aeb-a0a8-6e63841f3d09',

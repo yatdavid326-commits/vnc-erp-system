@@ -195,7 +195,11 @@ export const cashMovementFormSchema = z
   })
   .strict();
 
-export const cashMovementUpdateSchema = updateSchema(cashMovementFields);
+export const cashMovementUpdateSchema = updateSchema({
+  movement_type: cashMovementFields.movement_type,
+  amount: cashMovementFields.amount,
+  description: cashMovementFields.description,
+});
 
 const attendanceFields = {
   empleado_id: uuid,

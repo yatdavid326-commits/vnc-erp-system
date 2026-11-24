@@ -806,7 +806,7 @@
       "parameters": [{ "$ref": "#/components/parameters/Id" }],
       "put": {
         "tags": ["Cash"],
-        "summary": "Update a cash movement",
+        "summary": "Update a manual movement in the caller's open register",
         "operationId": "updateCashMovement",
         "requestBody": { "$ref": "#/components/requestBodies/CashMovementUpdate" },
         "responses": {
@@ -814,17 +814,22 @@
           "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
           "500": { "$ref": "#/components/responses/ServerError" }
         }
       },
       "delete": {
         "tags": ["Cash"],
-        "summary": "Delete a cash movement",
+        "summary": "Delete a manual movement in the caller's open register",
         "operationId": "deleteCashMovement",
         "responses": {
           "200": { "$ref": "#/components/responses/OkSuccess" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
           "500": { "$ref": "#/components/responses/ServerError" }
         }
       }
@@ -1770,10 +1775,8 @@
         "type": "object",
         "minProperties": 1,
         "properties": {
-          "cash_register_id": { "type": "string", "format": "uuid" },
           "movement_type": { "type": "string", "enum": ["ingreso", "egreso"] },
           "amount": { "type": "number", "exclusiveMinimum": 0 },
-          "reference_id": { "type": ["string", "null"], "format": "uuid" },
           "description": { "type": "string", "maxLength": 1000 }
         },
         "additionalProperties": false
