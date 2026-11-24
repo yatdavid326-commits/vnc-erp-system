@@ -795,6 +795,7 @@
         "tags": ["POS"],
         "summary": "Create a sale",
         "operationId": "createSale",
+        "description": "Product prices and availability are locked during checkout; inventory, sale items and applicable cash movements are recorded atomically.",
         "requestBody": { "$ref": "#/components/requestBodies/Checkout" },
         "responses": {
           "201": { "$ref": "#/components/responses/CreatedObject" },
