@@ -13,13 +13,13 @@ import {
   inventoryMovementSchema,
   notificationReadSchema,
   notificationPreferencesSchema,
-  purchaseCreateSchema,
   productCreateSchema,
   reportEmailSchema,
   signInSchema,
   supplierCreateSchema,
 } from '../lib/validation/requestSchemas.ts';
 import { dashboardSummarySchema } from '../lib/validation/dashboardSummary.ts';
+import { purchaseCreateSchema, purchaseDetailsSchema, purchaseReceiptSchema } from '../lib/purchases.ts';
 import { MAX_ATTENDANCE_QR_LENGTH } from '../lib/utils/qrCode.ts';
 
 test('dashboard summary accepts empty-state metrics and rejects invalid totals', () => {
@@ -41,6 +41,23 @@ test('dashboard summary accepts empty-state metrics and rejects invalid totals',
     }).success,
     false
   );
+});
+
+test('purchase requests validate products, receipts and optimistic edit versions', () => {
+  const id = '550e8400-e29b-41d4-a716-446655440000';
+  const order = {
+    id, numero_po: 'PO-1', proveedor_id: id, fecha_orden: '2026-02-28',
+    notes: '', items: [{ product_id: id, quantity: 2, unit_price: 1.25 }],
+  };
+  assert.equal(purchaseCreateSchema.safeParse(order).success, true);
+  assert.equal(purchaseCreateSchema.safeParse({ ...order, items: [...order.items, ...order.items] }).success, false);
+  assert.equal(purchaseCreateSchema.safeParse({ ...order, items: [{ ...order.items[0], unit_price: 0.001 }] }).success, false);
+  assert.equal(purchaseCreateSchema.safeParse({ ...order, estado: 'received' }).success, false);
+  const receipt = { id, date: '2026-02-28', items: [{ item_id: id, quantity: 1 }] };
+  assert.equal(purchaseReceiptSchema.safeParse(receipt).success, true);
+  assert.equal(purchaseReceiptSchema.safeParse({ ...receipt, items: [...receipt.items, ...receipt.items] }).success, false);
+  assert.equal(purchaseReceiptSchema.safeParse({ ...receipt, date: '2026-02-31' }).success, false);
+  assert.equal(purchaseDetailsSchema.safeParse({ fecha_orden: '2026-02-28', notes: '', edit_version: -1 }).success, false);
 });
 
 test('customer validation trims fields and rejects invalid email and unknown keys', () => {

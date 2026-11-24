@@ -64,7 +64,8 @@ export function getRequiredApiPermission(
   } else if (
     method === 'POST' &&
     (/^\/api\/clientes\/[^/]+\/(credit|transactions)$/.test(pathname) ||
-      /^\/api\/inventario\/[^/]+\/movimientos$/.test(pathname))
+      /^\/api\/inventario\/[^/]+\/movimientos$/.test(pathname) ||
+      /^\/api\/compras\/[^/]+\/(recepcion|recepcion-parcial|anulacion|detalles)$/.test(pathname))
   ) {
     permission = 'can_edit';
   }
@@ -74,4 +75,20 @@ export function getRequiredApiPermission(
   }
 
   return { moduleName: moduleRoute[1], permission };
+}
+
+export function getRequiredApiPermissions(
+  pathname: string,
+  method: string
+): { moduleName: string; permission: ApiPermission }[] {
+  const requirement = getRequiredApiPermission(pathname, method);
+  if (!requirement) return [];
+
+  if (
+    method === 'POST' &&
+    /^\/api\/compras\/[^/]+\/(recepcion|recepcion-parcial)$/.test(pathname)
+  ) {
+    return [requirement, { moduleName: 'inventory', permission: 'can_edit' }];
+  }
+  return [requirement];
 }

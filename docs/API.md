@@ -45,6 +45,9 @@ Use the same origin as the ERP. For local development, start the app with
   `PUT`/`PATCH` require `can_edit`, and `DELETE` requires `can_delete`.
   `POST /api/clientes/{id}/credit` and
   `POST /api/inventario/{id}/movimientos` require `can_edit`.
+  `POST /api/compras/{id}/anulacion` requires purchases `can_edit`;
+  `POST /api/compras/{id}/recepcion-parcial` requires `can_edit` for both
+  purchases and inventory.
 - `/api/admin/permissions` additionally requires the active `admin` role.
 - `POST /api/reportes/email` requires `can_view` permission for the Reports
   module and sends only to the authenticated account email.
@@ -77,6 +80,22 @@ field. Validation errors use `400`; missing records may use `404`; business
 conflicts may use `409`; unexpected server failures use `500`. The exact
 response body can vary by route and is represented conservatively in the
 OpenAPI schemas where the implementation returns database records.
+
+## Purchase orders and receipts
+
+`POST /api/compras` creates a pending order with one or more distinct products;
+its total is calculated from their quantities and unit prices. Creation does not
+change stock. The caller supplies the order UUID as an idempotency key and must
+reuse it with the same payload when retrying an uncertain request.
+`POST /api/compras/{id}/recepcion-parcial` receives one or more quantities,
+including all remaining quantities for a complete receipt. Its receipt UUID is
+also an idempotency key. Stock, movements, order lines and order status change
+atomically. A receipt cannot exceed the remaining quantities.
+Only pending, unreceived orders can be cancelled or have their date and notes
+edited; editing requires the current `edit_version`. Orders are not deleted.
+The former write endpoints and the legacy `compras` table are not used; the
+migration refuses to cut over if legacy rows exist, and blocks further writes
+to that table to prevent orders from becoming invisible.
 
 ## Explore the contract
 

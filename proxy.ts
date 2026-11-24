@@ -8,7 +8,7 @@ import {
 } from '@/lib/auth/sessionCookies';
 import {
   canAccessAdminApi,
-  getRequiredApiPermission,
+  getRequiredApiPermissions,
   isAdminApiPath,
   selfServiceApiPaths,
 } from '@/lib/auth/apiPermissions';
@@ -119,9 +119,9 @@ export async function proxy(request: NextRequest) {
     return next();
   }
 
-  const requirement = getRequiredApiPermission(pathname, request.method);
+  const requirements = getRequiredApiPermissions(pathname, request.method);
   const isAdminApi = isAdminApiPath(pathname);
-  if (!requirement && !isAdminApi) {
+  if (requirements.length === 0 && !isAdminApi) {
     return fail('Forbidden', 403);
   }
 
@@ -157,27 +157,29 @@ export async function proxy(request: NextRequest) {
     return next();
   }
 
-  if (isAdminApi || !requirement) {
+  if (isAdminApi || requirements.length === 0) {
     return fail('Forbidden', 403);
   }
 
-  const { data: moduleAccess, error: accessError } = await supabaseAdmin
-    .from('user_modules')
-    .select(
-      'can_view, can_create, can_edit, can_delete, module:modules!inner(name, is_active)'
-    )
-    .eq('module.name', requirement.moduleName)
-    .eq('module.is_active', true)
-    .eq('user_id', profile.id)
-    .maybeSingle();
+  for (const requirement of requirements) {
+    const { data: moduleAccess, error: accessError } = await supabaseAdmin
+      .from('user_modules')
+      .select(
+        'can_view, can_create, can_edit, can_delete, module:modules!inner(name, is_active)'
+      )
+      .eq('module.name', requirement.moduleName)
+      .eq('module.is_active', true)
+      .eq('user_id', profile.id)
+      .maybeSingle();
 
-  if (accessError) {
-    console.error('Error checking module permissions:', accessError);
-    return fail('Authorization check failed', 500);
-  }
+    if (accessError) {
+      console.error('Error checking module permissions:', accessError);
+      return fail('Authorization check failed', 500);
+    }
 
-  if (moduleAccess?.[requirement.permission] !== true) {
-    return fail('Forbidden', 403);
+    if (moduleAccess?.[requirement.permission] !== true) {
+      return fail('Forbidden', 403);
+    }
   }
 
   return next();

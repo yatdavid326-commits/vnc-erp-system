@@ -135,57 +135,6 @@ const employeeUpdateFields = {
 
 export const employeeUpdateSchema = updateSchema(employeeUpdateFields);
 
-const purchaseFields = {
-  numero_po: requiredText(80),
-  numero_recibo: optionalText(80),
-  proveedor_id: uuid,
-  fecha_orden: dateOnly,
-  fecha: dateOnly,
-  fecha_entrega_esperada: dateOnly,
-  estado: z.enum([
-    'pending',
-    'received',
-    'partial',
-    'cancelled',
-    'pendiente',
-    'recibido',
-    'cancelado',
-  ]),
-  monto_total: nonNegativeNumber,
-  total: nonNegativeNumber,
-};
-
-export const purchaseCreateSchema = z
-  .object({
-    ...purchaseFields,
-    numero_recibo: purchaseFields.numero_recibo.optional(),
-    fecha: purchaseFields.fecha.optional(),
-    fecha_entrega_esperada: purchaseFields.fecha_entrega_esperada.optional(),
-    estado: purchaseFields.estado.optional(),
-    monto_total: purchaseFields.monto_total.optional(),
-    total: purchaseFields.total.optional(),
-  })
-  .strict();
-
-const purchaseUpdateFields = {
-  numero_po: requiredText(80),
-  proveedor_id: uuid,
-  fecha_orden: dateOnly,
-  fecha_entrega_esperada: dateOnly,
-  estado: z.enum([
-    'pending',
-    'received',
-    'partial',
-    'cancelled',
-    'pendiente',
-    'recibido',
-    'cancelado',
-  ]),
-  monto_total: nonNegativeNumber,
-};
-
-export const purchaseUpdateSchema = updateSchema(purchaseUpdateFields);
-
 const productFields = {
   nombre: requiredText(200),
   sku: requiredText(80),

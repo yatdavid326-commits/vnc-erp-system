@@ -524,6 +524,7 @@
           "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" },
           "500": { "$ref": "#/components/responses/ServerError" }
         }
       }
@@ -541,30 +542,75 @@
           "404": { "$ref": "#/components/responses/NotFound" },
           "500": { "$ref": "#/components/responses/ServerError" }
         }
-      },
-      "put": {
+      }
+    },
+    "/api/compras/opciones": {
+      "get": {
         "tags": ["Purchases"],
-        "summary": "Update a purchase order",
-        "operationId": "updatePurchaseOrder",
-        "requestBody": { "$ref": "#/components/requestBodies/PurchaseUpdate" },
+        "summary": "Search active suppliers or products for orders",
+        "operationId": "searchPurchaseOptions",
+        "parameters": [
+          { "name": "kind", "in": "query", "required": true, "schema": { "type": "string", "enum": ["suppliers", "products"] } },
+          { "$ref": "#/components/parameters/Search" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/compras/{id}/recepcion-parcial": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "post": {
+        "tags": ["Purchases"],
+        "summary": "Receive some or all outstanding products; requires edit access to purchases and inventory",
+        "operationId": "receivePurchaseOrder",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PurchaseReceipt" } } } },
         "responses": {
           "200": { "$ref": "#/components/responses/OkObject" },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": { "$ref": "#/components/responses/Forbidden" },
           "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
           "500": { "$ref": "#/components/responses/ServerError" }
         }
-      },
-      "delete": {
+      }
+    },
+    "/api/compras/{id}/anulacion": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "post": {
         "tags": ["Purchases"],
-        "summary": "Delete a purchase order",
-        "operationId": "deletePurchaseOrder",
+        "summary": "Cancel an unreceived pending order",
+        "operationId": "cancelPurchaseOrder",
         "responses": {
-          "200": { "$ref": "#/components/responses/OkSuccess" },
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": { "$ref": "#/components/responses/Forbidden" },
           "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/compras/{id}/detalles": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "patch": {
+        "tags": ["Purchases"],
+        "summary": "Edit date and notes of a pending order",
+        "operationId": "editPurchaseDetails",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PurchaseDetails" } } } },
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
           "500": { "$ref": "#/components/responses/ServerError" }
         }
       }
@@ -1164,7 +1210,7 @@
         "name": "status",
         "in": "query",
         "required": false,
-        "schema": { "type": "string", "enum": ["pending", "partial", "received", "cancelled"] }
+        "schema": { "type": "string", "enum": ["pending", "partial", "partially_received", "received", "cancelled"] }
       },
       "SupplierId": {
         "name": "proveedor_id",
@@ -1564,27 +1610,49 @@
       },
       "PurchaseCreate": {
         "type": "object",
-        "required": ["numero_po", "proveedor_id", "fecha_orden"],
+        "required": ["id", "numero_po", "proveedor_id", "fecha_orden", "notes", "items"],
         "properties": {
+          "id": { "type": "string", "format": "uuid", "description": "Idempotency key and order ID." },
           "numero_po": { "type": "string", "minLength": 1, "maxLength": 80 },
           "proveedor_id": { "type": "string", "format": "uuid" },
           "fecha_orden": { "type": "string", "format": "date" },
-          "fecha_entrega_esperada": { "type": "string", "format": "date" },
-          "estado": { "type": "string", "enum": ["pending", "received", "partial", "cancelled", "pendiente", "recibido", "cancelado"] },
-          "monto_total": { "type": "number", "minimum": 0 }
+          "notes": { "type": "string", "maxLength": 500 },
+          "items": { "type": "array", "minItems": 1, "maxItems": 100, "items": {
+            "type": "object", "required": ["product_id", "quantity", "unit_price"],
+            "properties": {
+              "product_id": { "type": "string", "format": "uuid" },
+              "quantity": { "type": "integer", "minimum": 1, "maximum": 2147483647 },
+              "unit_price": { "type": "number", "minimum": 0, "maximum": 9999999999.99, "multipleOf": 0.01 }
+            },
+            "additionalProperties": false
+          } }
         },
         "additionalProperties": false
       },
-      "PurchaseUpdate": {
+      "PurchaseDetails": {
         "type": "object",
-        "minProperties": 1,
+        "required": ["fecha_orden", "notes", "edit_version"],
         "properties": {
-          "numero_po": { "type": "string", "minLength": 1, "maxLength": 80 },
-          "proveedor_id": { "type": "string", "format": "uuid" },
           "fecha_orden": { "type": "string", "format": "date" },
-          "fecha_entrega_esperada": { "type": "string", "format": "date" },
-          "estado": { "type": "string", "enum": ["pending", "received", "partial", "cancelled", "pendiente", "recibido", "cancelado"] },
-          "monto_total": { "type": "number", "minimum": 0 }
+          "notes": { "type": "string", "maxLength": 500 },
+          "edit_version": { "type": "integer", "minimum": 0, "maximum": 2147483647 }
+        },
+        "additionalProperties": false
+      },
+      "PurchaseReceipt": {
+        "type": "object",
+        "required": ["id", "date", "items"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "description": "Idempotency key and receipt ID." },
+          "date": { "type": "string", "format": "date" },
+          "items": { "type": "array", "minItems": 1, "maxItems": 100, "items": {
+            "type": "object", "required": ["item_id", "quantity"],
+            "properties": {
+              "item_id": { "type": "string", "format": "uuid" },
+              "quantity": { "type": "integer", "minimum": 1, "maximum": 2147483647 }
+            },
+            "additionalProperties": false
+          } }
         },
         "additionalProperties": false
       },
@@ -1798,7 +1866,6 @@
       "EmployeeCreate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmployeeCreate" } } } },
       "EmployeeUpdate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmployeeUpdate" } } } },
       "PurchaseCreate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PurchaseCreate" } } } },
-      "PurchaseUpdate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PurchaseUpdate" } } } },
       "ProductCreate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProductCreate" } } } },
       "ProductUpdate": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProductUpdate" } } } },
       "InventoryMovement": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InventoryMovement" } } } },

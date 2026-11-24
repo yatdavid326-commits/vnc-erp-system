@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   canAccessAdminApi,
   getRequiredApiPermission,
+  getRequiredApiPermissions,
   selfServiceApiPaths,
 } from '../lib/auth/apiPermissions.ts';
 
@@ -33,6 +34,25 @@ test('manual inventory movements require edit permission', () => {
     getRequiredApiPermission('/api/inventario/550e8400-e29b-41d4-a716-446655440000/movimientos', 'POST'),
     { moduleName: 'inventory', permission: 'can_edit' }
   );
+});
+
+test('purchase receipts require edit access to purchases and inventory', () => {
+  for (const action of ['recepcion', 'recepcion-parcial']) {
+    const path = `/api/compras/550e8400-e29b-41d4-a716-446655440000/${action}`;
+    assert.deepEqual(getRequiredApiPermissions(path, 'POST'), [
+      { moduleName: 'purchases', permission: 'can_edit' },
+      { moduleName: 'inventory', permission: 'can_edit' },
+    ]);
+  }
+});
+
+test('purchase cancellation and details require purchase edit access only', () => {
+  for (const action of ['anulacion', 'detalles']) {
+    assert.deepEqual(
+      getRequiredApiPermissions(`/api/compras/550e8400-e29b-41d4-a716-446655440000/${action}`, 'POST'),
+      [{ moduleName: 'purchases', permission: 'can_edit' }]
+    );
+  }
 });
 
 test('module API methods map to their required permissions', () => {

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { comprasService } from '@/lib/services/compras/comprasService';
 
 interface TotalRow {
   total: number;
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
         supabase.from('proveedores').select('id').then((r) => r.data?.length || 0),
         supabase.from('inventario').select('id').then((r) => r.data?.length || 0),
         supabase.from('pos_orders').select('total').then((r) => r.data?.reduce((sum: number, v: TotalRow) => sum + v.total, 0) || 0),
-        supabase.from('compras').select('total').then((r) => r.data?.reduce((sum: number, c: TotalRow) => sum + c.total, 0) || 0),
+        comprasService.getTotal(),
         supabase
           .from('cash_movements')
           .select('monto')
