@@ -1,5 +1,8 @@
 'use client';
 
+import { CreditCard, Pencil, Trash2 } from 'lucide-react';
+import ActionButton from '@/components/common/ActionButton';
+
 interface Cliente {
   id: string;
   nombre: string;
@@ -92,25 +95,36 @@ export default function ClientesTable({ clientes, onEdit, onDelete, onView }: Cl
                       {cliente.estado_cliente.charAt(0).toUpperCase() + cliente.estado_cliente.slice(1)}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm space-x-2">
-                    <button
-                      onClick={() => onView(cliente)}
-                      className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                    >
-                      Crédito
-                    </button>
-                    <button
-                      onClick={() => onEdit(cliente)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => onDelete(cliente.id)}
-                      className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                    >
-                      Eliminar
-                    </button>
+                  <td className="px-6 py-4 text-sm">
+                    <div className="flex flex-wrap gap-2">
+                      <ActionButton
+                        title="Ver crédito"
+                        icon={<CreditCard size={14} />}
+                        variant="view"
+                        onClick={() => onView(cliente)}
+                        compact
+                      >
+                        Crédito
+                      </ActionButton>
+                      <ActionButton
+                        title="Editar cliente"
+                        icon={<Pencil size={14} />}
+                        variant="edit"
+                        onClick={() => onEdit(cliente)}
+                        compact
+                      >
+                        Editar
+                      </ActionButton>
+                      <ActionButton
+                        title="Eliminar cliente"
+                        icon={<Trash2 size={14} />}
+                        variant="delete"
+                        onClick={() => onDelete(cliente.id)}
+                        compact
+                      >
+                        Eliminar
+                      </ActionButton>
+                    </div>
                   </td>
                 </tr>
               ))

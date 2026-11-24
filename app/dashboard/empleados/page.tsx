@@ -8,6 +8,8 @@ import PaginationControls from '@/components/common/PaginationControls';
 import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
 import { useToast } from '@/components/notifications/ToastProvider';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
+import ActionButton from '@/components/common/ActionButton';
+import { Pencil, Trash2 } from 'lucide-react';
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
@@ -305,19 +307,15 @@ export default function EmpleadosPage() {
                           {emp.estado}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm space-x-2">
-                        <button
-                          onClick={() => handleEdit(emp)}
-                          className="bg-blue-600 text-white px-3 py-1 rounded text-xs"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => setDeleteTarget(emp)}
-                          className="bg-red-600 text-white px-3 py-1 rounded text-xs"
-                        >
-                          Eliminar
-                        </button>
+                      <td className="px-6 py-4 text-sm">
+                        <div className="flex flex-wrap gap-2">
+                          <ActionButton title="Editar empleado" icon={<Pencil size={14} />} onClick={() => handleEdit(emp)} compact>
+                            Editar
+                          </ActionButton>
+                          <ActionButton title="Eliminar empleado" icon={<Trash2 size={14} />} variant="delete" onClick={() => setDeleteTarget(emp)} compact>
+                            Eliminar
+                          </ActionButton>
+                        </div>
                       </td>
                     </tr>
                   ))

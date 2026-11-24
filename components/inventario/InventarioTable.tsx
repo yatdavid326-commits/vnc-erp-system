@@ -1,5 +1,8 @@
 'use client';
 
+import { Pencil, PackagePlus, Trash2 } from 'lucide-react';
+import ActionButton from '@/components/common/ActionButton';
+
 import { Producto } from '@/lib/services/products/productService';
 
 interface InventarioTableProps {
@@ -103,29 +106,18 @@ export default function InventarioTable({
                   {getStockStatus(producto.cantidad_stock, producto.stock_minimo)}
                 </span>
               </td>
-              <td className="px-4 py-2 text-center space-x-1">
-                <button
-                  onClick={() => onEdit(producto)}
-                  className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                  title="Edit"
-                >
-                  ✎
-                </button>
-                <button
-                  onClick={() => onMovement(producto)}
-                  disabled={!producto.activo}
-                  className="px-3 py-1 text-xs bg-amber-100 text-amber-800 rounded hover:bg-amber-200"
-                  title="Manage stock"
-                >
-                  Stock
-                </button>
-                <button
-                  onClick={() => onDelete(producto.id)}
-                  className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
-                  title="Delete"
-                >
-                  ✕
-                </button>
+              <td className="px-4 py-2 text-center">
+                <div className="flex flex-wrap justify-center gap-1">
+                  <ActionButton title="Editar producto" icon={<Pencil size={14} />} onClick={() => onEdit(producto)} compact>
+                    Editar
+                  </ActionButton>
+                  <ActionButton title="Gestionar stock" icon={<PackagePlus size={14} />} variant="movement" onClick={() => onMovement(producto)} disabled={!producto.activo} compact>
+                    Stock
+                  </ActionButton>
+                  <ActionButton title="Eliminar producto" icon={<Trash2 size={14} />} variant="delete" onClick={() => onDelete(producto.id)} compact>
+                    Eliminar
+                  </ActionButton>
+                </div>
               </td>
             </tr>
           ))}

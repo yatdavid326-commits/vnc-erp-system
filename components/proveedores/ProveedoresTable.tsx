@@ -1,5 +1,8 @@
 'use client';
 
+import { Pencil, Trash2 } from 'lucide-react';
+import ActionButton from '@/components/common/ActionButton';
+
 interface Proveedor {
   id: string;
   nombre: string;
@@ -63,19 +66,15 @@ export default function ProveedoresTable({ proveedores, onEdit, onDelete }: Prov
                       {proveedor.activo ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm space-x-2">
-                    <button
-                      onClick={() => onEdit(proveedor)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => onDelete(proveedor.id)}
-                      className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                    >
-                      Eliminar
-                    </button>
+                  <td className="px-6 py-4 text-sm">
+                    <div className="flex flex-wrap gap-2">
+                      <ActionButton title="Editar proveedor" icon={<Pencil size={14} />} onClick={() => onEdit(proveedor)} compact>
+                        Editar
+                      </ActionButton>
+                      <ActionButton title="Eliminar proveedor" icon={<Trash2 size={14} />} variant="delete" onClick={() => onDelete(proveedor.id)} compact>
+                        Eliminar
+                      </ActionButton>
+                    </div>
                   </td>
                 </tr>
               ))
