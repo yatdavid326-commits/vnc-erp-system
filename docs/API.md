@@ -74,6 +74,9 @@ Use the same origin as the ERP. For local development, start the app with
   dates; its attendance total is not filtered by the report period.
 - `audit_logs` denies direct access to those roles; `service_role` retains
   access. This protection does not itself record audit events.
+- Legacy `sales`, `sale_items` and `cajas` tables deny direct access to `public`,
+  `anon` and `authenticated`; `service_role` retains access. Current POS and
+  cash-register operations use their dedicated protected tables and APIs.
 - `PUT` and `DELETE /api/caja/{id}` apply only to manual movements without a
   linked sale/reference in the caller's open cash register. A closed register
   cannot be modified, and linked movements cannot be edited or deleted.
