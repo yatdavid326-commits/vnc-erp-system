@@ -9,9 +9,23 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+      return NextResponse.json({ error: 'Identificador de cliente no válido.' }, { status: 400 });
+    }
+    const cliente = await customerService.getById(id);
+    if (!cliente) {
+      return NextResponse.json({ error: 'Cliente no encontrado.' }, { status: 404 });
+    }
     const balance = await customerService.getCreditBalance(id);
 
-    return NextResponse.json({ cliente_id: id, balance });
+    const limit = cliente.limite_credito || 0;
+    return NextResponse.json({
+      cliente_id: id,
+      balance,
+      limit,
+      available: Math.max(0, limit - balance),
+      utilization: limit > 0 ? Math.min(100, (balance / limit) * 100) : 0,
+    });
   } catch (error) {
     console.error('GET /api/clientes/[id]/credit error:', error);
     return NextResponse.json(

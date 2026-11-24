@@ -9,6 +9,7 @@ import {
   customerCreateSchema,
   customerUpdateSchema,
   creditTransactionSchema,
+  creditCheckSchema,
   employeeCreateSchema,
   employeeUpdateSchema,
   inventoryMovementSchema,
@@ -104,6 +105,13 @@ test('credit movements accept signed adjustments but reject invalid monetary val
   assert.equal(creditTransactionSchema.safeParse({ ...movement, id: 'bad' }).success, false);
   assert.equal(customerUpdateSchema.safeParse({ saldo_actual: 1 }).success, false);
   assert.equal(customerCreateSchema.safeParse({ nombre: 'Ana', email: 'ana@example.com', saldo_actual: 1 }).success, false);
+});
+
+test('credit availability rejects non-negative limit inputs outside schema', () => {
+  assert.equal(creditCheckSchema.safeParse({ amount: 100 }).success, true);
+  assert.equal(creditCheckSchema.safeParse({ amount: -1 }).success, false);
+  assert.equal(creditCheckSchema.safeParse({ amount: 0 }).success, true);
+  assert.equal(creditCheckSchema.safeParse({ amount: '100' }).success, false);
 });
 
 test('update validation rejects empty objects and product validation enforces numeric limits', () => {

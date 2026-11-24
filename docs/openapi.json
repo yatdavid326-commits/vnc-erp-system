@@ -328,8 +328,9 @@
       "parameters": [{ "$ref": "#/components/parameters/Id" }],
       "get": {
         "tags": ["Clients"],
-        "summary": "Get a client's credit balance",
+        "summary": "Get a client's credit summary",
         "operationId": "getClientCredit",
+        "description": "Returns balance, configured limit, available credit and utilization percentage.",
         "responses": {
           "200": { "$ref": "#/components/responses/OkObject" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
