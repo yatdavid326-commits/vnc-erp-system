@@ -6,8 +6,15 @@ import { LogOut, Settings, User as UserIcon, Menu, X } from 'lucide-react';
 import { authService } from '@/lib/services/auth/authService';
 import { modulesService } from '@/lib/services/modules/modulesService';
 import { useAuthStore, useModuleStore } from '@/hooks';
-import CsvExportButton from '@/components/reports/CsvExportButton';
-import NotificationCenter from '@/components/notifications/NotificationCenter';
+import dynamicImport from 'next/dynamic';
+const CsvExportButton = dynamicImport(
+  () => import('@/components/reports/CsvExportButton'),
+  { ssr: false, loading: () => <span className="text-sm text-gray-500">CSV</span> }
+);
+const NotificationCenter = dynamicImport(
+  () => import('@/components/notifications/NotificationCenter'),
+  { ssr: false, loading: () => <span className="text-sm text-gray-500">Notificaciones</span> }
+);
 import Sidebar from './Sidebar';
 import Link from 'next/link';
 import { clearClientCache } from '@/lib/utils/clientCache';
