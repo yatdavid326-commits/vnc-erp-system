@@ -3,6 +3,7 @@ import { createClient, type Session, type User } from '@supabase/supabase-js';
 import {
   ACCESS_TOKEN_COOKIE,
   clearAuthCookies,
+  MFA_PENDING_COOKIE,
   REFRESH_TOKEN_COOKIE,
   setAuthCookies,
 } from '@/lib/auth/sessionCookies';
@@ -18,6 +19,10 @@ const publicApiPaths = new Set([
   '/api/auth/signin',
   '/api/auth/session',
   '/api/auth/signout',
+  '/api/auth/mfa',
+  '/api/auth/mfa/enroll',
+  '/api/auth/mfa/verify',
+  '/api/auth/mfa/unlink',
   '/api/cron/notifications',
   '/api/modules/all',
 ]);
@@ -26,6 +31,19 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (!pathname.startsWith('/api/') || publicApiPaths.has(pathname)) {
     return NextResponse.next();
+  }
+
+  const mfaPending = request.cookies.get(MFA_PENDING_COOKIE)?.value === '1';
+  const mfaApi =
+    pathname === '/api/auth/mfa' ||
+    pathname === '/api/auth/mfa/enroll' ||
+    pathname === '/api/auth/mfa/verify' ||
+    pathname === '/api/auth/mfa/unlink';
+  if (mfaPending && !mfaApi) {
+    return NextResponse.json(
+      { error: 'Verifica el segundo factor para continuar.' },
+      { status: 403 }
+    );
   }
 
   const authorization = request.headers.get('authorization');

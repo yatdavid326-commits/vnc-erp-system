@@ -91,6 +91,56 @@
         }
       }
     },
+    "/api/auth/mfa": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "List TOTP factors and pending MFA state",
+        "operationId": "listMfaFactors",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/auth/mfa/enroll": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Enroll a TOTP authenticator factor",
+        "operationId": "enrollMfaTotp",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/auth/mfa/verify": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Verify an MFA challenge code",
+        "operationId": "verifyMfaTotp",
+        "responses": {
+          "200": { "$ref": "#/components/responses/AuthSession" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/auth/mfa/unlink": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Remove a TOTP factor",
+        "operationId": "unlinkMfaTotp",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkSuccess" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
     "/api/auth/restore": {
       "get": {
         "tags": ["Auth"],

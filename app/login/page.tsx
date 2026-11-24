@@ -12,6 +12,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [factorId, setFactorId] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,10 +23,32 @@ export default function LoginPage() {
 
     try {
       // Use server-side signin that bypasses RLS
-      const { error } = await serverSignIn(username, password);
+      const { data, error } = await serverSignIn(username, password);
 
       if (error) {
         setError(error.message);
+        setLoading(false);
+        return;
+      }
+
+      if (data?.mfaRequired) {
+        const factorsResponse = await fetch('/api/auth/mfa');
+        if (!factorsResponse.ok) {
+          setError('No se pudo iniciar la verificación adicional.');
+          setLoading(false);
+          return;
+        }
+        const factors = await factorsResponse.json();
+        const verifiedFactor = factors.factors?.find(
+          (factor: { status: string }) => factor.status === 'verified'
+        );
+        if (!verifiedFactor) {
+          setError('No se encontró un factor MFA activo.');
+          setLoading(false);
+          return;
+        }
+        setFactorId(verifiedFactor.id);
+        setMfaRequired(true);
         setLoading(false);
         return;
       }
@@ -32,6 +57,29 @@ export default function LoginPage() {
     } catch (err) {
       setError('Error al iniciar sesión. Intenta nuevamente.');
       console.error(err);
+      setLoading(false);
+    }
+  };
+
+  const handleMfaVerify = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/auth/mfa/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ factorId, code: mfaCode }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || 'Código MFA inválido.');
+        setLoading(false);
+        return;
+      }
+      router.replace('/dashboard');
+    } catch {
+      setError('No se pudo verificar el código MFA.');
       setLoading(false);
     }
   };
@@ -61,6 +109,33 @@ export default function LoginPage() {
           )}
 
           {/* Form */}
+          {mfaRequired ? (
+            <form onSubmit={handleMfaVerify} className="space-y-4">
+              <div>
+                <label htmlFor="mfaCode" className="block text-sm font-medium text-gray-700 mb-1">
+                  Código de autenticador
+                </label>
+                <input
+                  id="mfaCode"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={mfaCode}
+                  onChange={(event) => setMfaCode(event.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="123456"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg"
+              >
+                Verificar código
+              </button>
+            </form>
+          ) : (
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
@@ -107,6 +182,7 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+          )}
 
           {/* Footer */}
           <p className="text-center text-sm text-gray-600 mt-6">

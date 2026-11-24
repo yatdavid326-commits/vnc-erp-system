@@ -75,6 +75,9 @@ Use the same origin as the ERP. For local development, start the app with
 - `audit_logs` denies direct access to those roles; `service_role` retains
   access. Critical admin permission changes are recorded through
   `write_audit_log`; sensitive keys are redacted before storage.
+- TOTP MFA is optional and uses Supabase Auth factors. `/api/auth/mfa`
+  lists factors, `/api/auth/mfa/enroll` starts enrollment, `/api/auth/mfa/verify`
+  completes a challenge, and `/api/auth/mfa/unlink` removes a factor.
 - Legacy `sales`, `sale_items` and `cajas` tables deny direct access to `public`,
   `anon` and `authenticated`; `service_role` retains access. Current POS and
   cash-register operations use their dedicated protected tables and APIs.

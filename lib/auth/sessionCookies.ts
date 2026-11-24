@@ -3,8 +3,10 @@ import type { Session } from '@supabase/supabase-js';
 
 export const ACCESS_TOKEN_COOKIE = 'sb-access-token';
 export const REFRESH_TOKEN_COOKIE = 'sb-refresh-token';
+export const MFA_PENDING_COOKIE = 'sb-mfa-pending';
 
 const REFRESH_TOKEN_MAX_AGE = 60 * 60 * 24 * 30;
+const MFA_PENDING_MAX_AGE = 5 * 60;
 
 const cookieOptions = {
   httpOnly: true,
@@ -41,6 +43,33 @@ export function clearAuthCookies(response: NextResponse): NextResponse {
   for (const name of [ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE]) {
     response.cookies.set(name, '', { ...cookieOptions, maxAge: 0 });
   }
+  return response;
+}
+
+export function setPendingMfaCookies(
+  response: NextResponse,
+  session: Pick<Session, 'access_token' | 'refresh_token' | 'expires_in'>
+): NextResponse {
+  response.cookies.set(ACCESS_TOKEN_COOKIE, session.access_token, {
+    ...cookieOptions,
+    maxAge: MFA_PENDING_MAX_AGE,
+  });
+  response.cookies.set(REFRESH_TOKEN_COOKIE, session.refresh_token, {
+    ...cookieOptions,
+    maxAge: MFA_PENDING_MAX_AGE,
+  });
+  response.cookies.set(MFA_PENDING_COOKIE, '1', {
+    ...cookieOptions,
+    maxAge: MFA_PENDING_MAX_AGE,
+  });
+  return response;
+}
+
+export function clearPendingMfaCookie(response: NextResponse): NextResponse {
+  response.cookies.set(MFA_PENDING_COOKIE, '', {
+    ...cookieOptions,
+    maxAge: 0,
+  });
   return response;
 }
 

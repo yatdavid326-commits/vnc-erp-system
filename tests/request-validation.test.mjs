@@ -12,6 +12,7 @@ import {
   employeeCreateSchema,
   employeeUpdateSchema,
   inventoryMovementSchema,
+  mfaVerifySchema,
   notificationReadSchema,
   notificationPreferencesSchema,
   productCreateSchema,
@@ -163,6 +164,18 @@ test('attendance validation rejects invalid employee IDs and out-of-range coordi
     }).success,
     false
   );
+});
+
+test('MFA verification accepts six-digit codes and strict factor UUIDs', () => {
+  const valid = {
+    factorId: 'ed8c4009-88bf-4aeb-a0a8-6e63841f3d09',
+    code: '123456',
+  };
+  assert.equal(mfaVerifySchema.safeParse(valid).success, true);
+  assert.equal(mfaVerifySchema.safeParse({ ...valid, code: '12345' }).success, false);
+  assert.equal(mfaVerifySchema.safeParse({ ...valid, code: '12345a' }).success, false);
+  assert.equal(mfaVerifySchema.safeParse({ ...valid, factorId: 'bad-id' }).success, false);
+  assert.equal(mfaVerifySchema.safeParse({ ...valid, extra: true }).success, false);
 });
 
 test('write schemas reject malformed business values and accept employee form data', () => {

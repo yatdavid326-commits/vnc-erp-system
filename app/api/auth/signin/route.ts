@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/db/supabase';
-import { createSignInResponse } from '@/lib/auth/sessionCookies';
+import { createSignInResponse, setPendingMfaCookies } from '@/lib/auth/sessionCookies';
 import { parseSignInLimit, signInClientKey, upstreamSignInErrorResponse } from '@/lib/auth/signInRateLimit';
 import { validateSameOriginJsonRequest } from '@/lib/auth/validateSameOriginJsonRequest';
 import { validateRequestBody } from '@/lib/validation/requestBody';
@@ -100,6 +100,18 @@ export async function POST(request: NextRequest) {
         { error: 'Authentication failed' },
         { status: 401 }
       );
+    }
+
+    const { data: factorsData } = await authClient.auth.mfa.listFactors();
+    const verifiedFactors = (factorsData?.totp ?? []).filter(
+      (factor) => factor.status === 'verified'
+    );
+    if (verifiedFactors.length > 0) {
+      const response = NextResponse.json({
+        authenticated: false,
+        mfaRequired: true,
+      });
+      return setPendingMfaCookies(response, data.session);
     }
 
     return createSignInResponse(data.session);

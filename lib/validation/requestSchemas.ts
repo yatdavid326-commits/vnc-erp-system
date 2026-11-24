@@ -294,6 +294,20 @@ export const signInSchema = z
   })
   .strict();
 
+export const mfaVerifySchema = z
+  .object({
+    factorId: uuid,
+    code: z.string().trim().regex(/^\d{6}$/, 'El código debe tener 6 dígitos.'),
+  })
+  .strict();
+
+export const mfaEnrollVerifySchema = z
+  .object({
+    factorId: uuid,
+    code: z.string().trim().regex(/^\d{6}$/, 'El código debe tener 6 dígitos.'),
+  })
+  .strict();
+
 export const modulePermissionSchema = z
   .object({
     user_id: uuid,
