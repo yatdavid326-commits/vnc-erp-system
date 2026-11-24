@@ -119,3 +119,70 @@ test('notification API rejects requests without a session cookie', async ({
 
   expect(response.status()).toBe(401);
 });
+
+test('login shows MFA verification and continues after a valid challenge', async ({ page }) => {
+  await page.route('**/api/auth/signin', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: false, mfaRequired: true }),
+    })
+  );
+  await page.route('**/api/auth/mfa', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        factors: [
+          {
+            id: 'ed8c4009-88bf-4aeb-a0a8-6e63841f3d09',
+            friendlyName: 'Autenticador ERP',
+            status: 'verified',
+          },
+        ],
+        pending: true,
+      }),
+    })
+  );
+  await page.route('**/api/auth/mfa/verify', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ authenticated: true }),
+    })
+  );
+  await page.route('**/api/auth/restore', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        authenticated: true,
+        user: { id: '550e8400-e29b-41d4-a716-446655440004' },
+        profile: {
+          id: '550e8400-e29b-41d4-a716-446655440003',
+          email: 'test@example.invalid',
+          username: 'test',
+          full_name: 'Test',
+          role: 'admin',
+          is_active: true,
+        },
+      }),
+    })
+  );
+  await page.route('**/api/modules/**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([]),
+    })
+  );
+
+  await page.goto('/login');
+  await page.getByLabel('Usuario').fill('test');
+  await page.getByLabel('Contraseña').fill('not-a-real-password');
+  await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
+  await expect(page.getByLabel('Código de autenticador')).toBeVisible();
+  await page.getByLabel('Código de autenticador').fill('123456');
+  await page.getByRole('button', { name: 'Verificar código' }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+});
