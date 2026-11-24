@@ -67,13 +67,16 @@ export async function sendReportEmail(
   const reportType = report.tipo.replace(/[^a-z]+/g, '');
   const subject = `Reporte ${reportType} (${report.periodo})`;
 
-  const response = await fetchImpl('https://api.sendgrid.com/v3/mail/send', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
+  let response: Response;
+  try {
+    response = await fetchImpl('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(15_000),
+      body: JSON.stringify({
       personalizations: [{ to: [{ email: destination }] }],
       from: { email: config.fromEmail, name: config.fromName },
       subject,
@@ -91,8 +94,11 @@ export async function sendReportEmail(
           disposition: 'attachment',
         },
       ],
-    }),
-  });
+      }),
+    });
+  } catch {
+    throw new SendGridDeliveryError('timeout_or_network_error', true);
+  }
 
   if (!response.ok) {
     throw new SendGridDeliveryError(

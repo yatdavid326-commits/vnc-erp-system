@@ -88,6 +88,28 @@ test('report email sends a PDF only to the provided authenticated destination', 
   );
 });
 
+test('network and timeout failures are retryable and never expose provider details', async () => {
+  await assert.rejects(
+    sendReportEmail(
+      'user@example.com',
+      report,
+      pdfContent,
+      config,
+      async (url, options) => {
+        assert.ok(options.signal instanceof AbortSignal);
+        throw new Error('sensitive provider detail');
+      }
+    ),
+    (error) => {
+      assert.ok(error instanceof SendGridDeliveryError);
+      assert.equal(error.code, 'timeout_or_network_error');
+      assert.equal(error.retryable, true);
+      assert.equal(error.message.includes('sensitive'), false);
+      return true;
+    }
+  );
+});
+
 test('invalid recipients and provider failures are surfaced safely', async () => {
   await assert.rejects(
     sendReportEmail('invalid-address', report, pdfContent, config, async () => {

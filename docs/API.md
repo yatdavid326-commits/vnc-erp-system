@@ -144,3 +144,5 @@ and report data must pass schema validation. Configure the SendGrid sender
 server-side with `SENDGRID_API_KEY` and a verified `SENDGRID_FROM_EMAIL`;
 optionally set `SENDGRID_FROM_NAME`. Until these values are configured, the
 endpoint responds with `503`. Do not share or commit provider credentials.
+SendGrid requests use a 15-second timeout and classify network, timeout,
+rate-limit and server failures without exposing provider details.
