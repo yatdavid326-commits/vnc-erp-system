@@ -28,6 +28,7 @@ export default function DashboardLayout({
   const { user, setUser, isLoading } = useAuthStore();
   const { setModules, setUserModules } = useModuleStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const loadedUserId = useRef<string | null>(null);
 
@@ -95,6 +96,21 @@ export default function DashboardLayout({
 
   return (
     <div className="flex h-screen bg-gray-50">
+      {isMobileMenuOpen && (
+        <button
+          type="button"
+          aria-label="Cerrar menú"
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+      <div
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 text-white transition-transform md:hidden ${
+          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <Sidebar />
+      </div>
       {/* Sidebar */}
       <div
         className={`${
@@ -107,15 +123,21 @@ export default function DashboardLayout({
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center">
+        <header className="bg-white border-b border-gray-200 px-3 py-3 sm:px-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              onClick={() => {
+                if (window.matchMedia('(min-width: 768px)').matches) {
+                  setIsSidebarOpen((open) => !open);
+                } else {
+                  setIsMobileMenuOpen((open) => !open);
+                }
+              }}
               className="text-gray-600 hover:text-gray-900"
             >
               {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
-            <h1 className="text-xl font-bold text-gray-900">
+            <h1 className="max-w-40 truncate text-base font-bold text-gray-900 sm:max-w-none sm:text-xl">
               {process.env.NEXT_PUBLIC_BUSINESS_NAME}
             </h1>
           </div>
@@ -171,7 +193,7 @@ export default function DashboardLayout({
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto p-4">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-4">
           <div className="max-w-7xl mx-auto">{children}</div>
         </main>
       </div>

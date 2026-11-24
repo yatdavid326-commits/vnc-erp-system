@@ -248,7 +248,7 @@ export default function ClientesPage() {
             <p className="mt-2 text-gray-500">Cargando clientes...</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-x-auto">
             <ClientesTable
               clientes={clientes}
               onEdit={handleEdit}

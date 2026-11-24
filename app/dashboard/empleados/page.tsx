@@ -270,7 +270,7 @@ export default function EmpleadosPage() {
         {loading ? (
           <div className="text-center py-12">Cargando...</div>
         ) : (
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="overflow-x-auto bg-white rounded-lg shadow-md">
             <table className="w-full">
               <thead className="bg-gray-100">
                 <tr>

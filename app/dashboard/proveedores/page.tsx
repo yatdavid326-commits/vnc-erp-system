@@ -244,7 +244,7 @@ export default function ProveedoresPage() {
             <p className="mt-2 text-gray-500">Cargando proveedores...</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-x-auto">
             <ProveedoresTable
               proveedores={proveedores}
               onEdit={handleEdit}
