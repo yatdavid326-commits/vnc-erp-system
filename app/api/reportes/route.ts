@@ -32,9 +32,11 @@ export async function GET(request: NextRequest) {
         supabase.from('pos_orders').select('total').then((r) => r.data?.reduce((sum: number, v: TotalRow) => sum + v.total, 0) || 0),
         comprasService.getTotal(),
         supabaseAdmin.rpc('cash_movement_totals', { p_start: inicio || null, p_end: fin || null }).single(),
-        supabase.from('attendance').select('id').then((r) => r.data?.length || 0),
+        supabaseAdmin.from('asistencia').select('id', { count: 'exact', head: true }),
       ]);
     if (caja.error) throw caja.error;
+    if (asistencias.error) throw asistencias.error;
+    if (asistencias.count === null) throw new Error('Attendance count unavailable');
     if (!caja.data || typeof caja.data !== 'object' || !('income' in caja.data) || !('expense' in caja.data)
       || (typeof caja.data.income !== 'number' && typeof caja.data.income !== 'string')
       || (typeof caja.data.expense !== 'number' && typeof caja.data.expense !== 'string')
@@ -52,7 +54,7 @@ export async function GET(request: NextRequest) {
       total_clientes: clientes,
       total_proveedores: proveedores,
       total_productos: productos,
-      total_asistencias: asistencias,
+      total_asistencias: asistencias.count,
     });
   } catch (error) {
     console.error('Error generating report:', error);

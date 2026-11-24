@@ -69,6 +69,9 @@ Use the same origin as the ERP. For local development, start the app with
 - Direct `anon` and `authenticated` access to the POS transaction, line-item
   cash-register and cash-movement tables is revoked; these operations use the
   authorized ERP API and its server-side service role.
+- Employee and attendance tables also deny direct access to those roles.
+  `/api/reportes` counts records from the ERP's `asistencia` table across all
+  dates; its attendance total is not filtered by the report period.
 - `PUT` and `DELETE /api/caja/{id}` apply only to manual movements without a
   linked sale/reference in the caller's open cash register. A closed register
   cannot be modified, and linked movements cannot be edited or deleted.
