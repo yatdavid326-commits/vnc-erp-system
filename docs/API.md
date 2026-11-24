@@ -66,6 +66,9 @@ Use the same origin as the ERP. For local development, start the app with
   paused while in-app inventory alerts are being validated.
 - A missing/invalid session returns `401`; an inactive profile or insufficient
   permission returns `403`.
+- Direct `anon` and `authenticated` access to the POS transaction, line-item
+  and cash-register tables is revoked; these operations use the authorized ERP
+  API and its server-side service role.
 
 ## Pagination and errors
 
