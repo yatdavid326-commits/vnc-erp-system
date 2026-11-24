@@ -5,6 +5,7 @@ import {
   ACCESS_TOKEN_COOKIE,
   clearAuthCookies,
   createSignInResponse,
+  MFA_PENDING_COOKIE,
   REFRESH_TOKEN_COOKIE,
 } from '../lib/auth/sessionCookies.ts';
 import { validateSameOriginJsonRequest } from '../lib/auth/validateSameOriginJsonRequest.ts';
@@ -145,4 +146,5 @@ test('sign-out clears both session cookies', () => {
 
   assert.equal(response.cookies.get(ACCESS_TOKEN_COOKIE)?.maxAge, 0);
   assert.equal(response.cookies.get(REFRESH_TOKEN_COOKIE)?.maxAge, 0);
+  assert.equal(response.cookies.get(MFA_PENDING_COOKIE)?.maxAge, 0);
 });

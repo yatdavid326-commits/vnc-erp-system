@@ -43,6 +43,10 @@ export function clearAuthCookies(response: NextResponse): NextResponse {
   for (const name of [ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE]) {
     response.cookies.set(name, '', { ...cookieOptions, maxAge: 0 });
   }
+  response.cookies.set(MFA_PENDING_COOKIE, '', {
+    ...cookieOptions,
+    maxAge: 0,
+  });
   return response;
 }
 
