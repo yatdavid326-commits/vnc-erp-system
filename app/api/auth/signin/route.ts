@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/db/supabase';
 import { createSignInResponse } from '@/lib/auth/sessionCookies';
+import { parseSignInLimit, signInClientKey } from '@/lib/auth/signInRateLimit';
 import { validateSameOriginJsonRequest } from '@/lib/auth/validateSameOriginJsonRequest';
 import { validateRequestBody } from '@/lib/validation/requestBody';
 import { signInSchema } from '@/lib/validation/requestSchemas';
@@ -30,6 +31,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Server configuration error' },
         { status: 500 }
+      );
+    }
+
+    const clientKey = signInClientKey(
+      request.headers,
+      process.env.VERCEL === '1',
+      process.env.NODE_ENV === 'production',
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+    if (!clientKey) {
+      console.error('Sign-in rate limiter cannot identify the client.');
+      return NextResponse.json({ error: 'Inicio de sesión no disponible. Intenta más tarde.' }, { status: 503 });
+    }
+
+    const { data: limitData, error: limitError } = await supabaseAdmin.rpc(
+      'consume_signin_attempt',
+      { p_client_key: clientKey }
+    );
+    const limit = parseSignInLimit(limitData);
+    if (limitError || !limit) {
+      console.error('Sign-in rate limiter failed:', limitError);
+      return NextResponse.json({ error: 'Inicio de sesión no disponible. Intenta más tarde.' }, { status: 503 });
+    }
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: 'Demasiados intentos de inicio de sesión. Intenta nuevamente más tarde.' },
+        { status: 429, headers: { 'Retry-After': String(limit.retryAfter) } }
       );
     }
 

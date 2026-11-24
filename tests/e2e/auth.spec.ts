@@ -56,6 +56,22 @@ test('failed login is shown without persisting legacy session tokens', async ({
   expect(legacySessionKeys).toEqual([]);
 });
 
+test('login displays the rate-limit message', async ({ page }) => {
+  await page.route('**/api/auth/signin', (route) =>
+    route.fulfill({
+      status: 429,
+      contentType: 'application/json',
+      headers: { 'Retry-After': '60' },
+      body: JSON.stringify({ error: 'Demasiados intentos de inicio de sesión. Intenta nuevamente más tarde.' }),
+    })
+  );
+  await page.goto('/login');
+  await page.getByLabel('Usuario').fill('e2e-test-user');
+  await page.getByLabel('Contraseña').fill('not-a-real-password');
+  await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
+  await expect(page.getByRole('alert').filter({ hasText: 'Demasiados intentos' })).toBeVisible();
+});
+
 test('unauthenticated dashboard access redirects to login', async ({ page }) => {
   await page.goto('/dashboard');
 

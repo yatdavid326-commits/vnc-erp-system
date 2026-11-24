@@ -8,6 +8,34 @@ import {
   REFRESH_TOKEN_COOKIE,
 } from '../lib/auth/sessionCookies.ts';
 import { validateSameOriginJsonRequest } from '../lib/auth/validateSameOriginJsonRequest.ts';
+import { parseSignInLimit, signInClientKey } from '../lib/auth/signInRateLimit.ts';
+
+test('sign-in limiter uses only a valid Vercel client address in production', () => {
+  const headers = new Headers({
+    'x-vercel-forwarded-for': '203.0.113.1',
+    'x-forwarded-for': '198.51.100.1',
+  });
+  const key = signInClientKey(headers, true, true, 'test-secret');
+  assert.match(key, /^[0-9a-f]{64}$/);
+  assert.equal(key, signInClientKey(new Headers({ 'x-vercel-forwarded-for': '203.0.113.1' }), true, true, 'test-secret'));
+  assert.notEqual(key, signInClientKey(new Headers({ 'x-vercel-forwarded-for': '203.0.113.2' }), true, true, 'test-secret'));
+  assert.equal(signInClientKey(new Headers({ 'x-vercel-forwarded-for': '203.0.113.1, 198.51.100.1' }), true, true, 'test-secret'), null);
+  assert.equal(signInClientKey(new Headers(), true, true, 'test-secret'), null);
+  assert.equal(signInClientKey(headers, false, true, 'test-secret'), null);
+  assert.equal(signInClientKey(headers, true, true, undefined), null);
+  assert.equal(
+    signInClientKey(new Headers({ 'x-vercel-forwarded-for': '2001:0db8::1' }), true, true, 'test-secret'),
+    signInClientKey(new Headers({ 'x-vercel-forwarded-for': '2001:db8:0:0:0:0:0:1' }), true, true, 'test-secret')
+  );
+});
+
+test('sign-in limiter rejects malformed database responses', () => {
+  assert.deepEqual(parseSignInLimit({ allowed: true, retry_after: 0 }), { allowed: true, retryAfter: 0 });
+  assert.deepEqual(parseSignInLimit({ allowed: false, retry_after: 900 }), { allowed: false, retryAfter: 900 });
+  for (const result of [null, {}, { allowed: true, retry_after: 1 }, { allowed: false, retry_after: 0 }, { allowed: false, retry_after: 901 }, { allowed: 'false', retry_after: 30 }]) {
+    assert.equal(parseSignInLimit(result), null);
+  }
+});
 
 test('sign-in request protection accepts same-origin JSON behind a proxy', () => {
   const request = new Request('http://localhost:3000/api/auth/signin', {

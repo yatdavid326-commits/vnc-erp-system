@@ -54,6 +54,7 @@
       "post": {
         "tags": ["Auth"],
         "summary": "Sign in and set HttpOnly session cookies",
+        "description": "On Vercel, at most 20 valid sign-in attempts per client IP are allowed in any rolling 15-minute window, including successful attempts. Shared connections share the limit. The limit fails closed when the trusted IP or limiter is unavailable; direct Supabase authentication is governed separately.",
         "operationId": "signIn",
         "security": [],
         "requestBody": { "$ref": "#/components/requestBodies/SignIn" },
@@ -63,6 +64,16 @@
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": { "$ref": "#/components/responses/CrossSiteRequest" },
           "415": { "$ref": "#/components/responses/UnsupportedMediaType" },
+          "429": {
+            "description": "Sign-in rate limit exceeded.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until another sign-in attempt is allowed.",
+                "schema": { "type": "integer", "minimum": 1 }
+              }
+            }
+          },
+          "503": { "description": "Sign-in rate limiter unavailable." },
           "500": { "$ref": "#/components/responses/ServerError" }
         }
       }
