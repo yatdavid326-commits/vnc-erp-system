@@ -65,7 +65,7 @@
           "403": { "$ref": "#/components/responses/CrossSiteRequest" },
           "415": { "$ref": "#/components/responses/UnsupportedMediaType" },
           "429": {
-            "description": "Sign-in rate limit exceeded.",
+            "description": "The ERP or Supabase Auth rate limit was exceeded. Retry-After is supplied only for the ERP limit.",
             "headers": {
               "Retry-After": {
                 "description": "Seconds until another sign-in attempt is allowed.",

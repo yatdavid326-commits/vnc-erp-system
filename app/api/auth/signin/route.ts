@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/db/supabase';
 import { createSignInResponse } from '@/lib/auth/sessionCookies';
-import { parseSignInLimit, signInClientKey } from '@/lib/auth/signInRateLimit';
+import { parseSignInLimit, signInClientKey, upstreamSignInErrorResponse } from '@/lib/auth/signInRateLimit';
 import { validateSameOriginJsonRequest } from '@/lib/auth/validateSameOriginJsonRequest';
 import { validateRequestBody } from '@/lib/validation/requestBody';
 import { signInSchema } from '@/lib/validation/requestSchemas';
@@ -92,10 +92,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
-      return NextResponse.json(
-        { error: error.message || 'Authentication failed' },
-        { status: 401 }
-      );
+      return upstreamSignInErrorResponse(error);
     }
 
     if (!data.session) {

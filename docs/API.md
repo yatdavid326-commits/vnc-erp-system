@@ -17,13 +17,22 @@ Use the same origin as the ERP. For local development, start the app with
   }`. It sets both HttpOnly cookies; tokens are never returned in JSON.
   Valid sign-in requests are limited to 20 per client IP in any rolling
   15-minute window, counting successful and unsuccessful attempts. Connections
-  sharing an IP also share the limit. A blocked request returns `429` with
-  `Retry-After` in seconds. If the limiter or trusted IP is unavailable, the
-  endpoint returns `503` instead of allowing an unprotected sign-in.
+  sharing an IP also share the limit. A request blocked by this ERP limit
+  returns `429` with `Retry-After` in seconds. If Supabase Auth rejects a
+  sign-in due to its own limit, the ERP also returns `429`, without a
+  `Retry-After` value because the SDK does not expose one. If the limiter or
+  trusted IP is unavailable, the endpoint returns `503` instead of allowing
+  an unprotected sign-in.
   Vercel's `x-vercel-forwarded-for` provides the trusted IP; other production
   hosts require an appropriate trusted-proxy implementation before sign-in
   can be enabled. Local development uses a shared development bucket.
   This limit applies to the ERP endpoint, not direct Supabase Auth requests.
+  This project's separate Supabase token limit is currently 150 requests per
+  five minutes per source IP and uses a token bucket with bursts up to 30.
+  It also covers session refreshes. The server-side password client uses the
+  legacy anon key, so Supabase sees the server-side source IP, not the
+  end-user IP. Direct requests are subject to
+  [Supabase's own limits](https://supabase.com/docs/guides/auth/rate-limits).
 - `POST /api/auth/session` requires a Bearer token and sets the cookie.
 - `GET /api/auth/restore` accepts either the cookie or a Bearer token.
 - `POST /api/auth/signout` revokes the Supabase session when possible, clears

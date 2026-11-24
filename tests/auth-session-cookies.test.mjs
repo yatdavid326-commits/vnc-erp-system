@@ -8,7 +8,19 @@ import {
   REFRESH_TOKEN_COOKIE,
 } from '../lib/auth/sessionCookies.ts';
 import { validateSameOriginJsonRequest } from '../lib/auth/validateSameOriginJsonRequest.ts';
-import { parseSignInLimit, signInClientKey } from '../lib/auth/signInRateLimit.ts';
+import { parseSignInLimit, signInClientKey, upstreamSignInErrorResponse } from '../lib/auth/signInRateLimit.ts';
+
+test('upstream sign-in rate limits are not reported as incorrect credentials', async () => {
+  const limited = upstreamSignInErrorResponse({ status: 429, message: 'Too many requests' });
+  assert.equal(limited.status, 429);
+  assert.match((await limited.json()).error, /temporalmente limitado/);
+  assert.equal(limited.headers.get('retry-after'), null);
+  assert.equal(limited.cookies.getAll().length, 0);
+
+  const invalid = upstreamSignInErrorResponse({ status: 400, message: 'Invalid credentials' });
+  assert.equal(invalid.status, 401);
+  assert.deepEqual(await invalid.json(), { error: 'Invalid credentials' });
+});
 
 test('sign-in limiter uses only a valid Vercel client address in production', () => {
   const headers = new Headers({

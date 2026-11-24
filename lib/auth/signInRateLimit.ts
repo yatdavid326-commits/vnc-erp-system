@@ -1,5 +1,19 @@
 import { createHmac } from 'node:crypto';
 import { isIP } from 'node:net';
+import { NextResponse } from 'next/server.js';
+
+export function upstreamSignInErrorResponse(error: { status?: number; message: string }): NextResponse {
+  if (error.status === 429) {
+    return NextResponse.json(
+      { error: 'El servicio de autenticación está temporalmente limitado. Intenta nuevamente más tarde.' },
+      { status: 429 }
+    );
+  }
+  return NextResponse.json(
+    { error: error.message || 'Authentication failed' },
+    { status: 401 }
+  );
+}
 
 export function signInClientKey(
   headers: Headers,
