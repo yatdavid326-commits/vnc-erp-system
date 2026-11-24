@@ -14,6 +14,7 @@ import ProveedoresTable from '@/components/proveedores/ProveedoresTable';
 import PaginationControls from '@/components/common/PaginationControls';
 import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
 import { useToast } from '@/components/notifications/ToastProvider';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
@@ -55,6 +56,8 @@ export default function ProveedoresPage() {
     términos_pago: '',
     activo: true,
   });
+  const [deleteTarget, setDeleteTarget] = useState<Proveedor | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const fetchProveedores = useCallback(async () => {
     setLoading(true);
     try {
@@ -145,18 +148,20 @@ export default function ProveedoresPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Está seguro de que desea eliminar este proveedor?')) return;
-
+    setDeleting(true);
     try {
       const response = await fetch(`/api/proveedores/${id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Error al eliminar proveedor');
       showToast('Proveedor eliminado correctamente.', 'success');
+      setDeleteTarget(null);
       await fetchProveedores();
     } catch (err) {
       showToast(
         'Error al eliminar: ' + (err instanceof Error ? err.message : ''),
         'error'
       );
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -243,7 +248,10 @@ export default function ProveedoresPage() {
             <ProveedoresTable
               proveedores={proveedores}
               onEdit={handleEdit}
-              onDelete={handleDelete}
+              onDelete={(id) => {
+                const target = proveedores.find((proveedor) => proveedor.id === id) ?? null;
+                setDeleteTarget(target);
+              }}
             />
             <PaginationControls
               page={page}
@@ -255,6 +263,17 @@ export default function ProveedoresPage() {
             />
           </div>
         )}
+        <ConfirmDialog
+          open={deleteTarget !== null}
+          title="Eliminar proveedor"
+          description={deleteTarget ? `¿Eliminar a ${deleteTarget.nombre}? Esta acción no se puede deshacer.` : ''}
+          confirmText="Eliminar"
+          busy={deleting}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => {
+            if (deleteTarget) void handleDelete(deleteTarget.id);
+          }}
+        />
       </div>
     );
 }

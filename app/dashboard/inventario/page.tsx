@@ -12,6 +12,7 @@ import InventarioTable from '@/components/inventario/InventarioTable';
 import StockAlerts from '@/components/inventario/StockAlerts';
 import { Producto } from '@/lib/services/products/productService';
 import { useToast } from '@/components/notifications/ToastProvider';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
 
 async function loadProductos(page: number, limit: number, search: string, status: string, lowStock: boolean) {
   const params = new URLSearchParams({
@@ -53,6 +54,8 @@ export default function InventarioPage() {
   const [movementNotes, setMovementNotes] = useState('');
   const [movementRequestId, setMovementRequestId] = useState(() => crypto.randomUUID());
   const [savingMovement, setSavingMovement] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Producto | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const fetchProductos = useCallback(async () => {
     try {
       setError('');
@@ -139,8 +142,7 @@ export default function InventarioPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
-
+    setDeleting(true);
     try {
       const res = await fetch(`/api/inventario/${id}`, {
         method: 'DELETE',
@@ -149,9 +151,12 @@ export default function InventarioPage() {
       if (!res.ok) throw new Error(result.error || 'Failed to delete product');
 
       showToast('Producto eliminado correctamente.', 'success');
+      setDeleteTarget(null);
       await fetchProductos();
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'No se pudo eliminar el producto.', 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -355,7 +360,10 @@ export default function InventarioPage() {
             productos={productos}
             onEdit={handleEdit}
             onMovement={openMovementForm}
-            onDelete={handleDelete}
+            onDelete={(id) => {
+              const target = productos.find((producto) => producto.id === id) ?? null;
+              setDeleteTarget(target);
+            }}
             loading={loading}
           />
         </div>
@@ -384,6 +392,17 @@ export default function InventarioPage() {
             </div>
           </div>
         )}
+        <ConfirmDialog
+          open={deleteTarget !== null}
+          title="Eliminar producto"
+          description={deleteTarget ? `¿Eliminar ${deleteTarget.nombre}? Esta acción no se puede deshacer.` : ''}
+          confirmText="Eliminar"
+          busy={deleting}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => {
+            if (deleteTarget) void handleDelete(deleteTarget.id);
+          }}
+        />
       </div>
     </div>
   );

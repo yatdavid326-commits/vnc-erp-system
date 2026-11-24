@@ -77,6 +77,10 @@ test('creates an order and receives a partial quantity', async ({ page }) => {
   await page.getByLabel('Fecha de recepción').fill('2026-11-23');
   await page.getByLabel('Cantidad recibida de Producto de prueba').fill('1');
   await page.getByRole('button', { name: 'Registrar recepción' }).click();
+  await expect(page.getByRole('dialog', { name: 'Registrar recepción' })).toBeVisible();
+  await page.getByRole('dialog', { name: 'Registrar recepción' })
+    .getByRole('button', { name: 'Confirmar' })
+    .click();
   await expect(page.getByText('PO-TEST — Parcialmente recibida')).toBeVisible();
   expect(receipt).toMatchObject({ date: '2026-11-23', items: [{ item_id: lineId, quantity: 1 }] });
 });

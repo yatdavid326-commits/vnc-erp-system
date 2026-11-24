@@ -18,6 +18,7 @@ const ClientesModal = dynamicImport(
 import PaginationControls from '@/components/common/PaginationControls';
 import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
 import { useToast } from '@/components/notifications/ToastProvider';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
@@ -49,6 +50,8 @@ export default function ClientesPage() {
   const [showForm, setShowForm] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Cliente | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [formData, setFormData] = useState<ClienteFormData>({
     nombre: '',
     email: '',
@@ -149,18 +152,20 @@ export default function ClientesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Está seguro de que desea eliminar este cliente?')) return;
-
+    setDeleting(true);
     try {
       const response = await fetch(`/api/clientes/${id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Error al eliminar cliente');
       showToast('Cliente eliminado correctamente.', 'success');
+      setDeleteTarget(null);
       await fetchClientes();
     } catch (err) {
       showToast(
         'Error al eliminar: ' + (err instanceof Error ? err.message : ''),
         'error'
       );
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -247,7 +252,10 @@ export default function ClientesPage() {
             <ClientesTable
               clientes={clientes}
               onEdit={handleEdit}
-              onDelete={handleDelete}
+              onDelete={(id) => {
+                const target = clientes.find((cliente) => cliente.id === id) ?? null;
+                setDeleteTarget(target);
+              }}
               onView={setSelectedCliente}
             />
             <PaginationControls
@@ -271,6 +279,17 @@ export default function ClientesPage() {
             await fetchClientes();
           }}
         />}
+        <ConfirmDialog
+          open={deleteTarget !== null}
+          title="Eliminar cliente"
+          description={deleteTarget ? `¿Eliminar a ${deleteTarget.nombre}? Esta acción no se puede deshacer.` : ''}
+          confirmText="Eliminar"
+          busy={deleting}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => {
+            if (deleteTarget) void handleDelete(deleteTarget.id);
+          }}
+        />
       </div>
   );
 }

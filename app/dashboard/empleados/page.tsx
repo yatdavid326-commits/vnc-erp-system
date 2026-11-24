@@ -7,6 +7,7 @@ import { fetchPaginatedJson } from '@/lib/utils/fetchJson';
 import PaginationControls from '@/components/common/PaginationControls';
 import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
 import { useToast } from '@/components/notifications/ToastProvider';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
@@ -42,6 +43,8 @@ export default function EmpleadosPage() {
     salario: 0,
     estado: 'activo',
   });
+  const [deleteTarget, setDeleteTarget] = useState<Empleado | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const fetchEmpleados = useCallback(async () => {
     setLoading(true);
     try {
@@ -122,17 +125,20 @@ export default function EmpleadosPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Está seguro?')) return;
+    setDeleting(true);
     try {
       const response = await fetch(`/api/empleados/${id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Error al eliminar empleado');
       showToast('Empleado eliminado correctamente.', 'success');
+      setDeleteTarget(null);
       await fetchEmpleados();
     } catch (err) {
       showToast(
         'Error al eliminar empleado: ' + (err instanceof Error ? err.message : ''),
         'error'
       );
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -307,7 +313,7 @@ export default function EmpleadosPage() {
                           Editar
                         </button>
                         <button
-                          onClick={() => handleDelete(emp.id)}
+                          onClick={() => setDeleteTarget(emp)}
                           className="bg-red-600 text-white px-3 py-1 rounded text-xs"
                         >
                           Eliminar
@@ -332,6 +338,17 @@ export default function EmpleadosPage() {
             />
           </div>
         )}
+        <ConfirmDialog
+          open={deleteTarget !== null}
+          title="Eliminar empleado"
+          description={deleteTarget ? `¿Eliminar a ${deleteTarget.nombre}? Esta acción no se puede deshacer.` : ''}
+          confirmText="Eliminar"
+          busy={deleting}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => {
+            if (deleteTarget) void handleDelete(deleteTarget.id);
+          }}
+        />
       </div>
     );
 }

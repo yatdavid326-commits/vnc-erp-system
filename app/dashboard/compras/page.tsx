@@ -9,6 +9,7 @@ import { useAuthStore, useModuleStore } from '@/hooks';
 import { purchaseStatusLabel, type PurchaseInput, type PurchaseReceiptInput, type PurchaseDetailsInput } from '@/lib/purchases';
 import { fetchJson, fetchPaginatedJson } from '@/lib/utils/fetchJson';
 import { DEFAULT_PAGE_SIZE } from '@/lib/utils/pagination';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
 
 type Option = { id: string; name: string };
 type ItemDraft = { product: Option; quantity: string; unitPrice: string };
@@ -69,6 +70,13 @@ export default function ComprasPage() {
   const [receiptIds, setReceiptIds] = useState<Record<string, string>>({});
   const [receiptQuantities, setReceiptQuantities] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<{ orderId: string; date: string; notes: string; version: number } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<
+    | { type: 'receive'; order: Order }
+    | { type: 'cancel'; order: Order }
+    | { type: 'retry_receipt'; order: Order }
+    | { type: 'retry_create' }
+    | null
+  >(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -149,7 +157,24 @@ export default function ComprasPage() {
       selected.push({ item_id: item.id, quantity: value });
     }
     if (!selected.length) { showToast('Indica al menos una cantidad recibida.', 'error'); return; }
-    if (!confirm(`¿Registrar la recepción de ${order.numero_po}? Esto aumentará el inventario.`)) return;
+    setConfirmAction({ type: 'receive', order });
+    return;
+  }
+
+  async function confirmReceive(order: Order) {
+    const dateValue = receiptDates[order.id];
+    if (!dateValue) { showToast('Selecciona la fecha de recepción.', 'error'); return; }
+    const selected: PurchaseReceiptInput['items'] = [];
+    for (const item of order.items) {
+      const raw = receiptQuantities[item.id] ?? '';
+      if (!raw || raw === '0') continue;
+      const value = Number(raw);
+      if (!/^[1-9]\d*$/.test(raw) || !Number.isSafeInteger(value) || item.quantity_received === null
+        || value > item.quantity_ordered - item.quantity_received) {
+        showToast('La cantidad debe ser entera y no superar lo pendiente.', 'error'); return;
+      }
+      selected.push({ item_id: item.id, quantity: value });
+    }
     const id = receiptIds[order.id] ?? crypto.randomUUID();
     setReceiptIds((current) => ({ ...current, [order.id]: id }));
     setSaving(true);
@@ -165,7 +190,10 @@ export default function ComprasPage() {
   }
 
   async function cancel(order: Order) {
-    if (!confirm(`¿Anular la orden ${order.numero_po}? Esta acción no se puede deshacer.`)) return;
+    setConfirmAction({ type: 'cancel', order });
+  }
+
+  async function confirmCancel(order: Order) {
     setSaving(true);
     try {
       await write(`/api/compras/${order.id}/anulacion`, 'POST');
@@ -224,9 +252,7 @@ export default function ComprasPage() {
       <button type="submit" className={buttonClass} disabled={saving}>Crear orden pendiente</button>
       <p className="text-sm text-gray-600">Si falla la confirmación, revisa la lista antes de volver a intentar; no cambies los datos del intento.</p>
       {createAttempted && <button type="button" className="text-sm text-red-700" disabled={saving} onClick={() => {
-        if (confirm('Antes de iniciar otro intento, revisa la lista y confirma si la orden anterior se registró. ¿Continuar?')) {
-          setRequestId(crypto.randomUUID()); setCreateAttempted(false); void load();
-        }
+        setConfirmAction({ type: 'retry_create' });
       }}>Reiniciar intento tras revisar</button>}
     </form>}
     <div className="mb-5 grid items-end gap-3 md:grid-cols-4">
@@ -261,9 +287,7 @@ export default function ComprasPage() {
           <label>Fecha de recepción<input className={inputClass} type="date" value={receiptDates[order.id] ?? ''} onChange={(e) => setReceiptDates((current) => ({ ...current, [order.id]: e.target.value }))} /></label>
           <button className={buttonClass} disabled={saving} onClick={() => void receive(order)}>Registrar recepción</button>
           {receiptIds[order.id] && <button className="text-sm text-red-700" disabled={saving} onClick={() => {
-            if (confirm('Antes de iniciar otro intento, revisa la orden y confirma si la recepción anterior se registró. ¿Continuar?')) {
-              setReceiptIds((current) => { const next = { ...current }; delete next[order.id]; return next; }); void load();
-            }
+            setConfirmAction({ type: 'retry_receipt', order });
           }}>Reiniciar intento tras revisar</button>}
         </div>}
         {canEdit && order.estado === 'pending' && <div className="mt-4 flex gap-3">
@@ -279,5 +303,47 @@ export default function ComprasPage() {
       </section>)}
     </div>}
     {!loading && <div className="mt-4"><PaginationControls page={page} pageSize={DEFAULT_PAGE_SIZE} total={total} itemLabel="órdenes" disabled={loading} onPageChange={setPage} /></div>}
+    <ConfirmDialog
+      open={confirmAction !== null}
+      title={
+        confirmAction?.type === 'cancel'
+          ? 'Anular orden'
+          : confirmAction?.type === 'receive'
+            ? 'Registrar recepción'
+            : 'Reiniciar intento'
+      }
+      description={
+        confirmAction?.type === 'cancel'
+          ? `¿Anular la orden ${confirmAction.order.numero_po}? Esta acción no se puede deshacer.`
+          : confirmAction?.type === 'receive'
+            ? `¿Registrar la recepción de ${confirmAction.order.numero_po}? Esto aumentará el inventario.`
+            : 'Revisa la orden y confirma si el intento anterior se registró antes de continuar.'
+      }
+      confirmText="Confirmar"
+      tone={confirmAction?.type === 'cancel' ? 'danger' : 'warning'}
+      busy={saving}
+      onCancel={() => setConfirmAction(null)}
+      onConfirm={() => {
+        if (!confirmAction) return;
+        if (confirmAction.type === 'receive') {
+          void confirmReceive(confirmAction.order).finally(() => setConfirmAction(null));
+        } else if (confirmAction.type === 'cancel') {
+          void confirmCancel(confirmAction.order).finally(() => setConfirmAction(null));
+        } else if (confirmAction.type === 'retry_create') {
+          setRequestId(crypto.randomUUID());
+          setCreateAttempted(false);
+          setConfirmAction(null);
+          void load();
+        } else if (confirmAction.type === 'retry_receipt') {
+          setReceiptIds((current) => {
+            const next = { ...current };
+            delete next[confirmAction.order.id];
+            return next;
+          });
+          setConfirmAction(null);
+          void load();
+        }
+      }}
+    />
   </div>;
 }
