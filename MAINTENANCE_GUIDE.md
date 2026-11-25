@@ -123,6 +123,9 @@ pg_restore --clean --if-exists --no-owner --no-acl --dbname="<CONNECTION_STRING>
 Ejecutar restauraciones primero en un entorno de pruebas y validar datos críticos antes
 de apuntar el ERP a la base restaurada. Mantener la conexión y la clave fuera del repositorio.
 
+El procedimiento completo, objetivos RPO/RTO, controles de aprobación y lista de
+validación están en [`docs/DISASTER_RECOVERY.md`](./docs/DISASTER_RECOVERY.md).
+
 ### Ver logs
 ```bash
 # En Supabase Dashboard
