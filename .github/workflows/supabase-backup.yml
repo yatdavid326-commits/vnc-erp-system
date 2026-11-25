@@ -1,0 +1,48 @@
+name: Supabase encrypted backup
+
+on:
+  schedule:
+    - cron: '15 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Create database backup
+        env:
+          SUPABASE_DB_CONNECTION_STRING: ${{ secrets.SUPABASE_DB_CONNECTION_STRING }}
+          BACKUP_ENCRYPTION_PASSWORD: ${{ secrets.BACKUP_ENCRYPTION_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_DB_CONNECTION_STRING"
+          test -n "$BACKUP_ENCRYPTION_PASSWORD"
+          stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          echo "BACKUP_NAME=vnc-erp-${stamp}.dump.enc" >> "$GITHUB_ENV"
+          pg_dump --format=custom --no-owner --no-acl --file="vnc-erp-${stamp}.dump" "$SUPABASE_DB_CONNECTION_STRING"
+          openssl enc -aes-256-cbc -pbkdf2 -salt \
+            -in "vnc-erp-${stamp}.dump" \
+            -out "vnc-erp-${stamp}.dump.enc" \
+            -pass env:BACKUP_ENCRYPTION_PASSWORD
+          sha256sum "vnc-erp-${stamp}.dump.enc" > "vnc-erp-${stamp}.dump.enc.sha256"
+          rm "vnc-erp-${stamp}.dump"
+
+      - name: Upload encrypted backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BACKUP_NAME }}
+          path: |
+            *.dump.enc
+            *.dump.enc.sha256
+          if-no-files-found: error
+          retention-days: 30

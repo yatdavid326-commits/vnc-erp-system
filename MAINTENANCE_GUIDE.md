@@ -99,13 +99,29 @@ WHERE email = 'admin@vncsystems.com';
 ## 🗄️ Mantenimiento de Base de Datos
 
 ### Backup
-Supabase realiza backups automáticos diarios. Para backup manual:
-1. Ir a Supabase Dashboard
-2. Settings → Backups
-3. Hacer click en "Download"
+Supabase realiza backups administrados por plataforma y el repositorio ejecuta además
+un respaldo cifrado cada día a las 03:15 UTC.
+
+Configurar estos GitHub Actions secrets:
+1. `SUPABASE_DB_CONNECTION_STRING`: cadena PostgreSQL directa del proyecto.
+2. `BACKUP_ENCRYPTION_PASSWORD`: clave fuerte para cifrado AES-256.
+
+El workflow:
+1. Ejecuta `pg_dump` sin propietario ni ACL.
+2. Cifra el archivo con `openssl enc -aes-256-cbc -pbkdf2`.
+3. Genera un checksum SHA-256.
+4. Elimina el dump sin cifrar.
+5. Conserva los artefactos cifrados durante 30 días.
 
 ### Restauración
-Contactar a Supabase support o usar SQL dump.
+Descargar el artefacto cifrado y su checksum.
+Verificar el checksum localmente y descifrarlo antes de restaurar:
+```
+openssl enc -d -aes-256-cbc -pbkdf2 -in vnc-erp.dump.enc -out vnc-erp.dump
+pg_restore --clean --if-exists --no-owner --no-acl --dbname="<CONNECTION_STRING>" vnc-erp.dump
+```
+Ejecutar restauraciones primero en un entorno de pruebas y validar datos críticos antes
+de apuntar el ERP a la base restaurada. Mantener la conexión y la clave fuera del repositorio.
 
 ### Ver logs
 ```bash
