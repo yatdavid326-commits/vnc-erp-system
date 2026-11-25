@@ -185,6 +185,11 @@ export default function LoginPage() {
           )}
 
           {/* Footer */}
+          <div className="mt-6 text-center">
+            <Link href="/forgot-password" className="text-sm font-medium text-blue-600 hover:underline">
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
           <p className="text-center text-sm text-gray-600 mt-6">
             ¿No tienes cuenta?{' '}
             <Link href="/signup" className="text-blue-600 hover:underline font-medium">

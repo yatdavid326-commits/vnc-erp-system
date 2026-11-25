@@ -23,6 +23,8 @@ const publicApiPaths = new Set([
   '/api/auth/mfa/enroll',
   '/api/auth/mfa/verify',
   '/api/auth/mfa/unlink',
+  '/api/auth/recovery/request',
+  '/api/auth/recovery/reset',
   '/api/cron/notifications',
   '/api/modules/all',
 ]);

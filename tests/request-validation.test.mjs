@@ -16,6 +16,8 @@ import {
   mfaVerifySchema,
   notificationReadSchema,
   notificationPreferencesSchema,
+  passwordRecoveryRequestSchema,
+  passwordRecoveryResetSchema,
   productCreateSchema,
   reportEmailSchema,
   signInSchema,
@@ -170,6 +172,55 @@ test('attendance validation rejects invalid employee IDs and out-of-range coordi
     attendanceCreateSchema.safeParse({
       ...validAttendance,
       qr_code: 'x'.repeat(MAX_ATTENDANCE_QR_LENGTH + 1),
+    }).success,
+    false
+  );
+});
+
+test('password recovery accepts valid email and strong passwords', () => {
+  assert.equal(
+    passwordRecoveryRequestSchema.safeParse({
+      email: 'ana@example.com',
+    }).success,
+    true
+  );
+  assert.equal(
+    passwordRecoveryRequestSchema.safeParse({
+      email: 'invalid',
+    }).success,
+    false
+  );
+
+  const validReset = {
+    code: 'a'.repeat(24),
+    password: 'Segura123456!',
+  };
+  assert.equal(passwordRecoveryResetSchema.safeParse(validReset).success, true);
+  assert.equal(
+    passwordRecoveryResetSchema.safeParse({
+      token_hash: 'a'.repeat(24),
+      password: 'Segura123456!',
+    }).success,
+    true
+  );
+  assert.equal(
+    passwordRecoveryResetSchema.safeParse({
+      ...validReset,
+      password: 'password',
+    }).success,
+    false
+  );
+  assert.equal(
+    passwordRecoveryResetSchema.safeParse({
+      ...validReset,
+      password: 'UPPERCASE123!',
+    }).success,
+    false
+  );
+  assert.equal(
+    passwordRecoveryResetSchema.safeParse({
+      ...validReset,
+      extra: true,
     }).success,
     false
   );

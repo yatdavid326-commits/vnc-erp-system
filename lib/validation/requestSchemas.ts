@@ -294,6 +294,31 @@ export const signInSchema = z
   })
   .strict();
 
+export const passwordRecoveryRequestSchema = z
+  .object({
+    email: z.string().trim().email().max(254),
+  })
+  .strict();
+
+export const passwordRecoveryResetSchema = z
+  .object({
+    code: z.string().trim().min(20).max(2048).optional(),
+    token_hash: z.string().trim().min(20).max(2048).optional(),
+    password: z
+      .string()
+      .min(12)
+      .max(1024)
+      .regex(/[a-z]/, 'La contraseña debe incluir una letra minúscula.')
+      .regex(/[A-Z]/, 'La contraseña debe incluir una letra mayúscula.')
+      .regex(/\d/, 'La contraseña debe incluir un número.')
+      .regex(/[^A-Za-z0-9]/, 'La contraseña debe incluir un símbolo.'),
+  })
+  .strict()
+  .refine(
+    (data) => Boolean(data.code || data.token_hash),
+    'Se requiere un código o token de recuperación.'
+  );
+
 export const mfaVerifySchema = z
   .object({
     factorId: uuid,

@@ -141,6 +141,33 @@
         }
       }
     },
+    "/api/auth/recovery/request": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Request a password recovery link",
+        "operationId": "requestPasswordRecovery",
+        "responses": {
+          "200": { "$ref": "#/components/responses/OkObject" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "415": { "$ref": "#/components/responses/BadRequest" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/auth/recovery/reset": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Exchange a recovery code and set a new password",
+        "operationId": "resetPasswordRecovery",
+        "responses": {
+          "200": { "$ref": "#/components/responses/AuthSession" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "415": { "$ref": "#/components/responses/BadRequest" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
     "/api/auth/restore": {
       "get": {
         "tags": ["Auth"],
