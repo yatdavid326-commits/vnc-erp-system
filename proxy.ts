@@ -3,10 +3,10 @@ import { createClient, type Session, type User } from '@supabase/supabase-js';
 import {
   ACCESS_TOKEN_COOKIE,
   clearAuthCookies,
-  MFA_PENDING_COOKIE,
   REFRESH_TOKEN_COOKIE,
   setAuthCookies,
 } from '@/lib/auth/sessionCookies';
+import { requiresAal2 } from '@/lib/auth/mfaAssurance';
 import {
   canAccessAdminApi,
   getRequiredApiPermissions,
@@ -31,19 +31,6 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (!pathname.startsWith('/api/') || publicApiPaths.has(pathname)) {
     return NextResponse.next();
-  }
-
-  const mfaPending = request.cookies.get(MFA_PENDING_COOKIE)?.value === '1';
-  const mfaApi =
-    pathname === '/api/auth/mfa' ||
-    pathname === '/api/auth/mfa/enroll' ||
-    pathname === '/api/auth/mfa/verify' ||
-    pathname === '/api/auth/mfa/unlink';
-  if (mfaPending && !mfaApi) {
-    return NextResponse.json(
-      { error: 'Verifica el segundo factor para continuar.' },
-      { status: 403 }
-    );
   }
 
   const authorization = request.headers.get('authorization');
@@ -126,6 +113,48 @@ export async function proxy(request: NextRequest) {
   requestHeaders.set('authorization', `Bearer ${accessToken}`);
   const withSessionCookies = (response: NextResponse) =>
     refreshedSession ? setAuthCookies(response, refreshedSession) : response;
+
+  const { data: claimsData, error: claimsError } =
+    await supabase.auth.getClaims(accessToken);
+  if (claimsError || !claimsData?.claims) {
+    const response = NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+    if (!hasBearerToken) clearAuthCookies(response);
+    return response;
+  }
+
+  const { data: assuranceData, error: assuranceError } =
+    await supabase.auth.mfa.getAuthenticatorAssuranceLevel(accessToken);
+  if (assuranceError || !assuranceData) {
+    console.error(
+      'Error validating MFA authenticator assurance level:',
+      assuranceError
+    );
+    return withSessionCookies(
+      NextResponse.json(
+        { error: 'Authentication service unavailable' },
+        { status: 503 }
+      )
+    );
+  }
+
+  if (
+    requiresAal2(
+      claimsData.claims.aal,
+      assuranceData.currentLevel,
+      assuranceData.nextLevel
+    )
+  ) {
+    return withSessionCookies(
+      NextResponse.json(
+        { error: 'Verifica el segundo factor para continuar.' },
+        { status: 403 }
+      )
+    );
+  }
+
   const next = () =>
     withSessionCookies(
       NextResponse.next({ request: { headers: requestHeaders } })

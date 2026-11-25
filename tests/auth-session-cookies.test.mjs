@@ -10,6 +10,15 @@ import {
 } from '../lib/auth/sessionCookies.ts';
 import { validateSameOriginJsonRequest } from '../lib/auth/validateSameOriginJsonRequest.ts';
 import { parseSignInLimit, signInClientKey, upstreamSignInErrorResponse } from '../lib/auth/signInRateLimit.ts';
+import { requiresAal2 } from '../lib/auth/mfaAssurance.ts';
+
+test('MFA assurance requires AAL2 only when the account and JWT require it', () => {
+  assert.equal(requiresAal2('aal1', 'aal1', 'aal2'), true);
+  assert.equal(requiresAal2(undefined, undefined, 'aal2'), true);
+  assert.equal(requiresAal2('aal2', 'aal2', 'aal2'), false);
+  assert.equal(requiresAal2('aal1', 'aal1', 'aal1'), false);
+  assert.equal(requiresAal2('aal1', 'aal2', 'aal2'), false);
+});
 
 test('upstream sign-in rate limits are not reported as incorrect credentials', async () => {
   const limited = upstreamSignInErrorResponse({ status: 429, message: 'Too many requests' });
