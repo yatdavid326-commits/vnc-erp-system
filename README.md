@@ -48,6 +48,8 @@ Playwright inicia el servidor local si no hay uno disponible en `http://127.0.0.
 
 ## 📖 Documentación de API
 
+La guía operativa para usuarios está en [docs/USER_GUIDE.md](./docs/USER_GUIDE.md).
+
 La referencia de endpoints y autenticación está en [docs/API.md](./docs/API.md).
 El contrato OpenAPI 3.1 se encuentra en [docs/openapi.json](./docs/openapi.json)
 y se puede importar en Swagger UI u otro visor compatible.
