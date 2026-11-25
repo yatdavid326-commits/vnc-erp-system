@@ -9,6 +9,7 @@ test('README links the user guide and API documentation', () => {
     'utf8'
   );
   assert.match(source, /docs\/USER_GUIDE\.md/);
+  assert.match(source, /docs\/FAQ\.md/);
   assert.match(source, /docs\/API\.md/);
   assert.match(source, /docs\/openapi\.json/);
 });

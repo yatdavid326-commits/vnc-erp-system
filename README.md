@@ -50,6 +50,7 @@ Playwright inicia el servidor local si no hay uno disponible en `http://127.0.0.
 
 La guía operativa para usuarios está en [docs/USER_GUIDE.md](./docs/USER_GUIDE.md).
 La guía técnica para desarrollo está en [docs/DEVELOPER_GUIDE.md](./docs/DEVELOPER_GUIDE.md).
+Las respuestas a dudas comunes están en [docs/FAQ.md](./docs/FAQ.md).
 
 La referencia de endpoints y autenticación está en [docs/API.md](./docs/API.md).
 El contrato OpenAPI 3.1 se encuentra en [docs/openapi.json](./docs/openapi.json)
