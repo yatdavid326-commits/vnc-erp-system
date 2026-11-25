@@ -12,7 +12,10 @@ const QRScanner = dynamicImport(
   { ssr: false, loading: () => <p className="text-sm text-gray-600">Cargando lector QR...</p> }
 );
 import { MAX_ATTENDANCE_QR_LENGTH } from '@/lib/utils/qrCode';
-import { getGeolocationErrorMessage } from '@/lib/utils/geolocation';
+import {
+  getGeolocationErrorMessage,
+  validateAttendanceLocation,
+} from '@/lib/utils/geolocation';
 import { useToast } from '@/components/notifications/ToastProvider';
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
@@ -128,6 +131,17 @@ export default function AsistenciaPage() {
     }
     if (!coords) {
       setError('Obtén la ubicación GPS antes de registrar la asistencia.');
+      return;
+    }
+    const locationValidation = validateAttendanceLocation(
+      coords.lat,
+      coords.lng,
+      coords.accuracy,
+      coords.timestamp
+    );
+    if (!locationValidation.ok) {
+      setError(locationValidation.error);
+      setCoords(null);
       return;
     }
 
