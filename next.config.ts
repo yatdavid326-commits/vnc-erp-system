@@ -13,6 +13,19 @@ const nextConfig: NextConfig = {
   async headers() {
     const headers = [
       {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, max-age=0, must-revalidate',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+        ],
+      },
+      {
         source: '/favicon.ico',
         headers: [
           {

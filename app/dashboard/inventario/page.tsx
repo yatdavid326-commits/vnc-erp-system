@@ -23,7 +23,8 @@ async function loadProductos(page: number, limit: number, search: string, status
     ...(lowStock && { low_stock: 'true' }),
   });
   const response = await fetch(`/api/inventario?${params}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { Accept: 'application/json' },
+    cache: 'no-store',
   });
 
   if (!response.ok) throw new Error('Failed to fetch products');

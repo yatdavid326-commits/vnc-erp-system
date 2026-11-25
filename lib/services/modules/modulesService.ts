@@ -1,6 +1,6 @@
 import { supabaseClient } from '@/lib/db/supabase';
 import type { Module, UserModule, UserModuleWithDetails } from '@/lib/types';
-import { getCachedValue, setCachedValue, clearCachedValue } from '@/lib/utils/clientCache';
+import { getCachedValue, setCachedValue } from '@/lib/utils/clientCache';
 
 export const modulesService = {
   async getAllModules(): Promise<Module[]> {
@@ -11,7 +11,7 @@ export const modulesService = {
       const response = await fetch('/api/modules/all', {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
       });
 

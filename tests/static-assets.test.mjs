@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readdirSync, existsSync } from 'node:fs';
+import { readdirSync, existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 process.env.NODE_ENV = 'production';
@@ -37,4 +37,24 @@ test('static assets use CDN-friendly cache headers', async () => {
     cacheFor('/:path*.{svg,png,jpg,jpeg,webp,avif,ico}'),
     /max-age=604800/
   );
+  assert.equal(
+    cacheFor('/api/:path*'),
+    'no-store, max-age=0, must-revalidate'
+  );
+});
+
+test('JSON GET requests do not send a body content type', () => {
+  const modulesSource = readFileSync(
+    fileURLToPath(new URL('../lib/services/modules/modulesService.ts', import.meta.url)),
+    'utf8'
+  );
+  const inventorySource = readFileSync(
+    fileURLToPath(new URL('../app/dashboard/inventario/page.tsx', import.meta.url)),
+    'utf8'
+  );
+
+  assert.doesNotMatch(modulesSource, /Content-Type:\s*['"]application\/json/);
+  assert.match(modulesSource, /Accept:\s*['"]application\/json/);
+  assert.doesNotMatch(inventorySource, /Content-Type:\s*['"]application\/json/);
+  assert.match(inventorySource, /Accept:\s*['"]application\/json/);
 });
