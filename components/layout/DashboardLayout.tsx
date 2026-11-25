@@ -18,6 +18,7 @@ const NotificationCenter = dynamicImport(
 import Sidebar from './Sidebar';
 import Link from 'next/link';
 import { clearClientCache } from '@/lib/utils/clientCache';
+import Breadcrumbs from '@/components/common/Breadcrumbs';
 import Tooltip from '@/components/common/Tooltip';
 
 export default function DashboardLayout({
@@ -198,7 +199,10 @@ export default function DashboardLayout({
 
         {/* Page Content */}
         <main className="flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-4">
-          <div className="max-w-7xl mx-auto">{children}</div>
+          <div className="max-w-7xl mx-auto">
+            <Breadcrumbs />
+            {children}
+          </div>
         </main>
       </div>
     </div>
