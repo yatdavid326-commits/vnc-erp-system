@@ -22,3 +22,8 @@ test('validateQrCodePayload rejects empty and oversized QR values', () => {
     false
   );
 });
+
+test('validateQrCodePayload rejects control characters', () => {
+  assert.equal(validateQrCodePayload('employee\u0000card').ok, false);
+  assert.equal(validateQrCodePayload('employee\ncard').ok, false);
+});

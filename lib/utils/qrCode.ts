@@ -15,5 +15,11 @@ export function validateQrCodePayload(value: string): QrCodePayloadResult {
       error: `El código QR supera el máximo de ${MAX_ATTENDANCE_QR_LENGTH} caracteres.`,
     };
   }
+  if (/[\u0000-\u001f\u007f]/.test(normalized)) {
+    return {
+      ok: false,
+      error: 'El código QR contiene caracteres no válidos.',
+    };
+  }
   return { ok: true, value: normalized };
 }
