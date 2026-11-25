@@ -31,7 +31,7 @@ export default function ConfirmDialog({
       : 'bg-amber-600 hover:bg-amber-700';
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4" role="presentation">
-      <div role="dialog" aria-modal="true" aria-labelledby="confirm-title" className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+      <div role="dialog" aria-modal="true" aria-labelledby="confirm-title" className="vnc-slide-up w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
         <h2 id="confirm-title" className="text-lg font-bold text-gray-900">{title}</h2>
         <p className="mt-2 text-sm text-gray-600">{description}</p>
         <div className="mt-6 flex justify-end gap-3">

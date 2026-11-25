@@ -56,3 +56,53 @@ html[data-theme='dark'] textarea {
   color: #f9fafb;
   border-color: #4b5563;
 }
+
+@keyframes vnc-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes vnc-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.vnc-fade-in {
+  animation: vnc-fade-in 180ms ease-out;
+}
+
+.vnc-slide-up {
+  animation: vnc-slide-up 220ms ease-out;
+}
+
+button,
+a,
+input,
+select,
+textarea,
+.vnc-transition {
+  transition-property: color, background-color, border-color, opacity, transform;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
