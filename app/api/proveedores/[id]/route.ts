@@ -2,13 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { proveedoresService } from '@/lib/services/proveedores/proveedoresService';
 import { validateRequestBody } from '@/lib/validation/requestBody';
 import { supplierUpdateSchema } from '@/lib/validation/requestSchemas';
+import { z } from 'zod';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const result = await proveedoresService.getById((await params).id);
+    const { id } = await params;
+    if (!z.string().uuid().safeParse(id).success) {
+      return NextResponse.json({ error: 'Identificador de proveedor no válido.' }, { status: 400 });
+    }
+    const result = await proveedoresService.getById(id);
     if (result.error) throw new Error(result.error);
     if (!result.data) {
       return NextResponse.json({ error: 'Supplier not found' }, { status: 404 });
@@ -28,10 +33,14 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+    if (!z.string().uuid().safeParse(id).success) {
+      return NextResponse.json({ error: 'Identificador de proveedor no válido.' }, { status: 400 });
+    }
     const parsedBody = await validateRequestBody(request, supplierUpdateSchema);
     if (!parsedBody.success) return parsedBody.response;
     const body = parsedBody.data;
-    const result = await proveedoresService.update((await params).id, body);
+    const result = await proveedoresService.update(id, body);
     if (result.error) throw new Error(result.error);
     if (!result.data) {
       return NextResponse.json({ error: 'Proveedor no encontrado.' }, { status: 404 });
@@ -51,7 +60,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const result = await proveedoresService.delete((await params).id);
+    const { id } = await params;
+    if (!z.string().uuid().safeParse(id).success) {
+      return NextResponse.json({ error: 'Identificador de proveedor no válido.' }, { status: 400 });
+    }
+    const result = await proveedoresService.delete(id);
     if (result.error) {
       if (result.error.includes('foreign key constraint')) {
         return NextResponse.json(

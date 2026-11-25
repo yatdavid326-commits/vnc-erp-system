@@ -98,14 +98,11 @@ export default function ClientesPage() {
     try {
       const url = editingId ? `/api/clientes/${editingId}` : '/api/clientes';
       const method = editingId ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
+      await fetchJson<Cliente>(url, 'No se pudo guardar el cliente.', {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-
-      if (!response.ok) throw new Error('Error al guardar cliente');
 
       showToast(
         editingId ? 'Cliente actualizado correctamente.' : 'Cliente creado correctamente.',
@@ -154,8 +151,11 @@ export default function ClientesPage() {
   const handleDelete = async (id: string) => {
     setDeleting(true);
     try {
-      const response = await fetch(`/api/clientes/${id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Error al eliminar cliente');
+      await fetchJson<{ success: true }>(
+        `/api/clientes/${id}`,
+        'No se pudo eliminar el cliente.',
+        { method: 'DELETE' }
+      );
       showToast('Cliente eliminado correctamente.', 'success');
       setDeleteTarget(null);
       await fetchClientes();

@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { customerService } from '@/lib/services/customers/customerService';
 import { validateRequestBody } from '@/lib/validation/requestBody';
 import { customerUpdateSchema } from '@/lib/validation/requestSchemas';
+import { z } from 'zod';
 
 type Context = { params: Promise<{ id: string }> };
 
 export async function GET(request: NextRequest, { params }: Context) {
   try {
-    const cliente = await customerService.getById((await params).id);
+    const { id } = await params;
+    if (!z.string().uuid().safeParse(id).success) {
+      return NextResponse.json({ error: 'Identificador de cliente no válido.' }, { status: 400 });
+    }
+    const cliente = await customerService.getById(id);
     if (!cliente) return NextResponse.json({ error: 'Cliente no encontrado.' }, { status: 404 });
     return NextResponse.json(cliente);
   } catch (error) {
@@ -18,10 +23,14 @@ export async function GET(request: NextRequest, { params }: Context) {
 
 export async function PUT(request: NextRequest, { params }: Context) {
   try {
+    const { id } = await params;
+    if (!z.string().uuid().safeParse(id).success) {
+      return NextResponse.json({ error: 'Identificador de cliente no válido.' }, { status: 400 });
+    }
     const parsedBody = await validateRequestBody(request, customerUpdateSchema);
     if (!parsedBody.success) return parsedBody.response;
 
-    const cliente = await customerService.update((await params).id, parsedBody.data);
+    const cliente = await customerService.update(id, parsedBody.data);
     if (!cliente) return NextResponse.json({ error: 'Cliente no encontrado.' }, { status: 404 });
     return NextResponse.json(cliente);
   } catch (error) {
@@ -33,6 +42,9 @@ export async function PUT(request: NextRequest, { params }: Context) {
 export async function DELETE(request: NextRequest, { params }: Context) {
   try {
     const { id } = await params;
+    if (!z.string().uuid().safeParse(id).success) {
+      return NextResponse.json({ error: 'Identificador de cliente no válido.' }, { status: 400 });
+    }
     const deleted = await customerService.delete(id);
     if (!deleted) return NextResponse.json({ error: 'Cliente no encontrado.' }, { status: 404 });
     return NextResponse.json({ success: true, id });

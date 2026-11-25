@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
-import { fetchPaginatedJson } from '@/lib/utils/fetchJson';
+import { fetchJson, fetchPaginatedJson } from '@/lib/utils/fetchJson';
 import dynamicImport from 'next/dynamic';
 import { type ProveedorFormData } from '@/components/proveedores/ProveedoresForm';
 const ProveedoresForm = dynamicImport(
@@ -93,14 +93,11 @@ export default function ProveedoresPage() {
     try {
       const url = editingId ? `/api/proveedores/${editingId}` : '/api/proveedores';
       const method = editingId ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
+      await fetchJson<Proveedor>(url, 'No se pudo guardar el proveedor.', {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-
-      if (!response.ok) throw new Error('Error al guardar proveedor');
 
       showToast(
         editingId ? 'Proveedor actualizado correctamente.' : 'Proveedor creado correctamente.',
@@ -150,8 +147,11 @@ export default function ProveedoresPage() {
   const handleDelete = async (id: string) => {
     setDeleting(true);
     try {
-      const response = await fetch(`/api/proveedores/${id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Error al eliminar proveedor');
+      await fetchJson<{ success: true }>(
+        `/api/proveedores/${id}`,
+        'No se pudo eliminar el proveedor.',
+        { method: 'DELETE' }
+      );
       showToast('Proveedor eliminado correctamente.', 'success');
       setDeleteTarget(null);
       await fetchProveedores();
