@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { clearClientCache } from '@/lib/utils/clientCache';
 import Breadcrumbs from '@/components/common/Breadcrumbs';
 import Tooltip from '@/components/common/Tooltip';
+import ThemeToggle from '@/components/common/ThemeToggle';
 
 export default function DashboardLayout({
   children,
@@ -148,6 +149,7 @@ export default function DashboardLayout({
           </div>
 
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <CsvExportButton />
             <NotificationCenter key={user.auth_id} />
             {/* User Menu */}
