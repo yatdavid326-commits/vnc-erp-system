@@ -13,6 +13,10 @@ on:
         description: Compare the saved operations backup password
         type: boolean
         default: false
+      reencrypt_original:
+        description: Re-encrypt the original operations backup
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -20,7 +24,7 @@ permissions:
 
 jobs:
   backup:
-    if: ${{ inputs.verify_original != true && inputs.compare_password != true }}
+    if: ${{ inputs.verify_original != true && inputs.compare_password != true && inputs.reencrypt_original != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -69,7 +73,7 @@ jobs:
           retention-days: 30
 
   verify-original:
-    if: ${{ inputs.verify_original == true }}
+    if: ${{ inputs.verify_original == true && inputs.compare_password != true && inputs.reencrypt_original != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -111,7 +115,7 @@ jobs:
           echo "Decryption and catalog inspection succeeded."
 
   compare-password:
-    if: ${{ inputs.compare_password == true && inputs.verify_original != true }}
+    if: ${{ inputs.compare_password == true && inputs.verify_original != true && inputs.reencrypt_original != true }}
     runs-on: ubuntu-latest
     environment: operations
     steps:
@@ -129,3 +133,53 @@ jobs:
             echo "Saved password does not match."
             exit 1
           fi
+
+  reencrypt-original:
+    if: ${{ inputs.reencrypt_original == true && inputs.verify_original != true && inputs.compare_password != true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: operations
+    steps:
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client-17
+      - name: Download original encrypted backup
+        uses: actions/download-artifact@v4
+        with:
+          name: vnc-erp-operations-20261126T032441Z.dump.enc
+          run-id: 45748702952
+          github-token: ${{ github.token }}
+          path: backup
+      - name: Re-encrypt and verify archive
+        env:
+          OLD_PASSWORD: ${{ secrets.BACKUP_ENCRYPTION_PASSWORD }}
+          NEW_PASSWORD: ${{ secrets.BACKUP_CONFIRMATION_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$OLD_PASSWORD"
+          test -n "$NEW_PASSWORD"
+          if [ "$OLD_PASSWORD" = "$NEW_PASSWORD" ]; then
+            echo "The new password must differ from the original."
+            exit 1
+          fi
+          cd backup
+          original='vnc-erp-operations-20261126T032441Z.dump.enc'
+          sha256sum --check "${original}.sha256"
+          openssl enc -d -aes-256-cbc -pbkdf2 -in "$original" -pass env:OLD_PASSWORD \
+            | openssl enc -aes-256-cbc -pbkdf2 -salt -out operations-reencrypted.dump.enc -pass env:NEW_PASSWORD
+          openssl enc -d -aes-256-cbc -pbkdf2 -in operations-reencrypted.dump.enc -pass env:NEW_PASSWORD \
+            | pg_restore --list > /dev/null
+          sha256sum operations-reencrypted.dump.enc > operations-reencrypted.dump.enc.sha256
+      - name: Upload re-encrypted backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: vnc-erp-operations-reencrypted-original
+          path: |
+            backup/operations-reencrypted.dump.enc
+            backup/operations-reencrypted.dump.enc.sha256
+          if-no-files-found: error
+          retention-days: 30
