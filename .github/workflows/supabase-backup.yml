@@ -10,7 +10,7 @@ on:
         type: boolean
         default: false
       compare_password:
-        description: Compare the saved operations backup password
+        description: Verify the saved re-encryption password
         type: boolean
         default: false
       reencrypt_original:
@@ -121,8 +121,8 @@ jobs:
     steps:
       - name: Compare saved backup password
         env:
-          ORIGINAL: ${{ secrets.BACKUP_ENCRYPTION_PASSWORD }}
-          CANDIDATE: ${{ secrets.BACKUP_CONFIRMATION_PASSWORD }}
+          ORIGINAL: ${{ secrets.BACKUP_CONFIRMATION_PASSWORD }}
+          CANDIDATE: ${{ secrets.BACKUP_SAVED_KEY_CHECK }}
         run: |
           set -eu
           test -n "$ORIGINAL"
