@@ -53,6 +53,21 @@ Una mejora no se considera promovida hasta:
 - Aplicar la misma migración en producción.
 - Verificar módulos críticos.
 
+### Línea base de operaciones
+
+La base de operaciones se inicializó a partir de una exportación **solo del esquema
+`public`** del entorno existente, que ya incluía las migraciones hasta
+`20261124000005`. Se registraron las 20 versiones existentes como línea base; no
+deben volver a ejecutarse sobre esa base. Se copiaron únicamente los diez módulos
+de configuración, sin usuarios ni datos comerciales. También se configuró la
+publicación Realtime de `notifications`.
+
+Los archivos históricos `SCHEMA.sql` y `SCHEMA_CLEAN.sql` no constituyen una línea
+base completa y no deben utilizarse por sí solos para una instalación nueva. Antes
+de crear otra instancia se necesita una línea base reproducible y revisada, o una
+restauración de esquema confiable con su historial de migraciones. Verificar
+permisos, RLS, Realtime y migraciones antes de añadir usuarios o datos.
+
 ## Futuras instalaciones por cliente
 
 Cada cliente podrá recibir su propia instancia completa:
