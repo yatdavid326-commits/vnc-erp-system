@@ -4,12 +4,19 @@ on:
   schedule:
     - cron: '15 3 * * *'
   workflow_dispatch:
+    inputs:
+      verify_original:
+        description: Verify the original backup artifacts
+        type: boolean
+        default: false
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   backup:
+    if: ${{ inputs.verify_original != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -56,3 +63,45 @@ jobs:
             *.dump.enc.sha256
           if-no-files-found: error
           retention-days: 30
+
+  verify-original:
+    if: ${{ inputs.verify_original == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - environment: operations
+            artifact: vnc-erp-operations-20261126T032441Z.dump.enc
+          - environment: staging
+            artifact: vnc-erp-staging-20261126T032452Z.dump.enc
+    environment: ${{ matrix.environment }}
+    steps:
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client-17
+      - name: Download original encrypted backup
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          run-id: 45748702952
+          github-token: ${{ github.token }}
+          path: backup
+      - name: Verify decryption and archive catalog
+        env:
+          BACKUP_ENCRYPTION_PASSWORD: ${{ secrets.BACKUP_ENCRYPTION_PASSWORD }}
+          BACKUP_NAME: ${{ matrix.artifact }}
+        run: |
+          set -euo pipefail
+          test -n "$BACKUP_ENCRYPTION_PASSWORD"
+          cd backup
+          sha256sum --check "${BACKUP_NAME}.sha256"
+          openssl enc -d -aes-256-cbc -pbkdf2 \
+            -in "$BACKUP_NAME" -pass env:BACKUP_ENCRYPTION_PASSWORD \
+            | pg_restore --list > /dev/null
+          echo "Decryption and catalog inspection succeeded."
