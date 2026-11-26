@@ -12,30 +12,40 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [staging, operations]
+    environment: ${{ matrix.environment }}
 
     steps:
       - name: Install PostgreSQL client
         run: |
           sudo apt-get update
-          sudo apt-get install --yes postgresql-client
+          sudo apt-get install --yes postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client-17
 
       - name: Create database backup
         env:
           SUPABASE_DB_CONNECTION_STRING: ${{ secrets.SUPABASE_DB_CONNECTION_STRING }}
           BACKUP_ENCRYPTION_PASSWORD: ${{ secrets.BACKUP_ENCRYPTION_PASSWORD }}
+          BACKUP_ENVIRONMENT: ${{ matrix.environment }}
         run: |
           set -euo pipefail
           test -n "$SUPABASE_DB_CONNECTION_STRING"
           test -n "$BACKUP_ENCRYPTION_PASSWORD"
           stamp="$(date -u +%Y%m%dT%H%M%SZ)"
-          echo "BACKUP_NAME=vnc-erp-${stamp}.dump.enc" >> "$GITHUB_ENV"
-          pg_dump --format=custom --no-owner --no-acl --file="vnc-erp-${stamp}.dump" "$SUPABASE_DB_CONNECTION_STRING"
+          backup="vnc-erp-${BACKUP_ENVIRONMENT}-${stamp}.dump"
+          trap 'rm -f -- "$backup"' EXIT
+          echo "BACKUP_NAME=${backup}.enc" >> "$GITHUB_ENV"
+          pg_dump --format=custom --no-owner --no-acl --file="$backup" "$SUPABASE_DB_CONNECTION_STRING"
           openssl enc -aes-256-cbc -pbkdf2 -salt \
-            -in "vnc-erp-${stamp}.dump" \
-            -out "vnc-erp-${stamp}.dump.enc" \
+            -in "$backup" \
+            -out "${backup}.enc" \
             -pass env:BACKUP_ENCRYPTION_PASSWORD
-          sha256sum "vnc-erp-${stamp}.dump.enc" > "vnc-erp-${stamp}.dump.enc.sha256"
-          rm "vnc-erp-${stamp}.dump"
+          sha256sum "${backup}.enc" > "${backup}.enc.sha256"
 
       - name: Upload encrypted backup
         uses: actions/upload-artifact@v4

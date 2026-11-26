@@ -82,3 +82,11 @@ Guardar sin secretos:
 
 Realizar una restauración de práctica al menos una vez por trimestre. Marcar el resultado
 como aprobado solo si se cumplen RPO y RTO y todas las validaciones críticas pasan.
+
+El workflow de GitHub Actions crea respaldos cifrados separados para `staging` y
+`operations`, usando el cliente PostgreSQL 17 y artefactos con el nombre del entorno.
+Configurar en **cada** GitHub Actions Environment los secretos
+`SUPABASE_DB_CONNECTION_STRING` y `BACKUP_ENCRYPTION_PASSWORD`; las conexiones deben
+apuntar exclusivamente a la base de ese entorno. La ejecución programada requiere que
+ambos entornos y sus secretos estén configurados. Confirmar una ejecución exitosa y
+una restauración aislada antes de considerar operativo el respaldo.
