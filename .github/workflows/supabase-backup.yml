@@ -9,6 +9,10 @@ on:
         description: Verify the original backup artifacts
         type: boolean
         default: false
+      compare_password:
+        description: Compare the saved operations backup password
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -16,7 +20,7 @@ permissions:
 
 jobs:
   backup:
-    if: ${{ inputs.verify_original != true }}
+    if: ${{ inputs.verify_original != true && inputs.compare_password != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -105,3 +109,23 @@ jobs:
             -in "$BACKUP_NAME" -pass env:BACKUP_ENCRYPTION_PASSWORD \
             | pg_restore --list > /dev/null
           echo "Decryption and catalog inspection succeeded."
+
+  compare-password:
+    if: ${{ inputs.compare_password == true && inputs.verify_original != true }}
+    runs-on: ubuntu-latest
+    environment: operations
+    steps:
+      - name: Compare saved backup password
+        env:
+          ORIGINAL: ${{ secrets.BACKUP_ENCRYPTION_PASSWORD }}
+          CANDIDATE: ${{ secrets.BACKUP_CONFIRMATION_PASSWORD }}
+        run: |
+          set -eu
+          test -n "$ORIGINAL"
+          test -n "$CANDIDATE"
+          if [ "$ORIGINAL" = "$CANDIDATE" ]; then
+            echo "Saved password matches."
+          else
+            echo "Saved password does not match."
+            exit 1
+          fi
